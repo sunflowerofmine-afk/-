@@ -1,0 +1,73 @@
+name: Korea Close Betting Bot
+
+on:
+  schedule:
+    - cron: "50 5 * * 1-5"   # 14:50 KST = 05:50 UTC (월~금)
+    - cron: "50 8 * * 1-5"   # 17:50 KST = 08:50 UTC (월~금)
+  workflow_dispatch:           # 수동 실행 버튼
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+
+    # reports/ 자동 커밋에 쓰기 권한 필요
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # 자동 커밋을 위해 fetch-depth 0 필요
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run pipeline
+        env:
+          TELEGRAM_BOT_TOKEN:    ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID:      ${{ secrets.TELEGRAM_CHAT_ID }}
+          GITHUB_PAGES_BASE_URL: ${{ secrets.GITHUB_PAGES_BASE_URL }}
+          TZ: Asia/Seoul
+        run: python -m scripts.pipeline
+
+      # ── 방식 A (권장): reports/ 를 main 브랜치에 자동 커밋 ──
+      # GitHub Pages 소스를 "main 브랜치 / (root)" 또는 "main 브랜치 / docs" 로
+      # 설정하면 커밋 즉시 Pages에 반영됩니다.
+      - name: Commit dashboard reports
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add reports/
+          # 변경사항 있을 때만 커밋 (없으면 exit 0)
+          git diff --cached --quiet && echo "No changes to commit" || \
+            git commit -m "chore: update dashboard reports [skip ci]"
+          git push
+
+      # ── 방식 B (대안): gh-pages 브랜치에만 배포하려면 아래 주석 해제 ──
+      # (방식 A 대신 사용, 방식 A steps는 제거할 것)
+      # - name: Deploy to gh-pages
+      #   uses: peaceiris/actions-gh-pages@v4
+      #   with:
+      #     github_token: ${{ secrets.GITHUB_TOKEN }}
+      #     publish_dir: ./reports
+      #     destination_dir: reports
+      #     keep_files: true
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bot-output-${{ github.run_id }}
+          path: |
+            data/
+            logs/
+            reports/
+          retention-days: 30

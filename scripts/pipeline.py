@@ -1,0 +1,401 @@
+# scripts/pipeline.py
+"""전체 파이프라인 메인 모듈"""
+
+import sys
+import logging
+import time
+from pathlib import Path
+
+import pandas as pd
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from config.settings import (
+    LOG_DIR, MIN_TRADING_VALUE_EOK,
+    ENABLE_NEWS_FETCH, ENABLE_SUPPLY_FETCH,
+    REQUEST_DELAY,
+    REPORTS_DIR, ENABLE_DASHBOARD, ENABLE_GITHUB_PAGES_LINK, GITHUB_PAGES_BASE_URL,
+)
+from scripts.market_calendar import get_now_kst, is_trading_day, get_run_type
+from scripts.storage import save_raw, save_processed, save_signals
+from scripts import fetch_market_data
+from scripts.fetch_stock_data import fetch_chart_data
+from scripts.fetch_supply_data import fetch_supply
+from scripts.fetch_news import fetch_news
+from scripts.indicators import (
+    is_big_candle, is_first_big_candle, is_ma_cluster,
+    is_volume_peak, is_trading_value_peak, calc_all_ma,
+)
+from scripts.pattern_detector import detect_patterns
+from scripts import ranking as rnk
+from scripts.ranking import filter_excluded_stocks
+from scripts.models import ProcessedData, SupplyData, NewsData
+from scripts.scoring import calc_score, build_checklist
+from scripts import notifier as ntf
+from scripts.dashboard import generate_dashboard_html, build_dashboard_links
+
+def _setup_logging(timestamp_str: str):
+    date_str = timestamp_str.split("_")[0]
+    log_file = LOG_DIR / f"{date_str}.log"
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s - %(message)s",
+        handlers=[
+            logging.FileHandler(log_file, encoding="utf-8"),
+            logging.StreamHandler(),
+        ],
+    )
+
+
+def _enrich_candidates(codes: list[str], all_df: pd.DataFrame) -> dict:
+    """
+    상위 후보 종목에 대해 히스토리, 지표, 패턴, 수급, 뉴스 수집.
+    반환: {code: {indicators, patterns, supply, news}}
+    """
+    enriched = {}
+
+    for code in codes:
+        enr = {"indicators": {}, "patterns": {}, "supply": SupplyData(code=code), "news": NewsData(code=code)}
+        row = all_df[all_df["종목코드"] == code]
+        if row.empty:
+            enriched[code] = enr
+            continue
+
+        row = row.iloc[0]
+        tv  = float(row.get("거래대금", 0))
+
+        # 일별 히스토리 수집 (최소 100일 → MA60/60일 최고값 계산 가능)
+        daily_df = fetch_chart_data(code)
+        time.sleep(0.2)
+
+        if not daily_df.empty:
+            daily_df_ma = calc_all_ma(daily_df)
+            row0 = daily_df_ma.iloc[0]
+
+            bc = is_big_candle(
+                open_=float(row.get("현재가", 0)),   # 시가 데이터 없을 때 현재가로 대체
+                high=float(row.get("현재가", 0)),
+                low=float(row.get("현재가", 0)),
+                close=float(row.get("현재가", 0)),
+                change_pct=float(row.get("등락률", 0)),
+                trading_value=tv,
+            )
+            fbc  = is_first_big_candle(daily_df, today_idx=0)
+            mac  = is_ma_cluster(
+                ma5=row0.get("ma5", 0), ma10=row0.get("ma10", 0),
+                ma20=row0.get("ma20", 0), ma60=row0.get("ma60"),
+            )
+            vpk  = is_volume_peak(daily_df, today_idx=0)
+            tvpk = is_trading_value_peak(daily_df, today_idx=0, today_tv=tv)
+
+            # [3] 첫 장대양봉 플래그 수정:
+            # 오늘 장대양봉(big_candle=True) AND 최근 60일 내 장대양봉 없음(first_big_candle=True)
+            first_bc_flag = bc.get("big_candle", False) and fbc.get("first_big_candle", False)
+
+            # ProcessedData 모델로 저장
+            processed = ProcessedData(
+                code=code,
+                ma5=row0.get("ma5"),  ma10=row0.get("ma10"),
+                ma20=row0.get("ma20"), ma60=row0.get("ma60"),
+                ma_cluster_flag=       mac["cluster"],
+                volume_peak_60d=       vpk,
+                trading_value_peak_60d=tvpk,
+                candle_body_ratio=     bc.get("body_ratio", 0.0),
+                upper_shadow_ratio=    bc.get("upper_tail_ratio", 0.0),
+                big_candle_flag=       bc.get("big_candle", False),
+                loose_big_candle_flag= bc.get("loose_big_candle", False),
+                first_big_candle_flag= first_bc_flag,
+                data_ok=               fbc.get("data_ok", False),
+            )
+            enr["indicators"] = {
+                **bc, **fbc,
+                "ma_cluster": mac["cluster"],
+                "ma_details": mac,
+                "vol_peak":   vpk,
+                "tv_peak":    tvpk,
+            }
+            enr["processed"] = processed
+
+            pat = detect_patterns(
+                code=code,
+                today_open=float(row.get("현재가", 0)),
+                today_high=float(row.get("현재가", 0)),
+                today_low=float(row.get("현재가", 0)),
+                today_close=float(row.get("현재가", 0)),
+                today_change_pct=float(row.get("등락률", 0)),
+                today_tv=tv,
+                daily_df=daily_df,
+            )
+            enr["patterns"] = pat
+
+        # 수급
+        if ENABLE_SUPPLY_FETCH:
+            try:
+                enr["supply"] = fetch_supply(code)
+                time.sleep(REQUEST_DELAY)
+            except Exception as e:
+                logging.getLogger(__name__).warning(f"[{code}] 수급 예외: {e}")
+
+        # 뉴스 → NewsData 모델
+        news_obj = NewsData(code=code)
+        if ENABLE_NEWS_FETCH:
+            try:
+                news_obj = fetch_news(code)
+                time.sleep(REQUEST_DELAY)
+            except Exception as e:
+                logging.getLogger(__name__).warning(f"[{code}] 뉴스 예외: {e}")
+        enr["news"] = news_obj
+
+        enriched[code] = enr
+
+    return enriched
+
+
+def run():
+    now = get_now_kst()
+    timestamp_str = now.strftime("%Y-%m-%d_%H%M")
+    _setup_logging(timestamp_str)
+    logger = logging.getLogger(__name__)
+    run_time = now.strftime("%Y-%m-%d %H:%M")
+    run_type = get_run_type(now)
+
+    logger.info(f"=== 파이프라인 시작: {run_time} KST ({run_type}) ===")
+
+    # ── 비거래일 체크 ────────────────────────────────────────
+    if not is_trading_day(now.date()):
+        msg = (
+            f"<b>[종가베팅 봇]</b>\n"
+            f"{run_time} KST\n"
+            f"오늘은 비거래일(주말/공휴일)입니다. 수집을 건너뜁니다."
+        )
+        ntf.send_message(msg)
+        logger.info("비거래일 → 종료")
+        return
+
+    # ── 1. 전 종목 수집 ──────────────────────────────────────
+    logger.info("전 종목 데이터 수집 시작...")
+    raw_data = fetch_market_data.run()
+
+    if not raw_data:
+        ntf.send_message(f"<b>[오류]</b> {run_time} KST\n데이터 수집 실패")
+        logger.error("수집 실패 → 종료")
+        return
+
+    # raw 저장
+    for market_name, df in raw_data.items():
+        save_raw(df, market_name, timestamp_str)
+
+    # 전체 합치기
+    all_df = pd.concat(raw_data.values(), ignore_index=True)
+
+    # ── 2. 제외 필터 + 1차 가격 필터 (raw 저장 이후 적용) ──────
+    filtered_df = filter_excluded_stocks(all_df)
+    filtered_df = rnk.apply_price_filter(filtered_df)
+
+    # ── 3. 랭킹 계산 ────────────────────────────────────────
+    market_totals = rnk.calc_market_total(
+        raw_data.get("KOSPI", pd.DataFrame()),
+        raw_data.get("KOSDAQ", pd.DataFrame()),
+    )
+    gainers      = rnk.get_top_gainers(filtered_df)
+    top_tv       = rnk.get_top_trading_value(filtered_df)
+    intersection = rnk.get_intersection(gainers, top_tv)
+
+    # processed 저장
+    save_processed(gainers,      "top_gainers",  timestamp_str)
+    save_processed(top_tv,       "top_tv",        timestamp_str)
+    save_processed(intersection, "intersection",  timestamp_str)
+
+    logger.info(
+        f"랭킹 계산 완료 - 상승률Top{len(gainers)} / "
+        f"거래대금Top{len(top_tv)} / 교집합{len(intersection)}"
+    )
+
+    # ── 4. report_data 기본 구조 (1차/2차 공통) ──────────────
+    report_date   = now.strftime("%Y-%m-%d")
+    snapshot_time = {"1차": "1450", "2차": "1750"}.get(run_type, timestamp_str.split("_")[1])
+    report_data = {
+        "metadata": {
+            "date":          report_date,
+            "snapshot_time": snapshot_time,
+            "run_time":      run_time,
+            "run_type":      run_type,
+        },
+        "market_summary": {
+            "kospi_tv_eok":       market_totals.get("kospi_total_tv_eok",  0),
+            "kosdaq_tv_eok":      market_totals.get("kosdaq_total_tv_eok", 0),
+            "gainers_count":      len(gainers),
+            "tv_count":           len(top_tv),
+            "intersection_count": len(intersection) if not intersection.empty else 0,
+            "core_count":         0,
+        },
+        "gainers_top20":          gainers.to_dict("records")      if not gainers.empty      else [],
+        "trading_value_top20":    top_tv.to_dict("records")       if not top_tv.empty       else [],
+        "intersection_candidates": intersection.to_dict("records") if not intersection.empty else [],
+        "core_candidates":        [],
+        "rejected_candidates":    [],
+    }
+
+    # ── 5. 1차 알림 (지표 없이 빠르게) ──────────────────────
+    if run_type == "1차":
+        # 대시보드 생성
+        dashboard_links = {}
+        if ENABLE_DASHBOARD:
+            dated_path  = REPORTS_DIR / f"{report_date}_{snapshot_time}.html"
+            latest_path = REPORTS_DIR / f"latest_{snapshot_time}.html"
+            generate_dashboard_html(report_data, dated_path, latest_path)
+            if ENABLE_GITHUB_PAGES_LINK:
+                dashboard_links = build_dashboard_links(report_date, snapshot_time, GITHUB_PAGES_BASE_URL)
+
+        msg = ntf.build_first_alert(
+            market_totals, gainers, top_tv, intersection, run_time,
+            dashboard_links=dashboard_links,
+        )
+        ntf.send_message(msg)
+        logger.info("1차 알림 전송 완료")
+
+    # ── 6. 상위 후보 지표/패턴/수급/뉴스 수집 (2차 또는 수동) ──
+    if run_type in ("2차", "수동"):
+        # [5] STEP 2: 상세 수집 대상 = 상승률 상위20 ∪ 거래대금 상위20 (최대 40개)
+        # 시간 단축: 100 → 20씩으로 압축 (교집합 + 패턴 탐지에 충분한 범위)
+        top20_gainers = filtered_df[filtered_df["등락률"] > 0].nlargest(20, "등락률")
+        top20_tv      = filtered_df.nlargest(20, "거래대금")
+        candidate_codes = list(set(
+            list(top20_gainers["종목코드"].dropna()) +
+            list(top20_tv["종목코드"].dropna())
+        ))
+
+        logger.info(f"후보 종목 {len(candidate_codes)}개 지표 수집 시작 (상승률20 ∪ 거래대금20)...")
+        enriched = _enrich_candidates(candidate_codes, filtered_df)
+
+        key_candidates    = []
+        rejected_list     = []
+        MIN_TV_WON = MIN_TRADING_VALUE_EOK * 100_000_000  # 원 단위 (1500억)
+        inter_codes = set(intersection["종목코드"].dropna() if not intersection.empty else [])
+
+        for code in candidate_codes:
+            row = filtered_df[filtered_df["종목코드"] == code]
+            if row.empty:
+                continue
+            row = row.iloc[0]
+            tv  = float(row.get("거래대금", 0))
+            name = row.get("종목명", "")
+
+            # [9] 거래대금 필터: 원 단위로 비교 (1500억 = 150_000_000_000원)
+            if tv < MIN_TV_WON:
+                rejected_list.append({"code": code, "name": name, "reason": f"거래대금 부족 ({tv/1e8:.0f}억)"})
+                continue
+
+            enr       = enriched.get(code, {})
+            processed = enr.get("processed", ProcessedData(code=code))
+            supply    = enr.get("supply",    SupplyData(code=code))
+            news      = enr.get("news",      NewsData(code=code))
+            pat       = enr.get("patterns",  {})
+
+            in_inter    = code in inter_codes
+            has_pattern = pat.get("pattern_summary", "없음") != "없음"
+
+            # [2] 핵심 후보 조건: (교집합 OR 패턴 존재) AND 거래대금 >= 1500억
+            if not in_inter and not has_pattern:
+                rejected_list.append({"code": code, "name": name, "reason": "패턴 없음 + 교집합 아님"})
+                continue
+
+            # 체크리스트 / 점수 계산 (정렬 및 출력에만 사용)
+            checklist = build_checklist(code, tv, processed, supply)
+            score     = calc_score(
+                code=code, trading_value=tv,
+                processed=processed, supply=supply, news=news,
+                in_intersection=in_inter,
+            )
+
+            # [7] 수급 실패 시 supply_ok=False 처리
+            supply_ok = checklist.supply_ok
+
+            key_candidates.append({
+                "name":          row.get("종목명", ""),
+                "code":          code,
+                "market":        row.get("시장", ""),
+                "change_pct":    float(row.get("등락률", 0)),
+                "trading_value": tv,
+                "indicators":    enr.get("indicators", {}),
+                "patterns":      pat,
+                "supply":        supply,
+                "news":          news,
+                "score":         score,
+                "checklist":     checklist,
+                "in_inter":      in_inter,
+                "has_pattern":   has_pattern,
+                "supply_ok":     supply_ok,
+            })
+
+        # [2] 정렬 우선순위: 교집합 > total_score > 패턴 수 > supply_ok > 거래대금 > 상승률
+        # [7] supply_ok=False는 후순위
+        def _priority(item):
+            pat  = item.get("patterns", {})
+            sc   = item.get("score")
+            tv   = item.get("trading_value", 0)
+            cr   = item.get("change_pct", 0)
+            pattern_cnt = sum([pat.get("pattern1", False),
+                               pat.get("pattern2", False),
+                               pat.get("pattern3", False)])
+            total = sc.total_score if sc else 0
+            return (
+                not item["in_inter"],    # 교집합 우선
+                -total,                  # total_score 높을수록 우선
+                -pattern_cnt,            # 패턴 많을수록 우선
+                not item["supply_ok"],   # supply_ok=True 우선
+                -tv,
+                -cr,
+            )
+
+        key_candidates.sort(key=_priority)
+
+        # 시그널 저장
+        if key_candidates:
+            sig_df = pd.DataFrame([{
+                "종목명":         c["name"],
+                "종목코드":       c["code"],
+                "시장":           c["market"],
+                "등락률":         c["change_pct"],
+                "거래대금":       c["trading_value"],
+                "패턴":           c["patterns"].get("pattern_summary", ""),
+                "total_score":    c["score"].total_score if c.get("score") else 0,
+                "checklist_pass": c["checklist"].required_pass_count if c.get("checklist") else 0,
+                "run_time":       run_time,
+                "run_type":       run_type,
+            } for c in key_candidates])
+            save_signals(sig_df, timestamp_str)
+
+        # ── 대시보드 생성 (실패해도 파이프라인 계속) ──────────
+        report_data["market_summary"]["core_count"] = len(key_candidates)
+        report_data["core_candidates"]   = key_candidates
+        report_data["rejected_candidates"] = rejected_list
+
+        dashboard_links = {}
+        if ENABLE_DASHBOARD:
+            try:
+                latest_name = f"latest_{snapshot_time}.html" if run_type in ("1차", "2차") else "latest.html"
+                dated_path  = REPORTS_DIR / f"{report_date}_{snapshot_time}.html"
+                latest_path = REPORTS_DIR / latest_name
+                generate_dashboard_html(report_data, dated_path, latest_path)
+                if ENABLE_GITHUB_PAGES_LINK:
+                    dashboard_links = build_dashboard_links(
+                        report_date, snapshot_time, GITHUB_PAGES_BASE_URL
+                    )
+            except Exception as e:
+                logger.warning(f"대시보드 생성 중 오류 (무시): {e}")
+
+        # 2차 알림
+        msg = ntf.build_second_alert(
+            market_totals, gainers, top_tv, intersection,
+            key_candidates, run_time, enriched,
+            dashboard_links=dashboard_links,
+        )
+        ntf.send_message(msg)
+        logger.info(f"2차 알림 전송 완료 (핵심 후보 {len(key_candidates)}개)")
+
+    logger.info("=== 파이프라인 완료 ===")
+
+
+if __name__ == "__main__":
+    run()
