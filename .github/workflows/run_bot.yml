@@ -34,7 +34,7 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN:    ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID:      ${{ secrets.TELEGRAM_CHAT_ID }}
-          GITHUB_PAGES_BASE_URL: ${{ secrets.GITHUB_PAGES_BASE_URL }}
+          PAGES_BASE_URL: ${{ secrets.PAGES_BASE_URL }}
           TZ: Asia/Seoul
         run: python -m scripts.pipeline
 

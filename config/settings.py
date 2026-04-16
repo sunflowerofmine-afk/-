@@ -79,6 +79,6 @@ NEWS_SCORE_ENABLED                  = True
 USE_LLM_NEWS                        = False
 
 # ── 대시보드 / GitHub Pages ─────────────────────────────────
-GITHUB_PAGES_BASE_URL               = os.getenv("GITHUB_PAGES_BASE_URL", "")
+GITHUB_PAGES_BASE_URL               = os.getenv("PAGES_BASE_URL", "")
 ENABLE_DASHBOARD                    = True
 ENABLE_GITHUB_PAGES_LINK            = True
