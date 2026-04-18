@@ -204,6 +204,74 @@ tbody tr:hover td { background: var(--bg3); }
 .rejected-item .r-name { font-weight: 600; margin-bottom: 2px; }
 .rejected-item .r-reason { color: var(--red); font-size: 11px; }
 
+/* ── 시장 요약 ── */
+.market-summary {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-bottom: 16px;
+}
+.ms-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 10px;
+    margin-bottom: 12px;
+}
+.ms-item { text-align: center; }
+.ms-label { font-size: 11px; color: var(--muted); margin-bottom: 3px; }
+.ms-value { font-size: 20px; font-weight: 700; color: var(--text); }
+.judgment-ok {
+    display: inline-block;
+    background: var(--green-bg);
+    color: var(--green);
+    border: 1px solid var(--green);
+    border-radius: 6px;
+    padding: 4px 16px;
+    font-size: 15px;
+    font-weight: 700;
+}
+.judgment-ng {
+    display: inline-block;
+    background: var(--yellow-bg);
+    color: var(--yellow);
+    border: 1px solid var(--yellow);
+    border-radius: 6px;
+    padding: 4px 16px;
+    font-size: 15px;
+    font-weight: 700;
+}
+
+/* ── 관찰 후보 ── */
+.watch-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 10px;
+    margin-bottom: 8px;
+}
+.watch-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+}
+.watch-card .name { font-weight: 600; font-size: 14px; }
+.watch-card .code { color: var(--muted); font-size: 11px; margin-left: 6px; }
+.watch-body { margin-top: 6px; font-size: 13px; color: var(--muted); }
+.watch-note { font-size: 11px; color: var(--yellow); font-weight: 400; margin-left: 8px; }
+
+/* ── 탈락 요약 ── */
+.rejected-summary {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 8px;
+}
+.rejected-summary span { margin-right: 16px; }
+
 /* ── 없음 메시지 ── */
 .empty-msg {
     background: var(--bg2);
@@ -239,7 +307,7 @@ a:hover { text-decoration: underline; }
   <div class="tbl-wrap">
     <table>
       <thead><tr><th>날짜</th><th>리포트</th></tr></thead>
-      <tbody><tr><td class="idx-date">2026-04-17</td><td class="idx-links"><a href="reports/2026-04-17_0753.html">0753</a> &nbsp;·&nbsp; <a href="reports/2026-04-17_1901.html">1901</a> &nbsp;·&nbsp; <a href="reports/2026-04-17_2039.html">2039</a></td></tr></tbody>
+      <tbody><tr><td class="idx-date">2026-04-17</td><td class="idx-links"><a href="reports/2026-04-17_0626.html">0626</a> &nbsp;·&nbsp; <a href="reports/2026-04-17_0753.html">0753</a> &nbsp;·&nbsp; <a href="reports/2026-04-17_1901.html">1901</a> &nbsp;·&nbsp; <a href="reports/2026-04-17_2039.html">2039</a></td></tr></tbody>
     </table>
   </div>
 </div>
