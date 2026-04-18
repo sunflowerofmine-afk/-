@@ -388,6 +388,74 @@ tbody tr:hover td { background: var(--bg3); }
 .rejected-item .r-name { font-weight: 600; margin-bottom: 2px; }
 .rejected-item .r-reason { color: var(--red); font-size: 11px; }
 
+/* ── 시장 요약 ── */
+.market-summary {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-bottom: 16px;
+}
+.ms-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 10px;
+    margin-bottom: 12px;
+}
+.ms-item { text-align: center; }
+.ms-label { font-size: 11px; color: var(--muted); margin-bottom: 3px; }
+.ms-value { font-size: 20px; font-weight: 700; color: var(--text); }
+.judgment-ok {
+    display: inline-block;
+    background: var(--green-bg);
+    color: var(--green);
+    border: 1px solid var(--green);
+    border-radius: 6px;
+    padding: 4px 16px;
+    font-size: 15px;
+    font-weight: 700;
+}
+.judgment-ng {
+    display: inline-block;
+    background: var(--yellow-bg);
+    color: var(--yellow);
+    border: 1px solid var(--yellow);
+    border-radius: 6px;
+    padding: 4px 16px;
+    font-size: 15px;
+    font-weight: 700;
+}
+
+/* ── 관찰 후보 ── */
+.watch-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 10px;
+    margin-bottom: 8px;
+}
+.watch-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+}
+.watch-card .name { font-weight: 600; font-size: 14px; }
+.watch-card .code { color: var(--muted); font-size: 11px; margin-left: 6px; }
+.watch-body { margin-top: 6px; font-size: 13px; color: var(--muted); }
+.watch-note { font-size: 11px; color: var(--yellow); font-weight: 400; margin-left: 8px; }
+
+/* ── 탈락 요약 ── */
+.rejected-summary {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 8px;
+}
+.rejected-summary span { margin-right: 16px; }
+
 /* ── 없음 메시지 ── */
 .empty-msg {
     background: var(--bg2);
@@ -439,6 +507,80 @@ def _section_header(data: dict) -> str:
   </div>
 </div>
 """
+
+
+def _section_market_summary(data: dict) -> str:
+    m = data.get("market_summary", {})
+    kospi_tv          = m.get("kospi_tv_eok", 0)
+    kosdaq_tv         = m.get("kosdaq_tv_eok", 0)
+    tv_1500           = m.get("tv_1500_count", 0)
+    gainers_tv_1500   = m.get("gainers_tv_1500_count", 0)
+
+    if gainers_tv_1500 >= 3:
+        judgment_html = '<span class="judgment-ok">✅ 종베 가능</span>'
+    else:
+        judgment_html = '<span class="judgment-ng">⚠️ 종베 비우호</span>'
+
+    return f"""
+<div class="section-title">📊 시장 요약</div>
+<div class="market-summary">
+  <div class="ms-grid">
+    <div class="ms-item"><div class="ms-label">코스피 거래대금</div><div class="ms-value">{kospi_tv:,.0f}억</div></div>
+    <div class="ms-item"><div class="ms-label">코스닥 거래대금</div><div class="ms-value">{kosdaq_tv:,.0f}억</div></div>
+    <div class="ms-item"><div class="ms-label">1500억↑ 종목 수</div><div class="ms-value">{tv_1500}개</div></div>
+    <div class="ms-item"><div class="ms-label">상승Top20 중 1500억↑</div><div class="ms-value">{gainers_tv_1500}개</div></div>
+  </div>
+  {judgment_html}
+</div>
+"""
+
+
+def _section_watch_candidates(rejected: list) -> str:
+    watches = sorted(
+        [r for r in rejected if "패턴 없음" in r.get("reason", "")],
+        key=lambda x: x.get("trading_value", 0),
+        reverse=True,
+    )[:3]
+    if not watches:
+        return ""
+
+    cards = []
+    for c in watches:
+        tv  = c.get("trading_value", 0)
+        chg = float(c.get("change_pct", 0))
+        chg_cls = "pos" if chg >= 0 else "neg"
+        cards.append(
+            f'<div class="watch-card">'
+            f'<div><span class="name">{_e(c.get("name",""))}</span>'
+            f'<span class="code">{_e(c.get("code",""))}</span></div>'
+            f'<div class="watch-body">'
+            f'거래대금 <strong>{_tv_eok(tv)}</strong>'
+            f' &nbsp;·&nbsp; 등락률 <strong class="{chg_cls}">{_sign(chg)}</strong>'
+            f'</div></div>'
+        )
+    return (
+        '<div class="section-title">👁 관찰 후보'
+        '<span class="watch-note">매수 후보 아님 · 관찰용</span></div>'
+        f'<div class="watch-grid">{"".join(cards)}</div>'
+    )
+
+
+def _section_rejected_summary(rejected: list) -> str:
+    if not rejected:
+        return ""
+    counts: dict[str, int] = {}
+    for r in rejected:
+        reason = r.get("reason", "기타")
+        if "거래대금 부족" in reason:
+            key = "거래대금 부족"
+        elif "패턴 없음" in reason:
+            key = "패턴 없음 + 교집합 아님"
+        else:
+            key = reason
+        counts[key] = counts.get(key, 0) + 1
+
+    items = " ".join(f'<span>{_e(k)}: {v}개</span>' for k, v in counts.items())
+    return f'<div class="section-title">🚫 탈락 요약</div><div class="rejected-summary">{items}</div>'
 
 
 def _section_summary_cards(data: dict) -> str:
@@ -642,15 +784,22 @@ def _build_html(data: dict) -> str:
     snap     = _e(meta.get("snapshot_time", "-"))
     run_type = _e(meta.get("run_type", "-"))
 
-    body = "\n".join([
+    core = data.get("core_candidates", [])
+    rejected = data.get("rejected_candidates", [])
+    body_parts = [
         _section_header(data),
-        _section_summary_cards(data),
-        _section_core_candidates(data.get("core_candidates", [])),
+        _section_market_summary(data),
+        _section_core_candidates(core),
+    ]
+    if not core:
+        body_parts.append(_section_watch_candidates(rejected))
+    body_parts += [
         _section_table_intersection(data.get("intersection_candidates", [])),
+        _section_rejected_summary(rejected),
         _section_table_gainers(data.get("gainers_top20", [])),
         _section_table_tv(data.get("trading_value_top20", [])),
-        _section_rejected(data.get("rejected_candidates", [])),
-    ])
+    ]
+    body = "\n".join(body_parts)
 
     return f"""<!DOCTYPE html>
 <html lang="ko">

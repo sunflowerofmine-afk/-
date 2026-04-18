@@ -214,6 +214,11 @@ def run():
     # ── 4. report_data 기본 구조 (1차/2차 공통) ──────────────
     report_date   = now.strftime("%Y-%m-%d")
     snapshot_time = {"1차": "1450", "2차": "1750"}.get(run_type, timestamp_str.split("_")[1])
+
+    _min_tv_won = MIN_TRADING_VALUE_EOK * 100_000_000
+    tv_1500_count = int((filtered_df["거래대금"] >= _min_tv_won).sum()) if not filtered_df.empty else 0
+    gainers_tv_1500_count = int((gainers["거래대금"] >= _min_tv_won).sum()) if not gainers.empty else 0
+
     report_data = {
         "metadata": {
             "date":          report_date,
@@ -222,12 +227,14 @@ def run():
             "run_type":      run_type,
         },
         "market_summary": {
-            "kospi_tv_eok":       market_totals.get("kospi_total_tv_eok",  0),
-            "kosdaq_tv_eok":      market_totals.get("kosdaq_total_tv_eok", 0),
-            "gainers_count":      len(gainers),
-            "tv_count":           len(top_tv),
-            "intersection_count": len(intersection) if not intersection.empty else 0,
-            "core_count":         0,
+            "kospi_tv_eok":           market_totals.get("kospi_total_tv_eok",  0),
+            "kosdaq_tv_eok":          market_totals.get("kosdaq_total_tv_eok", 0),
+            "tv_1500_count":          tv_1500_count,
+            "gainers_tv_1500_count":  gainers_tv_1500_count,
+            "gainers_count":          len(gainers),
+            "tv_count":               len(top_tv),
+            "intersection_count":     len(intersection) if not intersection.empty else 0,
+            "core_count":             0,
         },
         "gainers_top20":          gainers.to_dict("records")      if not gainers.empty      else [],
         "trading_value_top20":    top_tv.to_dict("records")       if not top_tv.empty       else [],
@@ -283,7 +290,8 @@ def run():
 
             # [9] 거래대금 필터: 원 단위로 비교 (1500억 = 150_000_000_000원)
             if tv < MIN_TV_WON:
-                rejected_list.append({"code": code, "name": name, "reason": f"거래대금 부족 ({tv/1e8:.0f}억)"})
+                rejected_list.append({"code": code, "name": name, "reason": f"거래대금 부족 ({tv/1e8:.0f}억)",
+                                      "trading_value": tv, "change_pct": float(row.get("등락률", 0))})
                 continue
 
             enr       = enriched.get(code, {})
@@ -297,7 +305,8 @@ def run():
 
             # [2] 핵심 후보 조건: (교집합 OR 패턴 존재) AND 거래대금 >= 1500억
             if not in_inter and not has_pattern:
-                rejected_list.append({"code": code, "name": name, "reason": "패턴 없음 + 교집합 아님"})
+                rejected_list.append({"code": code, "name": name, "reason": "패턴 없음 + 교집합 아님",
+                                      "trading_value": tv, "change_pct": float(row.get("등락률", 0))})
                 continue
 
             # 체크리스트 / 점수 계산 (정렬 및 출력에만 사용)
