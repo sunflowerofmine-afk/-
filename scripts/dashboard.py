@@ -34,6 +34,77 @@ def generate_dashboard_html(
         return False
 
 
+def generate_index_html(reports_dir: Path) -> bool:
+    """
+    reports/ 폴더의 YYYY-MM-DD_HHMM.html 파일을 스캔해
+    날짜별 목록 index.html 생성.
+    """
+    import re
+    pattern = re.compile(r"^(\d{4}-\d{2}-\d{2})_(\d{4})\.html$")
+
+    by_date: dict[str, list[tuple[str, str]]] = {}
+    try:
+        for f in sorted(reports_dir.glob("*.html"), reverse=True):
+            m = pattern.match(f.name)
+            if not m:
+                continue
+            date_str, time_str = m.group(1), m.group(2)
+            label_map = {"1450": "1차 (14:50)", "1750": "2차 (17:50)"}
+            label = label_map.get(time_str, time_str)
+            by_date.setdefault(date_str, []).append((label, f"reports/{f.name}"))
+
+        rows = []
+        for date_str in sorted(by_date.keys(), reverse=True):
+            links_html = " &nbsp;·&nbsp; ".join(
+                f'<a href="{href}">{lbl}</a>'
+                for lbl, href in sorted(by_date[date_str])
+            )
+            rows.append(
+                f'<tr><td class="idx-date">{date_str}</td>'
+                f'<td class="idx-links">{links_html}</td></tr>'
+            )
+
+        rows_html = "\n".join(rows) if rows else "<tr><td colspan='2' style='color:var(--muted);text-align:center'>데이터 없음</td></tr>"
+
+        html = f"""<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>종가베팅 대시보드</title>
+<style>
+{_css()}
+a {{ color: var(--blue); text-decoration: none; }}
+a:hover {{ text-decoration: underline; }}
+.idx-date {{ font-weight: 600; white-space: nowrap; padding: 10px 16px; }}
+.idx-links {{ padding: 10px 16px; }}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="page-header">
+    <h1>📈 종가베팅 대시보드</h1>
+    <div class="meta">날짜를 선택하면 해당일 리포트를 볼 수 있습니다.</div>
+  </div>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>날짜</th><th>리포트</th></tr></thead>
+      <tbody>{rows_html}</tbody>
+    </table>
+  </div>
+</div>
+</body>
+</html>"""
+
+        index_path = reports_dir.parent / "index.html"
+        index_path.write_text(html, encoding="utf-8")
+        logger.info(f"인덱스 생성: {index_path}")
+        return True
+    except Exception as e:
+        logger.error(f"인덱스 생성 실패: {e}", exc_info=True)
+        return False
+
+
 def build_dashboard_links(report_date: str, snapshot_time: str, base_url: str) -> dict:
     """
     GitHub Pages 링크 생성.

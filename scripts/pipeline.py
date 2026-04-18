@@ -32,7 +32,7 @@ from scripts.ranking import filter_excluded_stocks
 from scripts.models import ProcessedData, SupplyData, NewsData
 from scripts.scoring import calc_score, build_checklist
 from scripts import notifier as ntf
-from scripts.dashboard import generate_dashboard_html, build_dashboard_links
+from scripts.dashboard import generate_dashboard_html, build_dashboard_links, generate_index_html
 
 def _setup_logging(timestamp_str: str):
     date_str = timestamp_str.split("_")[0]
@@ -393,6 +393,12 @@ def run():
         )
         ntf.send_message(msg)
         logger.info(f"2차 알림 전송 완료 (핵심 후보 {len(key_candidates)}개)")
+
+    if ENABLE_DASHBOARD:
+        try:
+            generate_index_html(REPORTS_DIR)
+        except Exception as e:
+            logger.warning(f"인덱스 생성 중 오류 (무시): {e}")
 
     logger.info("=== 파이프라인 완료 ===")
 
