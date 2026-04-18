@@ -50,7 +50,7 @@ def generate_index_html(reports_dir: Path) -> bool:
                 continue
             date_str, time_str = m.group(1), m.group(2)
             label_map = {"1450": "1차 (14:50)", "1750": "2차 (17:50)"}
-            label = label_map.get(time_str, time_str)
+            label = label_map.get(time_str, f"수동 {time_str[:2]}:{time_str[2:]}")
             by_date.setdefault(date_str, []).append((label, f"reports/{f.name}"))
 
         rows = []
