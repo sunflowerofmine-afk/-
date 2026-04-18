@@ -203,6 +203,74 @@ tbody tr:hover td { background: var(--bg3); }
 .rejected-item .r-name { font-weight: 600; margin-bottom: 2px; }
 .rejected-item .r-reason { color: var(--red); font-size: 11px; }
 
+/* ── 시장 요약 ── */
+.market-summary {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-bottom: 16px;
+}
+.ms-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 10px;
+    margin-bottom: 12px;
+}
+.ms-item { text-align: center; }
+.ms-label { font-size: 11px; color: var(--muted); margin-bottom: 3px; }
+.ms-value { font-size: 20px; font-weight: 700; color: var(--text); }
+.judgment-ok {
+    display: inline-block;
+    background: var(--green-bg);
+    color: var(--green);
+    border: 1px solid var(--green);
+    border-radius: 6px;
+    padding: 4px 16px;
+    font-size: 15px;
+    font-weight: 700;
+}
+.judgment-ng {
+    display: inline-block;
+    background: var(--yellow-bg);
+    color: var(--yellow);
+    border: 1px solid var(--yellow);
+    border-radius: 6px;
+    padding: 4px 16px;
+    font-size: 15px;
+    font-weight: 700;
+}
+
+/* ── 관찰 후보 ── */
+.watch-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 10px;
+    margin-bottom: 8px;
+}
+.watch-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+}
+.watch-card .name { font-weight: 600; font-size: 14px; }
+.watch-card .code { color: var(--muted); font-size: 11px; margin-left: 6px; }
+.watch-body { margin-top: 6px; font-size: 13px; color: var(--muted); }
+.watch-note { font-size: 11px; color: var(--yellow); font-weight: 400; margin-left: 8px; }
+
+/* ── 탈락 요약 ── */
+.rejected-summary {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 8px;
+}
+.rejected-summary span { margin-right: 16px; }
+
 /* ── 없음 메시지 ── */
 .empty-msg {
     background: var(--bg2);
@@ -241,12 +309,24 @@ tbody tr:hover td { background: var(--bg3); }
   </div>
 </div>
 
-<div class="summary-grid"><div class="summary-card"><div class="label">코스피 거래대금</div><div class="value">550,624억</div></div><div class="summary-card"><div class="label">코스닥 거래대금</div><div class="value">64,884억</div></div><div class="summary-card"><div class="label">상승률 Top</div><div class="value">20종목</div></div><div class="summary-card"><div class="label">거래대금 Top</div><div class="value">20종목</div></div><div class="summary-card"><div class="label">교집합 후보</div><div class="value">0개</div></div><div class="summary-card"><div class="label">핵심 후보</div><div class="value">0개</div></div></div>
+
+<div class="section-title">📊 시장 요약</div>
+<div class="market-summary">
+  <div class="ms-grid">
+    <div class="ms-item"><div class="ms-label">코스피 거래대금</div><div class="ms-value">550,624억</div></div>
+    <div class="ms-item"><div class="ms-label">코스닥 거래대금</div><div class="ms-value">64,884억</div></div>
+    <div class="ms-item"><div class="ms-label">1500억↑ 종목 수</div><div class="ms-value">60개</div></div>
+    <div class="ms-item"><div class="ms-label">상승Top20 중 1500억↑</div><div class="ms-value">0개</div></div>
+  </div>
+  <span class="judgment-ng">⚠️ 종베 비우호</span>
+</div>
+
 <div class="section-title">🎯 핵심 후보</div><div class="empty-msg">조건 충족 핵심 후보 없음</div>
+
 <div class="section-title">🔀 교집합 후보</div><div class="empty-msg">교집합 없음</div>
-<div class="section-title">📊 상승률 Top20</div><div class="tbl-wrap"><table><thead><tr><th>#</th><th>종목명</th><th>코드</th><th>시장</th><th>등락률</th><th>거래대금</th></tr></thead><tbody><tr><td>1</td><td class="td-name">기가레인</td><td class="td-code">049080</td><td>KOSDAQ</td><td class="td-pos">+30.00%</td><td>22억</td></tr><tr><td>2</td><td class="td-name">수젠텍</td><td class="td-code">253840</td><td>KOSDAQ</td><td class="td-pos">+30.00%</td><td>11억</td></tr><tr><td>3</td><td class="td-name">STX엔진</td><td class="td-code">077970</td><td>KOSPI</td><td class="td-pos">+29.99%</td><td>177억</td></tr><tr><td>4</td><td class="td-name">조이웍스앤코</td><td class="td-code">309930</td><td>KOSDAQ</td><td class="td-pos">+29.99%</td><td>4억</td></tr><tr><td>5</td><td class="td-name">셀리드</td><td class="td-code">299660</td><td>KOSDAQ</td><td class="td-pos">+29.98%</td><td>11억</td></tr><tr><td>6</td><td class="td-name">빛과전자</td><td class="td-code">069540</td><td>KOSDAQ</td><td class="td-pos">+29.93%</td><td>57억</td></tr><tr><td>7</td><td class="td-name">진원생명과학</td><td class="td-code">011000</td><td>KOSPI</td><td class="td-pos">+29.89%</td><td>9억</td></tr><tr><td>8</td><td class="td-name">와이제이링크</td><td class="td-code">209640</td><td>KOSDAQ</td><td class="td-pos">+29.82%</td><td>17억</td></tr><tr><td>9</td><td class="td-name">신풍제약</td><td class="td-code">019170</td><td>KOSPI</td><td class="td-pos">+26.48%</td><td>74억</td></tr><tr><td>10</td><td class="td-name">오상헬스케어</td><td class="td-code">036220</td><td>KOSDAQ</td><td class="td-pos">+25.98%</td><td>16억</td></tr><tr><td>11</td><td class="td-name">아이진</td><td class="td-code">185490</td><td>KOSDAQ</td><td class="td-pos">+23.21%</td><td>7억</td></tr><tr><td>12</td><td class="td-name">셀레믹스</td><td class="td-code">331920</td><td>KOSDAQ</td><td class="td-pos">+22.92%</td><td>13억</td></tr><tr><td>13</td><td class="td-name">후성</td><td class="td-code">093370</td><td>KOSPI</td><td class="td-pos">+22.30%</td><td>148억</td></tr><tr><td>14</td><td class="td-name">아이씨티케이</td><td class="td-code">456010</td><td>KOSDAQ</td><td class="td-pos">+20.84%</td><td>36억</td></tr><tr><td>15</td><td class="td-name">비투엔</td><td class="td-code">307870</td><td>KOSDAQ</td><td class="td-pos">+20.57%</td><td>8억</td></tr><tr><td>16</td><td class="td-name">에이치엠넥스</td><td class="td-code">036170</td><td>KOSDAQ</td><td class="td-pos">+20.31%</td><td>47억</td></tr><tr><td>17</td><td class="td-name">나노</td><td class="td-code">187790</td><td>KOSDAQ</td><td class="td-pos">+19.86%</td><td>13억</td></tr><tr><td>18</td><td class="td-name">미래에셋벤처투자</td><td class="td-code">100790</td><td>KOSDAQ</td><td class="td-pos">+19.64%</td><td>246억</td></tr><tr><td>19</td><td class="td-name">랩지노믹스</td><td class="td-code">084650</td><td>KOSDAQ</td><td class="td-pos">+18.38%</td><td>13억</td></tr><tr><td>20</td><td class="td-name">백금T&amp;A</td><td class="td-code">046310</td><td>KOSDAQ</td><td class="td-pos">+18.30%</td><td>6억</td></tr></tbody></table></div>
-<div class="section-title">💰 거래대금 Top20</div><div class="tbl-wrap"><table><thead><tr><th>#</th><th>종목명</th><th>코드</th><th>시장</th><th>거래대금</th><th>등락률</th></tr></thead><tbody><tr><td>1</td><td class="td-name">삼성전자</td><td class="td-code">005930</td><td>KOSPI</td><td>126,280억</td><td class="td-neg">-0.69%</td></tr><tr><td>2</td><td class="td-name">SK하이닉스</td><td class="td-code">000660</td><td>KOSPI</td><td>80,393억</td><td class="td-neg">-2.34%</td></tr><tr><td>3</td><td class="td-name">현대차</td><td class="td-code">005380</td><td>KOSPI</td><td>11,016억</td><td class="td-pos">+0.75%</td></tr><tr><td>4</td><td class="td-name">LG에너지솔루션</td><td class="td-code">373220</td><td>KOSPI</td><td>9,781억</td><td class="td-pos">+0.48%</td></tr><tr><td>5</td><td class="td-name">SK스퀘어</td><td class="td-code">402340</td><td>KOSPI</td><td>9,000억</td><td class="td-neg">-1.16%</td></tr><tr><td>6</td><td class="td-name">삼성바이오로직스</td><td class="td-code">207940</td><td>KOSPI</td><td>7,411억</td><td class="td-neg">-0.93%</td></tr><tr><td>7</td><td class="td-name">두산에너빌리티</td><td class="td-code">034020</td><td>KOSPI</td><td>6,950억</td><td class="td-neg">-2.08%</td></tr><tr><td>8</td><td class="td-name">기아</td><td class="td-code">000270</td><td>KOSPI</td><td>6,215억</td><td class="td-pos">+0.82%</td></tr><tr><td>9</td><td class="td-name">KB금융</td><td class="td-code">105560</td><td>KOSPI</td><td>6,051억</td><td class="td-pos">+0.00%</td></tr><tr><td>10</td><td class="td-name">HD현대중공업</td><td class="td-code">329180</td><td>KOSPI</td><td>5,395억</td><td class="td-pos">+4.15%</td></tr><tr><td>11</td><td class="td-name">삼성전기</td><td class="td-code">009150</td><td>KOSPI</td><td>5,072억</td><td class="td-pos">+6.26%</td></tr><tr><td>12</td><td class="td-name">삼성생명</td><td class="td-code">032830</td><td>KOSPI</td><td>5,070억</td><td class="td-neg">-1.74%</td></tr><tr><td>13</td><td class="td-name">삼성물산</td><td class="td-code">028260</td><td>KOSPI</td><td>4,889억</td><td class="td-neg">-1.47%</td></tr><tr><td>14</td><td class="td-name">신한지주</td><td class="td-code">055550</td><td>KOSPI</td><td>4,728억</td><td class="td-neg">-0.30%</td></tr><tr><td>15</td><td class="td-name">셀트리온</td><td class="td-code">068270</td><td>KOSPI</td><td>4,605억</td><td class="td-neg">-0.72%</td></tr><tr><td>16</td><td class="td-name">삼성SDI</td><td class="td-code">006400</td><td>KOSPI</td><td>4,134억</td><td class="td-pos">+7.21%</td></tr><tr><td>17</td><td class="td-name">한화오션</td><td class="td-code">042660</td><td>KOSPI</td><td>3,983억</td><td class="td-neg">-1.44%</td></tr><tr><td>18</td><td class="td-name">HD현대일렉트릭</td><td class="td-code">267260</td><td>KOSPI</td><td>3,918억</td><td class="td-pos">+0.18%</td></tr><tr><td>19</td><td class="td-name">미래에셋증권</td><td class="td-code">006800</td><td>KOSPI</td><td>3,909억</td><td class="td-neg">-1.26%</td></tr><tr><td>20</td><td class="td-name">현대모비스</td><td class="td-code">012330</td><td>KOSPI</td><td>3,874억</td><td class="td-pos">+0.00%</td></tr></tbody></table></div>
-<div class="section-title">🚫 탈락 종목</div><div class="rejected-list"><div class="rejected-item"><div class="r-name">오상헬스케어 (036220)</div><div class="r-reason">거래대금 부족 (16억)</div></div><div class="rejected-item"><div class="r-name">LG에너지솔루션 (373220)</div><div class="r-reason">패턴 없음 + 교집합 아님</div></div><div class="rejected-item"><div class="r-name">셀레믹스 (331920)</div><div class="r-reason">거래대금 부족 (13억)</div></div><div class="rejected-item"><div class="r-name">비투엔 (307870)</div><div class="r-reason">거래대금 부족 (8억)</div></div><div class="rejected-item"><div class="r-name">백금T&amp;A (046310)</div><div class="r-reason">거래대금 부족 (6억)</div></div><div class="rejected-item"><div class="r-name">조이웍스앤코 (309930)</div><div class="r-reason">거래대금 부족 (4억)</div></div><div class="rejected-item"><div class="r-name">나노 (187790)</div><div class="r-reason">거래대금 부족 (13억)</div></div><div class="rejected-item"><div class="r-name">에이치엠넥스 (036170)</div><div class="r-reason">거래대금 부족 (47억)</div></div><div class="rejected-item"><div class="r-name">아이진 (185490)</div><div class="r-reason">거래대금 부족 (7억)</div></div><div class="rejected-item"><div class="r-name">셀리드 (299660)</div><div class="r-reason">거래대금 부족 (11억)</div></div><div class="rejected-item"><div class="r-name">기가레인 (049080)</div><div class="r-reason">거래대금 부족 (22억)</div></div><div class="rejected-item"><div class="r-name">SK스퀘어 (402340)</div><div class="r-reason">패턴 없음 + 교집합 아님</div></div><div class="rejected-item"><div class="r-name">빛과전자 (069540)</div><div class="r-reason">거래대금 부족 (57억)</div></div><div class="rejected-item"><div class="r-name">진원생명과학 (011000)</div><div class="r-reason">거래대금 부족 (9억)</div></div><div class="rejected-item"><div class="r-name">두산에너빌리티 (034020)</div><div class="r-reason">패턴 없음 + 교집합 아님</div></div><div class="rejected-item"><div class="r-name">삼성바이오로직스 (207940)</div><div class="r-reason">패턴 없음 + 교집합 아님</div></div><div class="rejected-item"><div class="r-name">후성 (093370)</div><div class="r-reason">거래대금 부족 (148억)</div></div><div class="rejected-item"><div class="r-name">와이제이링크 (209640)</div><div class="r-reason">거래대금 부족 (17억)</div></div><div class="rejected-item"><div class="r-name">SK하이닉스 (000660)</div><div class="r-reason">패턴 없음 + 교집합 아님</div></div><div class="rejected-item"><div class="r-name">수젠텍 (253840)</div><div class="r-reason">거래대금 부족 (11억)</div></div><div class="rejected-item"><div class="r-name">아이씨티케이 (456010)</div><div class="r-reason">거래대금 부족 (36억)</div></div><div class="rejected-item"><div class="r-name">삼성전자 (005930)</div><div class="r-reason">패턴 없음 + 교집합 아님</div></div><div class="rejected-item"><div class="r-name">HD현대일렉트릭 (267260)</div><div class="r-reason">패턴 없음 + 교집합 아님</div></div><div class="rejected-item"><div class="r-name">한화오션 (042660)</div><div class="r-reason">패턴 없음 + 교집합 아님</div></div><div class="rejected-item"><div class="r-name">KB금융 (105560)</div><div class="r-reason">패턴 없음 + 교집합 아님</div></div><div class="rejected-item"><div class="r-name">기아 (000270)</div><div class="r-reason">패턴 없음 + 교집합 아님</div></div><div class="rejected-item"><div class="r-name">미래에셋증권 (006800)</div><div class="r-reason">패턴 없음 + 교집합 아님</div></div><div class="rejected-item"><div class="r-name">현대모비스 (012330)</div><div class="r-reason">패턴 없음 + 교집합 아님</div></div><div class="rejected-item"><div class="r-name">랩지노믹스 (084650)</div><div class="r-reason">거래대금 부족 (13억)</div></div><div class="rejected-item"><div class="r-name">셀트리온 (068270)</div><div class="r-reason">패턴 없음 + 교집합 아님</div></div><div class="rejected-item"><div class="r-name">신한지주 (055550)</div><div class="r-reason">패턴 없음 + 교집합 아님</div></div><div class="rejected-item"><div class="r-name">STX엔진 (077970)</div><div class="r-reason">거래대금 부족 (177억)</div></div><div class="rejected-item"><div class="r-name">삼성물산 (028260)</div><div class="r-reason">패턴 없음 + 교집합 아님</div></div><div class="rejected-item"><div class="r-name">삼성SDI (006400)</div><div class="r-reason">패턴 없음 + 교집합 아님</div></div><div class="rejected-item"><div class="r-name">삼성전기 (009150)</div><div class="r-reason">패턴 없음 + 교집합 아님</div></div><div class="rejected-item"><div class="r-name">미래에셋벤처투자 (100790)</div><div class="r-reason">거래대금 부족 (246억)</div></div><div class="rejected-item"><div class="r-name">삼성생명 (032830)</div><div class="r-reason">패턴 없음 + 교집합 아님</div></div><div class="rejected-item"><div class="r-name">신풍제약 (019170)</div><div class="r-reason">거래대금 부족 (74억)</div></div><div class="rejected-item"><div class="r-name">HD현대중공업 (329180)</div><div class="r-reason">패턴 없음 + 교집합 아님</div></div><div class="rejected-item"><div class="r-name">현대차 (005380)</div><div class="r-reason">패턴 없음 + 교집합 아님</div></div></div>
+
+<div class="section-title">📊 상승률 Top20</div><div class="tbl-wrap"><table><thead><tr><th>#</th><th>종목명</th><th>코드</th><th>시장</th><th>등락률</th><th>거래대금</th></tr></thead><tbody><tr><td>1</td><td class="td-name">기가레인</td><td class="td-code">49080</td><td>KOSDAQ</td><td class="td-pos">+30.00%</td><td>22억</td></tr><tr><td>2</td><td class="td-name">수젠텍</td><td class="td-code">253840</td><td>KOSDAQ</td><td class="td-pos">+30.00%</td><td>11억</td></tr><tr><td>3</td><td class="td-name">STX엔진</td><td class="td-code">77970</td><td>KOSPI</td><td class="td-pos">+29.99%</td><td>177억</td></tr><tr><td>4</td><td class="td-name">조이웍스앤코</td><td class="td-code">309930</td><td>KOSDAQ</td><td class="td-pos">+29.99%</td><td>4억</td></tr><tr><td>5</td><td class="td-name">셀리드</td><td class="td-code">299660</td><td>KOSDAQ</td><td class="td-pos">+29.98%</td><td>11억</td></tr><tr><td>6</td><td class="td-name">빛과전자</td><td class="td-code">69540</td><td>KOSDAQ</td><td class="td-pos">+29.93%</td><td>57억</td></tr><tr><td>7</td><td class="td-name">진원생명과학</td><td class="td-code">11000</td><td>KOSPI</td><td class="td-pos">+29.89%</td><td>9억</td></tr><tr><td>8</td><td class="td-name">와이제이링크</td><td class="td-code">209640</td><td>KOSDAQ</td><td class="td-pos">+29.82%</td><td>17억</td></tr><tr><td>9</td><td class="td-name">신풍제약</td><td class="td-code">19170</td><td>KOSPI</td><td class="td-pos">+26.48%</td><td>74억</td></tr><tr><td>10</td><td class="td-name">오상헬스케어</td><td class="td-code">36220</td><td>KOSDAQ</td><td class="td-pos">+25.98%</td><td>16억</td></tr><tr><td>11</td><td class="td-name">아이진</td><td class="td-code">185490</td><td>KOSDAQ</td><td class="td-pos">+23.21%</td><td>7억</td></tr><tr><td>12</td><td class="td-name">셀레믹스</td><td class="td-code">331920</td><td>KOSDAQ</td><td class="td-pos">+22.92%</td><td>13억</td></tr><tr><td>13</td><td class="td-name">후성</td><td class="td-code">93370</td><td>KOSPI</td><td class="td-pos">+22.30%</td><td>148억</td></tr><tr><td>14</td><td class="td-name">아이씨티케이</td><td class="td-code">456010</td><td>KOSDAQ</td><td class="td-pos">+20.84%</td><td>36억</td></tr><tr><td>15</td><td class="td-name">비투엔</td><td class="td-code">307870</td><td>KOSDAQ</td><td class="td-pos">+20.57%</td><td>8억</td></tr><tr><td>16</td><td class="td-name">에이치엠넥스</td><td class="td-code">36170</td><td>KOSDAQ</td><td class="td-pos">+20.31%</td><td>47억</td></tr><tr><td>17</td><td class="td-name">나노</td><td class="td-code">187790</td><td>KOSDAQ</td><td class="td-pos">+19.86%</td><td>13억</td></tr><tr><td>18</td><td class="td-name">미래에셋벤처투자</td><td class="td-code">100790</td><td>KOSDAQ</td><td class="td-pos">+19.64%</td><td>246억</td></tr><tr><td>19</td><td class="td-name">랩지노믹스</td><td class="td-code">84650</td><td>KOSDAQ</td><td class="td-pos">+18.38%</td><td>13억</td></tr><tr><td>20</td><td class="td-name">백금T&amp;A</td><td class="td-code">46310</td><td>KOSDAQ</td><td class="td-pos">+18.30%</td><td>6억</td></tr></tbody></table></div>
+<div class="section-title">💰 거래대금 Top20</div><div class="tbl-wrap"><table><thead><tr><th>#</th><th>종목명</th><th>코드</th><th>시장</th><th>거래대금</th><th>등락률</th></tr></thead><tbody><tr><td>1</td><td class="td-name">삼성전자</td><td class="td-code">5930</td><td>KOSPI</td><td>126,280억</td><td class="td-neg">-0.69%</td></tr><tr><td>2</td><td class="td-name">SK하이닉스</td><td class="td-code">660</td><td>KOSPI</td><td>80,393억</td><td class="td-neg">-2.34%</td></tr><tr><td>3</td><td class="td-name">현대차</td><td class="td-code">5380</td><td>KOSPI</td><td>11,016억</td><td class="td-pos">+0.75%</td></tr><tr><td>4</td><td class="td-name">LG에너지솔루션</td><td class="td-code">373220</td><td>KOSPI</td><td>9,781억</td><td class="td-pos">+0.48%</td></tr><tr><td>5</td><td class="td-name">SK스퀘어</td><td class="td-code">402340</td><td>KOSPI</td><td>9,000억</td><td class="td-neg">-1.16%</td></tr><tr><td>6</td><td class="td-name">삼성바이오로직스</td><td class="td-code">207940</td><td>KOSPI</td><td>7,411억</td><td class="td-neg">-0.93%</td></tr><tr><td>7</td><td class="td-name">두산에너빌리티</td><td class="td-code">34020</td><td>KOSPI</td><td>6,950억</td><td class="td-neg">-2.08%</td></tr><tr><td>8</td><td class="td-name">기아</td><td class="td-code">270</td><td>KOSPI</td><td>6,215억</td><td class="td-pos">+0.82%</td></tr><tr><td>9</td><td class="td-name">KB금융</td><td class="td-code">105560</td><td>KOSPI</td><td>6,051억</td><td class="td-pos">+0.00%</td></tr><tr><td>10</td><td class="td-name">HD현대중공업</td><td class="td-code">329180</td><td>KOSPI</td><td>5,395억</td><td class="td-pos">+4.15%</td></tr><tr><td>11</td><td class="td-name">삼성전기</td><td class="td-code">9150</td><td>KOSPI</td><td>5,072억</td><td class="td-pos">+6.26%</td></tr><tr><td>12</td><td class="td-name">삼성생명</td><td class="td-code">32830</td><td>KOSPI</td><td>5,070억</td><td class="td-neg">-1.74%</td></tr><tr><td>13</td><td class="td-name">삼성물산</td><td class="td-code">28260</td><td>KOSPI</td><td>4,889억</td><td class="td-neg">-1.47%</td></tr><tr><td>14</td><td class="td-name">신한지주</td><td class="td-code">55550</td><td>KOSPI</td><td>4,728억</td><td class="td-neg">-0.30%</td></tr><tr><td>15</td><td class="td-name">셀트리온</td><td class="td-code">68270</td><td>KOSPI</td><td>4,605억</td><td class="td-neg">-0.72%</td></tr><tr><td>16</td><td class="td-name">삼성SDI</td><td class="td-code">6400</td><td>KOSPI</td><td>4,134억</td><td class="td-pos">+7.21%</td></tr><tr><td>17</td><td class="td-name">한화오션</td><td class="td-code">42660</td><td>KOSPI</td><td>3,983억</td><td class="td-neg">-1.44%</td></tr><tr><td>18</td><td class="td-name">HD현대일렉트릭</td><td class="td-code">267260</td><td>KOSPI</td><td>3,918억</td><td class="td-pos">+0.18%</td></tr><tr><td>19</td><td class="td-name">미래에셋증권</td><td class="td-code">6800</td><td>KOSPI</td><td>3,909억</td><td class="td-neg">-1.26%</td></tr><tr><td>20</td><td class="td-name">현대모비스</td><td class="td-code">12330</td><td>KOSPI</td><td>3,874억</td><td class="td-pos">+0.00%</td></tr></tbody></table></div>
 <div style="text-align:center;color:var(--muted);font-size:11px;margin-top:24px;padding:16px 0;">
   korea-close-betting-bot &middot; 2026-04-17 2039
 </div>
