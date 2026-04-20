@@ -124,31 +124,33 @@ def run(top_n: int = 5) -> dict:
         return result
     result["overview"] = overview
 
-    top_df = overview.nlargest(top_n, "change_pct")
+    top_df  = overview.nlargest(top_n, "change_pct")
+    top_nos = set(top_df["sector_no"].tolist())
     code_to_sector: dict[str, str] = {}
 
-    for _, row in top_df.iterrows():
+    # 전체 섹터 순회 → code_to_sector 완전 매핑
+    for _, row in overview.iterrows():
         no   = int(row["sector_no"])
         name = str(row["sector_name"])
         chg  = float(row["change_pct"])
-        tv   = 0.0  # pipeline에서 filtered_df 기반으로 재계산
 
         codes: list = []
         try:
             codes = fetch_sector_stock_codes(no)
             for c in codes:
                 code_to_sector.setdefault(c, name)
-            logger.info(f"[{name}] 구성종목 {len(codes)}개")
             time.sleep(REQUEST_DELAY)
         except Exception as e:
             logger.warning(f"[{name}] 구성종목 수집 실패: {e}")
 
-        result["top_sectors"].append({
-            "sector_name": name,
-            "change_pct":  chg,
-            "tv_eok":      tv,
-            "stock_codes": codes,
-        })
+        # 주도섹터(top_n)만 top_sectors 리스트에 추가
+        if no in top_nos:
+            result["top_sectors"].append({
+                "sector_name": name,
+                "change_pct":  chg,
+                "tv_eok":      0.0,  # pipeline에서 filtered_df 기반 재계산
+                "stock_codes": codes,
+            })
 
     result["code_to_sector"] = code_to_sector
     logger.info(f"섹터 수집 완료: {len(result['top_sectors'])}섹터, {len(code_to_sector)}종목 매핑")

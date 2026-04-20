@@ -976,15 +976,16 @@ def _section_core_candidates(candidates: list) -> str:
 def _section_table_gainers(rows: list) -> str:
     if not rows:
         return '<div class="section-title">📊 상승률 Top20</div><div class="empty-msg">데이터 없음</div>'
-    header = "<tr><th>#</th><th>종목명</th><th>코드</th><th>시장</th><th>등락률</th><th>거래대금</th></tr>"
+    header = "<tr><th>#</th><th>종목명</th><th>섹터</th><th>코드</th><th>시장</th><th>등락률</th><th>거래대금</th></tr>"
     body_rows = []
     for i, r in enumerate(rows, 1):
         chg = float(r.get("등락률", 0))
         cls = "td-pos" if chg >= 0 else "td-neg"
-        sector_tag = f'<span class="sector-tag">{_e(r["sector"])}</span>' if r.get("sector") else ""
+        sector_str = _e(r["sector"]) if r.get("sector") else '<span style="color:var(--muted)">—</span>'
         body_rows.append(
             f"<tr><td>{i}</td>"
-            f'<td class="td-name">{_e(r.get("종목명",""))}{sector_tag}</td>'
+            f'<td class="td-name">{_e(r.get("종목명",""))}</td>'
+            f'<td style="font-size:11px;color:var(--blue)">{sector_str}</td>'
             f'<td class="td-code">{_e(r.get("종목코드",""))}</td>'
             f'<td>{_e(r.get("시장",""))}</td>'
             f'<td class="{cls}">{_sign(chg)}</td>'
@@ -1001,15 +1002,16 @@ def _section_table_gainers(rows: list) -> str:
 def _section_table_tv(rows: list) -> str:
     if not rows:
         return '<div class="section-title">💰 거래대금 Top20</div><div class="empty-msg">데이터 없음</div>'
-    header = "<tr><th>#</th><th>종목명</th><th>코드</th><th>시장</th><th>거래대금</th><th>등락률</th></tr>"
+    header = "<tr><th>#</th><th>종목명</th><th>섹터</th><th>코드</th><th>시장</th><th>거래대금</th><th>등락률</th></tr>"
     body_rows = []
     for i, r in enumerate(rows, 1):
         chg = float(r.get("등락률", 0))
         cls = "td-pos" if chg >= 0 else "td-neg"
-        sector_tag = f'<span class="sector-tag">{_e(r["sector"])}</span>' if r.get("sector") else ""
+        sector_str = _e(r["sector"]) if r.get("sector") else '<span style="color:var(--muted)">—</span>'
         body_rows.append(
             f"<tr><td>{i}</td>"
-            f'<td class="td-name">{_e(r.get("종목명",""))}{sector_tag}</td>'
+            f'<td class="td-name">{_e(r.get("종목명",""))}</td>'
+            f'<td style="font-size:11px;color:var(--blue)">{sector_str}</td>'
             f'<td class="td-code">{_e(r.get("종목코드",""))}</td>'
             f'<td>{_e(r.get("시장",""))}</td>'
             f'<td>{_tv_eok(r.get("거래대금",0))}</td>'
