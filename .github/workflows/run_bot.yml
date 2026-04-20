@@ -46,9 +46,9 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add reports/
-          # 변경사항 있을 때만 커밋 (없으면 exit 0)
           git diff --cached --quiet && echo "No changes to commit" || \
             git commit -m "chore: update dashboard reports [skip ci]"
+          git pull --rebase origin main
           git push
 
       # ── 방식 B (대안): gh-pages 브랜치에만 배포하려면 아래 주석 해제 ──
