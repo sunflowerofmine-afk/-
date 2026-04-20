@@ -623,9 +623,18 @@ def _section_header(data: dict) -> str:
     base_time    = base_map.get(meta.get("run_type", ""), run_time_hm)
     kospi_tv  = _tv_eok(market.get("kospi_tv_eok",  0) * 1e8)
     kosdaq_tv = _tv_eok(market.get("kosdaq_tv_eok", 0) * 1e8)
+    regime = market.get("market_regime", "")
+    _regime_cfg = {
+        "강세": ("regime-bull", "🟢 강세"),
+        "약세": ("regime-bear", "🔴 약세"),
+        "중립": ("regime-neutral", "⚪ 중립"),
+    }
+    rcls, rlabel = _regime_cfg.get(regime, ("regime-neutral", "⚪ 중립"))
+    regime_badge = f'<span class="{rcls}" style="font-size:14px;padding:3px 12px;margin-left:10px;">{rlabel}</span>' if regime else ""
+
     return f"""
 <div class="page-header">
-  <h1>📈 종가베팅 스캔 리포트</h1>
+  <h1>📈 종가베팅 스캔 리포트{regime_badge}</h1>
   <div class="meta">
     <span>📅 {date}</span>
     <span>기준시각 {base_time}</span>
@@ -649,9 +658,9 @@ def _section_market_summary(data: dict) -> str:
     regime          = m.get("market_regime", "")
 
     _regime_cfg = {
-        "강세장": ("regime-bull", "🟢 강세장"),
-        "약세장": ("regime-bear", "🔴 약세장"),
-        "중립":   ("regime-neutral", "⚪ 중립"),
+        "강세": ("regime-bull", "🟢 강세"),
+        "약세": ("regime-bear", "🔴 약세"),
+        "중립": ("regime-neutral", "⚪ 중립"),
     }
     cls, label = _regime_cfg.get(regime, ("regime-neutral", "⚪ 중립"))
     regime_html = f'<span class="{cls}">{label}</span>' if regime else ""

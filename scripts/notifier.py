@@ -137,13 +137,14 @@ def format_market_summary(market_totals: dict, run_time: str, run_type: str,
     inter_n  = ex.get("intersection_count", 0)
     core_n   = ex.get("core_count", 0)
     regime   = ex.get("market_regime", "")
-    _regime_map = {"강세장": "🟢 강세장", "약세장": "🔴 약세장", "중립": "⚪ 중립"}
-    regime_str = _regime_map.get(regime, "")
-    regime_line = f" | {regime_str}" if regime_str else ""
+    _regime_map = {"강세": "🟢 강세", "약세": "🔴 약세", "중립": "⚪ 중립"}
+    regime_str  = _regime_map.get(regime, "")
+    regime_line = f"[시장상태] {regime_str}\n" if regime_str else ""
 
     return (
+        f"{regime_line}"
         f"<b>[종가베팅 스캔] {date_str} · {base_time} KST</b>\n"
-        f"코스피 {kospi:,.0f}억 | 코스닥 {kosdaq:,.0f}억{regime_line}\n"
+        f"코스피 {kospi:,.0f}억 | 코스닥 {kosdaq:,.0f}억\n"
         f"1500억↑ {tv1500}개 | 상승Top 중 {g_tv1500}개\n"
         f"교집합 {inter_n}개 | 핵심후보 {core_n}개\n"
     )
@@ -215,49 +216,45 @@ _PATTERN_TYPE_ORDER = ["당일돌파형", "고가횡보형", "눌림관찰형", 
 
 
 def _format_candidate_card(seq: int, c: dict) -> str:
-    """단일 종목 카드 포맷 (핵심 정보 요약)"""
+    """단일 종목 카드 — 3~4줄 실전 매매용"""
     pat  = c.get("patterns", {})
     sup  = c.get("supply", {})
     news = c.get("news", [])
     tv   = float(c.get("trading_value", 0))
 
-    offset_str  = _OFFSET_LABEL.get(pat.get("base_candle_day_offset"), "-")
-    gap_pct     = pat.get("base_high_gap_pct")
-    gap_str     = f"{gap_pct:+.1f}%" if gap_pct is not None else "-"
-    in_inter    = c.get("in_inter", False)
-    tag         = " ★교집합" if in_inter else ""
-    status      = pat.get("status_summary", "-")
-
-    # 기준봉 후 경과 (offset > 1인 경우만)
-    post_days = pat.get("post_base_days", [])
-    post_str = ""
-    if post_days:
-        _OL = {1: "1일전", 2: "2일전", 3: "3일전"}
-        segs = []
-        for d in post_days:
-            label = _OL.get(d["offset"], f"{d['offset']}일전")
-            chg_s = _sign(d["change_pct"])
-            cvb   = d.get("close_vs_base_high")
-            seg   = f"{label} {chg_s} ({cvb:+.1f}%)" if cvb is not None else f"{label} {chg_s}"
-            segs.append(seg)
-        post_str = f"\n  경과: {' | '.join(segs)}"
-
+    # ── Line 1: 종목명 + 핵심 태그 ──────────────────────────
+    in_inter  = c.get("in_inter", False)
     new_high  = pat.get("new_high_60d", False)
     near_high = pat.get("near_high_60d", False)
-    high_tag  = " 🔺신고가" if new_high else (" 📍고점권" if near_high else "")
+    tags = []
+    if in_inter:    tags.append("★교집합")
+    if new_high:    tags.append("🔺신고가")
+    elif near_high: tags.append("📍고점권")
+    tag_str = "  " + "  ".join(tags) if tags else ""
 
+    # ── Line 2: 등락률 / 거래대금 / 패턴 ───────────────────
+    pattern_label = pat.get("pattern_type_label", "없음")
+    offset_str    = _OFFSET_LABEL.get(pat.get("base_candle_day_offset"), "-")
+    if pattern_label != "없음":
+        pattern_str = f"{pattern_label}({offset_str})"
+    else:
+        pattern_str = "패턴없음"
+
+    # ── Line 3: 재료 (LLM summary, 없으면 생략) ─────────────
     llm_line = ""
     if hasattr(news, "llm_summary") and news.llm_summary:
         llm_line = f"\n  {news.llm_summary}"
 
+    # ── Line 4: 수급 (확인불가면 생략) ──────────────────────
+    supply_str  = _supply_str(sup)
+    supply_line = f"\n  수급: {supply_str}" if supply_str != "확인불가" else ""
+
     return (
         f"\n{seq}) <b>{c.get('name','')}({c.get('code','')})</b>"
-        f" [{c.get('market','')}]{tag}{high_tag}\n"
-        f"  {pat.get('pattern_type_label','없음')} | 기준봉 {offset_str} | {status}"
-        f"{post_str}\n"
-        f"  {_sign(float(c.get('change_pct',0)))} | {_tv_eok(tv)} | 고가比 {gap_str}\n"
-        f"  수급: {_supply_str(sup)} | 뉴스: {_news_str(news)}"
+        f" [{c.get('market','')}]{tag_str}\n"
+        f"  {_sign(float(c.get('change_pct', 0)))} | {_tv_eok(tv)} | {pattern_str}"
         f"{llm_line}"
+        f"{supply_line}"
     )
 
 

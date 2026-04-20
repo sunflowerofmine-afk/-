@@ -50,20 +50,24 @@ def _setup_logging(timestamp_str: str):
 
 
 def _get_market_regime() -> str:
-    """KODEX 200 MA 기반 시장 상태: 강세장 / 약세장 / 중립"""
+    """KODEX 200 일봉 기반 시장 상태: 강세 / 약세 / 중립
+    강세: 현재가 > MA120 AND MA20 > MA60
+    약세: 현재가 < MA20 OR MA20 < MA60
+    중립: 그 외
+    """
     try:
         df = fetch_chart_data("069500")
-        if df.empty or len(df) < 201:
+        if df.empty or len(df) < 120:
             return "중립"
         close = df["close"].astype(float)
         price = close.iloc[0]
         ma20  = close.iloc[:20].mean()
-        ma50  = close.iloc[:50].mean()
-        ma200 = close.iloc[:200].mean()
-        if price > ma200 and ma20 > ma50:
-            return "강세장"
-        if price < ma200 and ma20 < ma50:
-            return "약세장"
+        ma60  = close.iloc[:60].mean()
+        ma120 = close.iloc[:120].mean()
+        if price > ma120 and ma20 > ma60:
+            return "강세"
+        if price < ma20 or ma20 < ma60:
+            return "약세"
         return "중립"
     except Exception as e:
         logging.getLogger(__name__).warning(f"시장 상태 판단 실패: {e}")
