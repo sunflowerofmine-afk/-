@@ -48,23 +48,20 @@ def _parse_float(text: str) -> float:
 
 def fetch_sector_overview() -> pd.DataFrame:
     """
-    네이버 업종 현황 → 섹터명, sector_no, 등락률, 거래대금(원) DataFrame 반환.
-    컬럼 순서: N? | 업종명 | 업종지수 | 전일비 | 등락률 | 거래량 | 거래대금(백만원)
+    네이버 업종 현황 → 섹터명, sector_no, 등락률 DataFrame 반환.
+    컬럼 순서: 업종명 | 전일대비% | 상승수 | 보합수 | 하락수 | 미등록 | 비율
     """
-    soup = _get(f"{_BASE}/sise_group.naver?type=업종")
+    soup = _get(f"{_BASE}/sise_group.naver?type=upjong")
     if not soup:
         return pd.DataFrame()
 
     rows = []
     for tr in soup.select("table.type_1 tr"):
         tds = tr.select("td")
-        # 링크가 있는 td 위치를 동적으로 찾아 column offset 결정
-        a_idx = None
         a_tag = None
-        for i, td in enumerate(tds):
+        for td in tds:
             a = td.select_one("a[href]")
             if a and re.search(r"no=\d+", a.get("href", "")):
-                a_idx = i
                 a_tag = a
                 break
         if a_tag is None:
@@ -74,10 +71,8 @@ def fetch_sector_overview() -> pd.DataFrame:
         if not m:
             continue
 
-        # a_idx 기준 상대 offset: 업종명(0), 지수(1), 전일비(2), 등락률(3), 거래량(4), 거래대금(5)
         try:
-            change_pct = _parse_float(tds[a_idx + 3].text)
-            tv_million = _parse_float(tds[a_idx + 5].text)
+            change_pct = _parse_float(tds[1].text)
         except IndexError:
             continue
 
@@ -85,7 +80,6 @@ def fetch_sector_overview() -> pd.DataFrame:
             "sector_name": a_tag.text.strip(),
             "sector_no":   int(m.group(1)),
             "change_pct":  change_pct,
-            "tv_won":      tv_million * 1_000_000,
         })
 
     if not rows:
@@ -93,14 +87,13 @@ def fetch_sector_overview() -> pd.DataFrame:
         return pd.DataFrame()
 
     df = pd.DataFrame(rows)
-    df["tv_eok"] = (df["tv_won"] / 1e8).round(0)
     logger.info(f"업종 overview 수집: {len(df)}개 섹터")
     return df
 
 
 def fetch_sector_stock_codes(sector_no: int) -> list:
     """업종 상세 페이지에서 구성 종목 코드 목록 추출"""
-    url = f"{_BASE}/sise_group_detail.naver?type=업종&no={sector_no}"
+    url = f"{_BASE}/sise_group_detail.naver?type=upjong&no={sector_no}"
     soup = _get(url)
     if not soup:
         return []
@@ -131,7 +124,7 @@ def run(top_n: int = 5) -> dict:
         return result
     result["overview"] = overview
 
-    top_df = overview.nlargest(top_n, "tv_won")
+    top_df = overview.nlargest(top_n, "change_pct")
     code_to_sector: dict[str, str] = {}
 
     for _, row in top_df.iterrows():

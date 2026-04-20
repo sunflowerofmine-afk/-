@@ -100,6 +100,8 @@ def detect_patterns(
         "pullback_watch_flag": False,
         "structure_broken_flag": False,
         "overheated_3d_flag": False,
+        "new_high_60d": False,
+        "near_high_60d": False,
         "details": {},
     }
 
@@ -197,6 +199,15 @@ def detect_patterns(
     else:
         status_summary = "약화"
 
+    # ── 60일 신고가 ───────────────────────────────────────────
+    past_highs = [
+        float(daily_df.iloc[i].get("high", 0) or 0)
+        for i in range(1, len(daily_df))
+    ]
+    high_60d = max(past_highs) if past_highs else 0
+    new_high_60d  = high_60d > 0 and today_high >= high_60d
+    near_high_60d = high_60d > 0 and today_close >= high_60d * 0.97
+
     # ── 과열 판정 (윗꼬리 과다만 체크, 누적 상승률 기준 제거) ─
     today_upper_tail_pct = (today_high - today_close) / today_close * 100 if today_close > 0 else 0
     overheated_3d_flag = today_upper_tail_pct > 3.0
@@ -279,6 +290,8 @@ def detect_patterns(
         "pullback_watch_flag": pullback_watch_flag,
         "structure_broken_flag": structure_broken_flag,
         "overheated_3d_flag": overheated_3d_flag,
+        "new_high_60d": new_high_60d,
+        "near_high_60d": near_high_60d,
         "details": {
             "today_big_candle": today_bc.get("big_candle", False),
             "today_loose_bc":   today_bc.get("loose_big_candle", False),

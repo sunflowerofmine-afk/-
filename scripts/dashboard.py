@@ -787,6 +787,8 @@ def _candidate_card_html(c: dict) -> str:
     vol_dec     = pat.get("post_base_volume_decline_flag", False)
     overheated  = pat.get("overheated_3d_flag", False)
     struct_ok   = not pat.get("structure_broken_flag", False)
+    new_high_60d  = pat.get("new_high_60d", False)
+    near_high_60d = pat.get("near_high_60d", False)
 
     card_color = _PATTERN_CARD_COLOR.get(pat_label, "#8b949e")
     card_cls   = "candidate-card"
@@ -865,6 +867,8 @@ def _candidate_card_html(c: dict) -> str:
     <div class="card-row"><span class="lbl">최근3일 대금흐름</span>
       <span class="val" style="font-size:11px">{_e(tv_3d_str)}</span></div>
     {post_base_html}
+    <div class="card-row"><span class="lbl">60일 신고가</span>
+      <span class="val">{"🔺 신고가" if new_high_60d else ("📍 고점권(97%)" if near_high_60d else "—")}</span></div>
     <div class="card-row"><span class="lbl">기준봉 후 대금감소</span>
       <span class="val">{_badge(vol_dec)}</span></div>
     <div class="card-row"><span class="lbl">상승률</span>

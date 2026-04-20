@@ -239,9 +239,13 @@ def _format_candidate_card(seq: int, c: dict) -> str:
             segs.append(seg)
         post_str = f"\n  경과: {' | '.join(segs)}"
 
+    new_high  = pat.get("new_high_60d", False)
+    near_high = pat.get("near_high_60d", False)
+    high_tag  = " 🔺신고가" if new_high else (" 📍고점권" if near_high else "")
+
     return (
         f"\n{seq}) <b>{c.get('name','')}({c.get('code','')})</b>"
-        f" [{c.get('market','')}]{tag}\n"
+        f" [{c.get('market','')}]{tag}{high_tag}\n"
         f"  {pat.get('pattern_type_label','없음')} | 기준봉 {offset_str} | {status}"
         f"{post_str}\n"
         f"  {_sign(float(c.get('change_pct',0)))} | {_tv_eok(tv)} | 고가比 {gap_str}\n"
