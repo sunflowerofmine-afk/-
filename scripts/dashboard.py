@@ -66,6 +66,20 @@ def generate_index_html(reports_dir: Path) -> bool:
 
         rows_html = "\n".join(rows) if rows else "<tr><td colspan='2' style='color:var(--muted);text-align:center'>데이터 없음</td></tr>"
 
+        # 날짜 picker용 JS 데이터 (날짜 → 가장 최신 리포트 URL)
+        import json as _json
+        date_to_url = {}
+        for date_str, entries in by_date.items():
+            # 1750 > 1450 > 수동 최신 순으로 우선순위
+            best = None
+            for lbl, href in sorted(entries, reverse=True):
+                if "2차" in lbl:
+                    best = href; break
+                if best is None or "1차" in lbl:
+                    best = href
+            date_to_url[date_str] = best or entries[-1][1]
+        date_map_js = _json.dumps(date_to_url)
+
         html = f"""<!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -78,13 +92,33 @@ a {{ color: var(--blue); text-decoration: none; }}
 a:hover {{ text-decoration: underline; }}
 .idx-date {{ font-weight: 600; white-space: nowrap; padding: 10px 16px; }}
 .idx-links {{ padding: 10px 16px; }}
+.date-picker-wrap {{
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 0 8px;
+}}
+#date-picker {{
+  background: var(--bg2); color: var(--fg);
+  border: 1px solid var(--border); border-radius: 6px;
+  padding: 6px 10px; font-size: 14px; cursor: pointer;
+}}
+#date-go {{
+  background: var(--blue); color: #000; font-weight: 700;
+  border: none; border-radius: 6px;
+  padding: 6px 14px; font-size: 14px; cursor: pointer;
+}}
+#date-go:hover {{ opacity: 0.85; }}
+#date-msg {{ font-size: 12px; color: var(--red); }}
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="page-header">
     <h1>📈 종가베팅 대시보드</h1>
-    <div class="meta">날짜를 선택하면 해당일 리포트를 볼 수 있습니다.</div>
+  </div>
+  <div class="date-picker-wrap">
+    <input type="date" id="date-picker">
+    <button id="date-go">이동</button>
+    <span id="date-msg"></span>
   </div>
   <div class="tbl-wrap">
     <table>
@@ -93,6 +127,18 @@ a:hover {{ text-decoration: underline; }}
     </table>
   </div>
 </div>
+<script>
+const DATE_MAP = {date_map_js};
+const picker = document.getElementById('date-picker');
+const msg    = document.getElementById('date-msg');
+document.getElementById('date-go').addEventListener('click', () => {{
+  const d = picker.value;
+  if (!d) {{ msg.textContent = '날짜를 선택하세요'; return; }}
+  const url = DATE_MAP[d];
+  if (url) {{ location.href = url; }}
+  else {{ msg.textContent = '해당 날짜 리포트 없음'; }}
+}});
+</script>
 </body>
 </html>"""
 

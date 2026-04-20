@@ -131,7 +131,7 @@ def run(top_n: int = 5) -> dict:
         no   = int(row["sector_no"])
         name = str(row["sector_name"])
         chg  = float(row["change_pct"])
-        tv   = float(row["tv_eok"])
+        tv   = 0.0  # pipeline에서 filtered_df 기반으로 재계산
 
         codes: list = []
         try:
