@@ -2,6 +2,7 @@ name: Korea Close Betting Bot
 
 on:
   schedule:
+    - cron: "37 9 * * *"     # TEST: 오늘 09:37 UTC (18:37 KST) 1회 실행
     - cron: "50 5 * * 1-5"   # 14:50 KST = 05:50 UTC (월~금)
     - cron: "50 8 * * 1-5"   # 17:50 KST = 08:50 UTC (월~금)
   workflow_dispatch:           # 수동 실행 버튼
