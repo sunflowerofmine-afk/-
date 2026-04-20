@@ -811,6 +811,37 @@ def _candidate_card_html(c: dict) -> str:
     tv_3d_flow  = pat.get("tv_3d_flow", [])
     tv_3d_str   = " → ".join(_tv_eok(v) for v in tv_3d_flow) if tv_3d_flow else "-"
 
+    # 기준봉 이후 경과일 상세
+    post_base_days = pat.get("post_base_days", [])
+    post_base_html = ""
+    if post_base_days:
+        _OFFSET_L = {1: "1일전", 2: "2일전", 3: "3일전"}
+        rows_pb = ""
+        for d in post_base_days:
+            off = d.get("offset")
+            chg = d.get("change_pct", 0)
+            cvb = d.get("close_vs_base_high")
+            tv_d = d.get("tv", 0)
+            chg_cls = "val pos" if chg >= 0 else "val neg"
+            cvb_str = f"{cvb:+.1f}%" if cvb is not None else "-"
+            cvb_cls = "val pos" if cvb is not None and cvb >= -3 else "val warn" if cvb is not None and cvb >= -8 else "val neg"
+            rows_pb += (
+                f"<tr>"
+                f'<td style="color:var(--muted);font-size:11px">{_OFFSET_L.get(off, f"{off}일전")}</td>'
+                f'<td class="{chg_cls}">{_sign(chg)}</td>'
+                f'<td class="{cvb_cls}" title="기준봉고가 대비">{cvb_str}</td>'
+                f'<td style="color:var(--muted);font-size:11px">{_tv_eok(tv_d)}</td>'
+                f"</tr>"
+            )
+        post_base_html = (
+            f'<div class="card-row" style="flex-direction:column;align-items:flex-start">'
+            f'<span class="lbl" style="margin-bottom:4px">기준봉 후 경과</span>'
+            f'<table style="width:100%;font-size:12px;border-collapse:collapse">'
+            f'<thead><tr style="color:var(--muted);font-size:10px">'
+            f'<th style="text-align:left">일자</th><th>등락</th><th>고가比</th><th>거래대금</th>'
+            f'</tr></thead><tbody>{rows_pb}</tbody></table></div>'
+        )
+
     return f"""
 <div class="{card_cls}" style="border-top: 3px solid {card_color}">
   <div class="card-head">
@@ -833,6 +864,7 @@ def _candidate_card_html(c: dict) -> str:
       <span class="{tv_ratio_cls}">{_e(tv_ratio_str)}</span></div>
     <div class="card-row"><span class="lbl">최근3일 대금흐름</span>
       <span class="val" style="font-size:11px">{_e(tv_3d_str)}</span></div>
+    {post_base_html}
     <div class="card-row"><span class="lbl">기준봉 후 대금감소</span>
       <span class="val">{_badge(vol_dec)}</span></div>
     <div class="card-row"><span class="lbl">상승률</span>

@@ -238,6 +238,29 @@ def detect_patterns(
     )
     pattern_summary = "+".join(active_labels) if active_labels else "없음"
 
+    # ── 기준봉 이후 1~3일 상세 (base_idx > 1인 경우만) ──────────
+    post_base_days: list[dict] = []
+    if base_idx is not None and base_idx > 1:
+        base_row  = daily_df.iloc[base_idx]
+        base_high = float(base_row.get("high", 0) or 0)
+        for i in range(1, base_idx):  # base_idx-1일전 ~ 1일전
+            d = daily_df.iloc[i]
+            d_close  = float(d.get("close", 0) or 0)
+            d_high   = float(d.get("high", 0) or 0)
+            d_tv     = float(d.get("trading_value", 0) or 0)
+            d_change = float(d.get("change", 0) or 0)
+            close_vs_base = (d_close - base_high) / base_high * 100 if base_high > 0 else None
+            high_vs_base  = (d_high  - base_high) / base_high * 100 if base_high > 0 else None
+            post_base_days.append({
+                "offset":               i,
+                "change_pct":           round(d_change, 2),
+                "tv":                   d_tv,
+                "close_vs_base_high":   round(close_vs_base, 2) if close_vs_base is not None else None,
+                "high_vs_base_high":    round(high_vs_base,  2) if high_vs_base  is not None else None,
+            })
+        # 시간 순으로 정렬 (오래된 날 먼저)
+        post_base_days.sort(key=lambda x: -x["offset"])
+
     result.update({
         "pattern1": p1,
         "pattern2": p2,
@@ -249,6 +272,7 @@ def detect_patterns(
         "high_range_hold_flag": high_range_hold_flag,
         "tv_ratio": tv_ratio,
         "tv_3d_flow": tv_3d_flow,
+        "post_base_days": post_base_days,
         "sustained_popular_flag": sustained_popular_flag,
         "status_summary": status_summary,
         "post_base_volume_decline_flag": post_base_volume_decline_flag,

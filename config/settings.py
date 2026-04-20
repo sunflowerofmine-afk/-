@@ -46,6 +46,9 @@ MARKETS = {"KOSPI": 0, "KOSDAQ": 1}
 EXCLUDE_KEYWORDS = [
     "스팩", "SPAC", "ETF", "ETN", "리츠", "REITs",
     "인버스", "레버리지", "선물", "채권", "TRF", "TDF",
+    # ETF 브랜드명 (ETF 키워드 없이 브랜드명만 표시되는 경우 대비)
+    "KODEX", "TIGER", "KBSTAR", "ARIRANG", "HANARO", "KOSEF",
+    "TIMEFOLIO", "ACE ", "SOL ", "RISE ",
 ]
 
 # ── 우선주 제외 (종목명 끝 기준) ───────────────────────────

@@ -461,21 +461,27 @@ def run():
             logger.warning(f"대시보드 생성 중 오류 (무시): {e}")
 
     # 알림 전송
+    _ms_extra = {
+        "tv_1500_count":         tv_1500_count,
+        "gainers_tv_1500_count": gainers_tv_1500_count,
+        "intersection_count":    len(intersection) if not intersection.empty else 0,
+        "core_count":            len(key_candidates),
+    }
     if run_type == "1차":
-        # 1차: 종가 매수 후보 압축 (15:20~15:30 판단용)
         msg = ntf.build_first_alert(
             market_totals, gainers, top_tv, intersection,
             key_candidates, run_time, enriched,
             dashboard_links=dashboard_links,
+            market_summary_extra=_ms_extra,
         )
         ntf.send_message(msg)
         logger.info(f"1차 알림 전송 완료 (핵심 후보 {len(key_candidates)}개)")
     else:
-        # 2차/수동: 추가 진입 / 다음날 선행 후보 탐색
         msg = ntf.build_second_alert(
             market_totals, gainers, top_tv, intersection,
             key_candidates, run_time, enriched,
             dashboard_links=dashboard_links,
+            market_summary_extra=_ms_extra,
         )
         ntf.send_message(msg)
         logger.info(f"2차 알림 전송 완료 (핵심 후보 {len(key_candidates)}개)")
