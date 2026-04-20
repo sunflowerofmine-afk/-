@@ -497,6 +497,40 @@ tbody tr:hover td { background: var(--bg3); }
 }
 .rejected-summary span { margin-right: 16px; }
 
+/* ── 섹터 캘린더 ── */
+.cal-table {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+    background: var(--bg2);
+    border-radius: 8px;
+    overflow: hidden;
+    font-size: 12px;
+}
+.cal-table thead th {
+    text-align: center;
+    padding: 6px;
+    font-size: 12px;
+}
+.cal-cell {
+    vertical-align: top;
+    padding: 6px 8px;
+    border: 1px solid var(--bg3);
+    min-height: 56px;
+    min-width: 0;
+}
+.cal-cell.cal-today { background: var(--bg3); border-color: var(--blue); }
+.cal-day { font-size: 11px; color: var(--muted); margin-bottom: 3px; }
+.cal-sector {
+    display: block;
+    font-size: 11px;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 1px;
+}
+
 /* ── 없음 메시지 ── */
 .empty-msg {
     background: var(--bg2);
@@ -574,6 +608,47 @@ def _section_market_summary(data: dict) -> str:
   {judgment_html}
 </div>
 """
+
+
+def _section_sector_calendar(calendar: dict, today_str: str) -> str:
+    if not calendar:
+        return ""
+    from datetime import date, timedelta
+    try:
+        today = date.fromisoformat(today_str)
+    except ValueError:
+        today = date.today()
+
+    # 이번주 월요일 기준으로 4주 전 월요일부터 표시
+    this_monday = today - timedelta(days=today.weekday())
+    start = this_monday - timedelta(weeks=3)
+
+    header = "<tr><th>월</th><th>화</th><th>수</th><th>목</th><th>금</th></tr>"
+    rows = []
+    for week in range(4):
+        cells = []
+        for day in range(5):
+            d = start + timedelta(weeks=week, days=day)
+            d_str = d.isoformat()
+            sectors = calendar.get(d_str, [])
+            is_today = d_str == today_str
+            cell_cls = "cal-cell cal-today" if is_today else "cal-cell"
+            tags = "".join(f'<span class="cal-sector">{_e(s)}</span>' for s in sectors[:4])
+            cells.append(
+                f'<td class="{cell_cls}">'
+                f'<div class="cal-day">{d.day}</div>'
+                f"{tags}"
+                f"</td>"
+            )
+        rows.append(f'<tr>{"".join(cells)}</tr>')
+
+    return (
+        '<div class="section-title">📅 최근 4주간 주도섹터</div>'
+        '<div class="tbl-wrap"><table class="cal-table">'
+        f'<thead>{header}</thead>'
+        f'<tbody>{"".join(rows)}</tbody>'
+        "</table></div>"
+    )
 
 
 def _section_leading_sectors(sectors: list) -> str:
@@ -905,10 +980,12 @@ def _build_html(data: dict) -> str:
 
     core = data.get("core_candidates", [])
     rejected = data.get("rejected_candidates", [])
+    today_str = meta.get("date", "")
     body_parts = [
         _section_header(data),
         _section_market_summary(data),
         _section_leading_sectors(data.get("leading_sectors", [])),
+        _section_sector_calendar(data.get("sector_calendar", {}), today_str),
         _section_core_candidates(core),
     ]
     if not core:

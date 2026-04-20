@@ -290,7 +290,25 @@ def run():
         "core_candidates":        [],
         "rejected_candidates":    [],
         "leading_sectors":        leading_sectors,
+        "sector_calendar":        {},
     }
+
+    # 섹터 캘린더 업데이트 (2차/수동에서만 확정 데이터로 기록)
+    if leading_sectors:
+        import json as _json
+        _cal_path = REPORTS_DIR / "sector_calendar.json"
+        _cal: dict = {}
+        if _cal_path.exists():
+            try:
+                _cal = _json.loads(_cal_path.read_text(encoding="utf-8"))
+            except Exception:
+                pass
+        _cal[report_date] = [s["sector_name"] for s in leading_sectors[:4]]
+        try:
+            _cal_path.write_text(_json.dumps(_cal, ensure_ascii=False, indent=2), encoding="utf-8")
+        except Exception as e:
+            logger.warning(f"sector_calendar.json 저장 실패: {e}")
+        report_data["sector_calendar"] = _cal
 
     # ── 6. 전체 후보 분석 (1차/2차/수동 공통) ───────────────────
     # 1차(14:50): 장중 데이터 기준 → 종가 매수 후보 압축
