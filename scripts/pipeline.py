@@ -12,7 +12,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from config.settings import (
     LOG_DIR, MIN_TRADING_VALUE_EOK,
-    ENABLE_NEWS_FETCH, ENABLE_SUPPLY_FETCH,
+    ENABLE_NEWS_FETCH, ENABLE_SUPPLY_FETCH, USE_LLM_NEWS,
     REQUEST_DELAY,
     REPORTS_DIR, ENABLE_DASHBOARD, ENABLE_GITHUB_PAGES_LINK, GITHUB_PAGES_BASE_URL,
     TV_RATIO_WATCH_MIN,
@@ -421,6 +421,25 @@ def run():
         )
 
     key_candidates.sort(key=_priority)
+
+    # ── LLM 뉴스 분석 (최종 후보에만, 파이프라인 중단 금지) ────
+    if USE_LLM_NEWS and key_candidates:
+        try:
+            from scripts import llm_analyzer
+            for c in key_candidates:
+                news = c.get("news")
+                if isinstance(news, NewsData) and news.titles:
+                    result = llm_analyzer.analyze_news(
+                        code=c["code"],
+                        name=c["name"],
+                        change_pct=c["change_pct"],
+                        pattern_type=c["patterns"].get("pattern_type_label", "없음"),
+                        news_titles=news.titles,
+                    )
+                    if result:
+                        news.llm_summary = result
+        except Exception as e:
+            logger.warning(f"LLM 분석 전체 실패 (무시): {e}")
 
     # 시그널 저장
     if key_candidates:

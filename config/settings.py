@@ -75,6 +75,7 @@ TOP_GAINERS_COUNT                   = 20
 TOP_TRADING_VALUE_COUNT             = 20
 ENABLE_NEWS_FETCH                   = True
 ENABLE_SUPPLY_FETCH                 = True
+GEMINI_API_KEY                      = os.getenv("GEMINI_API_KEY", "")
 USE_GITHUB_ARTIFACT_UPLOAD          = True
 
 # ── 1차 필터 조건 ──────────────────────────────────────────
@@ -84,7 +85,8 @@ MAX_CHANGE_PCT                      = 30.0
 
 # ── 뉴스 점수화 ────────────────────────────────────────────
 NEWS_SCORE_ENABLED                  = True
-USE_LLM_NEWS                        = False
+USE_LLM_NEWS                        = True
+GEMINI_MODEL                        = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
 # ── 대시보드 / GitHub Pages ─────────────────────────────────
 GITHUB_PAGES_BASE_URL               = os.getenv("PAGES_BASE_URL", "")

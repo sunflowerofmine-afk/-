@@ -806,6 +806,15 @@ def _candidate_card_html(c: dict) -> str:
     if not news_html:
         news_html = '<div class="news-item" style="color:var(--muted)">뉴스 없음</div>'
 
+    raw_news = c.get("news")
+    llm_html = ""
+    if hasattr(raw_news, "llm_summary") and raw_news.llm_summary:
+        llm_html = (
+            f'<div style="margin-top:6px;font-size:12px;color:var(--fg);'
+            f'padding:4px 8px;background:var(--bg3);border-radius:4px">'
+            f'{_e(raw_news.llm_summary)}</div>'
+        )
+
     tv_ratio    = pat.get("tv_ratio")
     tv_ratio_str = f"{tv_ratio:.2f}" if tv_ratio is not None else "-"
     tv_ratio_cls = "val pos" if tv_ratio is not None and tv_ratio >= 0.4 else "val warn" if tv_ratio is not None and tv_ratio >= 0.2 else "val neg"
@@ -885,7 +894,7 @@ def _candidate_card_html(c: dict) -> str:
       <span class="val">{inst_str if sup_ok else '확인불가'}</span></div>
     <div class="card-row"><span class="lbl">외국인 순매수</span>
       <span class="val">{frgn_str if sup_ok else '확인불가'}</span></div>
-    <div style="margin-top:8px;">{news_html}</div>
+    <div style="margin-top:8px;">{news_html}{llm_html}</div>
   </div>
 </div>"""
 

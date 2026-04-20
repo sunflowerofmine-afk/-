@@ -42,6 +42,7 @@ class NewsData:
     score:        int        = 0       # 0~3
     keyword_tags: list[str]  = field(default_factory=list)
     status:       str        = "ok"   # "ok" / "failed" / "empty"
+    llm_summary:  Optional[str]  = None  # USE_LLM_NEWS=True 시 채워짐 (예: "재료: [AI] 수요 증가 (섹터확산)")
 
 
 @dataclass

@@ -243,6 +243,10 @@ def _format_candidate_card(seq: int, c: dict) -> str:
     near_high = pat.get("near_high_60d", False)
     high_tag  = " 🔺신고가" if new_high else (" 📍고점권" if near_high else "")
 
+    llm_line = ""
+    if hasattr(news, "llm_summary") and news.llm_summary:
+        llm_line = f"\n  {news.llm_summary}"
+
     return (
         f"\n{seq}) <b>{c.get('name','')}({c.get('code','')})</b>"
         f" [{c.get('market','')}]{tag}{high_tag}\n"
@@ -250,6 +254,7 @@ def _format_candidate_card(seq: int, c: dict) -> str:
         f"{post_str}\n"
         f"  {_sign(float(c.get('change_pct',0)))} | {_tv_eok(tv)} | 고가比 {gap_str}\n"
         f"  수급: {_supply_str(sup)} | 뉴스: {_news_str(news)}"
+        f"{llm_line}"
     )
 
 

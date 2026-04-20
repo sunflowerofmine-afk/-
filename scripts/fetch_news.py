@@ -55,7 +55,7 @@ def _calc_news_score(titles: list[str]) -> int:
 
 
 MAX_NEWS_TITLE_LEN = 50   # 제목 최대 표시 길이
-MAX_NEWS_ITEMS    = 2    # 최대 출력 개수
+MAX_NEWS_ITEMS    = 5    # 수집 개수 (LLM 분석용, 표시는 2개로 제한)
 
 
 def fetch_news(code: str, max_items: int = MAX_NEWS_ITEMS) -> NewsData:
