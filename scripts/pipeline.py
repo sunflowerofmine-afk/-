@@ -134,10 +134,17 @@ def _enrich_candidates(codes: list[str], all_df: pd.DataFrame) -> dict:
             )
             enr["patterns"] = pat
 
-        # 수급
+        # 수급 (주수 × 현재가 → 원화 변환)
         if ENABLE_SUPPLY_FETCH:
             try:
-                enr["supply"] = fetch_supply(code)
+                sup = fetch_supply(code)
+                _price = float(row.get("현재가", 0))
+                if sup.status == "ok" and _price > 0:
+                    if sup.institution_net is not None:
+                        sup.institution_net = sup.institution_net * _price
+                    if sup.foreign_net is not None:
+                        sup.foreign_net = sup.foreign_net * _price
+                enr["supply"] = sup
                 time.sleep(REQUEST_DELAY)
             except Exception as e:
                 logging.getLogger(__name__).warning(f"[{code}] 수급 예외: {e}")

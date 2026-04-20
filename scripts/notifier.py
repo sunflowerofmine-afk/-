@@ -89,12 +89,8 @@ def _supply_str(supply) -> str:
             return "확인불가"
         inst = supply.get("institution_net")
         frgn = supply.get("foreign_net")
-    def _fmt(v):
-        if v is None: return "-"
-        if abs(v) >= 10_000: return f"{v/10_000:+.1f}만주"
-        return f"{v:+.0f}주"
-    inst_s = f"기관 {_fmt(inst)}"
-    frgn_s = f"외국인 {_fmt(frgn)}"
+    inst_s = f"기관 {inst/100_000_000:+.0f}억" if inst is not None else "기관 -"
+    frgn_s = f"외국인 {frgn/100_000_000:+.0f}억" if frgn is not None else "외국인 -"
     return f"{inst_s} / {frgn_s}"
 
 
