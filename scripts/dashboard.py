@@ -145,10 +145,13 @@ def _badge(v) -> str:
     if v is False: return '<span class="badge ng">X</span>'
     return '<span class="badge na">-</span>'
 
-def _net_str(won) -> str:
-    if won is None: return "-"
+def _net_str(shares) -> str:
+    if shares is None: return "-"
     try:
-        return f"{float(won) / 1e8:+.0f}억"
+        v = float(shares)
+        if abs(v) >= 10_000:
+            return f"{v/10_000:+.1f}만주"
+        return f"{v:+.0f}주"
     except Exception:
         return "-"
 
