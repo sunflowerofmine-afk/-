@@ -396,7 +396,7 @@ def run():
             latest_path = REPORTS_DIR / latest_name
             generate_dashboard_html(report_data, dated_path, latest_path)
             if ENABLE_GITHUB_PAGES_LINK:
-                dashboard_links = build_dashboard_links(report_date, snapshot_time, GITHUB_PAGES_BASE_URL)
+                dashboard_links = build_dashboard_links(report_date, snapshot_time, GITHUB_PAGES_BASE_URL, latest_name)
         except Exception as e:
             logger.warning(f"대시보드 생성 중 오류 (무시): {e}")
 

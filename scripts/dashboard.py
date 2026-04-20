@@ -105,7 +105,7 @@ a:hover {{ text-decoration: underline; }}
         return False
 
 
-def build_dashboard_links(report_date: str, snapshot_time: str, base_url: str) -> dict:
+def build_dashboard_links(report_date: str, snapshot_time: str, base_url: str, latest_name: str | None = None) -> dict:
     """
     GitHub Pages 링크 생성.
     base_url 미설정 시 빈 dict 반환.
@@ -113,9 +113,11 @@ def build_dashboard_links(report_date: str, snapshot_time: str, base_url: str) -
     if not base_url:
         return {}
     base = base_url.rstrip("/")
+    if latest_name is None:
+        latest_name = f"latest_{snapshot_time}.html"
     return {
         "dated_url":  f"{base}/reports/{report_date}_{snapshot_time}.html",
-        "latest_url": f"{base}/reports/latest_{snapshot_time}.html",
+        "latest_url": f"{base}/reports/{latest_name}",
     }
 
 
