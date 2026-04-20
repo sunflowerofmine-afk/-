@@ -378,6 +378,45 @@ tbody tr:hover td { background: var(--bg3); }
 .td-neg  { color: var(--red); }
 .td-warn { color: var(--yellow); }
 
+/* ── 섹터 ── */
+.sector-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 10px;
+    margin-bottom: 8px;
+}
+.sector-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+}
+.sector-head {
+    background: var(--bg3);
+    padding: 8px 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 6px;
+}
+.sector-head .s-name { font-weight: 700; font-size: 14px; }
+.sector-head .s-chg  { font-size: 12px; }
+.sector-head .s-tv   { font-size: 11px; color: var(--muted); }
+.sector-stocks { width: 100%; border-collapse: collapse; font-size: 12px; }
+.sector-stocks td { padding: 4px 10px; border-bottom: 1px solid var(--bg3); }
+.sector-stocks tr:last-child td { border-bottom: none; }
+.sector-stocks .s-stock-name { font-weight: 600; }
+.sector-stocks .s-stock-tv   { color: var(--muted); text-align: right; }
+.sector-tag {
+    display: inline-block;
+    background: var(--bg3);
+    color: var(--blue);
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-size: 11px;
+    margin-left: 4px;
+}
+
 /* ── 탈락 영역 ── */
 .rejected-list { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
 .rejected-item {
@@ -535,6 +574,40 @@ def _section_market_summary(data: dict) -> str:
   {judgment_html}
 </div>
 """
+
+
+def _section_leading_sectors(sectors: list) -> str:
+    if not sectors:
+        return ""
+    cards = []
+    for sec in sectors:
+        chg = float(sec.get("change_pct", 0))
+        chg_cls = "pos" if chg >= 0 else "neg"
+        stocks_html = ""
+        for s in sec.get("top_stocks", [])[:4]:
+            s_chg = float(s.get("등락률", 0))
+            s_cls = "td-pos" if s_chg >= 0 else "td-neg"
+            stocks_html += (
+                f"<tr>"
+                f'<td class="s-stock-name">{_e(s.get("종목명",""))}</td>'
+                f'<td class="{s_cls}">{_sign(s_chg)}</td>'
+                f'<td class="s-stock-tv">{_tv_eok(s.get("거래대금",0))}</td>'
+                f"</tr>"
+            )
+        cards.append(
+            f'<div class="sector-card">'
+            f'<div class="sector-head">'
+            f'<span class="s-name">{_e(sec["sector_name"])}</span>'
+            f'<span class="s-chg {chg_cls}">{_sign(chg)}</span>'
+            f'<span class="s-tv">{_tv_eok(sec.get("tv_eok",0)*1e8)}</span>'
+            f"</div>"
+            f'<table class="sector-stocks">{stocks_html}</table>'
+            f"</div>"
+        )
+    return (
+        '<div class="section-title">🏭 주도 섹터</div>'
+        f'<div class="sector-grid">{"".join(cards)}</div>'
+    )
 
 
 def _section_watch_candidates(rejected: list) -> str:
@@ -742,9 +815,10 @@ def _section_table_gainers(rows: list) -> str:
     for i, r in enumerate(rows, 1):
         chg = float(r.get("등락률", 0))
         cls = "td-pos" if chg >= 0 else "td-neg"
+        sector_tag = f'<span class="sector-tag">{_e(r["sector"])}</span>' if r.get("sector") else ""
         body_rows.append(
             f"<tr><td>{i}</td>"
-            f'<td class="td-name">{_e(r.get("종목명",""))}</td>'
+            f'<td class="td-name">{_e(r.get("종목명",""))}{sector_tag}</td>'
             f'<td class="td-code">{_e(r.get("종목코드",""))}</td>'
             f'<td>{_e(r.get("시장",""))}</td>'
             f'<td class="{cls}">{_sign(chg)}</td>'
@@ -766,9 +840,10 @@ def _section_table_tv(rows: list) -> str:
     for i, r in enumerate(rows, 1):
         chg = float(r.get("등락률", 0))
         cls = "td-pos" if chg >= 0 else "td-neg"
+        sector_tag = f'<span class="sector-tag">{_e(r["sector"])}</span>' if r.get("sector") else ""
         body_rows.append(
             f"<tr><td>{i}</td>"
-            f'<td class="td-name">{_e(r.get("종목명",""))}</td>'
+            f'<td class="td-name">{_e(r.get("종목명",""))}{sector_tag}</td>'
             f'<td class="td-code">{_e(r.get("종목코드",""))}</td>'
             f'<td>{_e(r.get("시장",""))}</td>'
             f'<td>{_tv_eok(r.get("거래대금",0))}</td>'
@@ -833,6 +908,7 @@ def _build_html(data: dict) -> str:
     body_parts = [
         _section_header(data),
         _section_market_summary(data),
+        _section_leading_sectors(data.get("leading_sectors", [])),
         _section_core_candidates(core),
     ]
     if not core:

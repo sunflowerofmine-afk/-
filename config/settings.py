@@ -87,3 +87,7 @@ USE_LLM_NEWS                        = False
 GITHUB_PAGES_BASE_URL               = os.getenv("PAGES_BASE_URL", "")
 ENABLE_DASHBOARD                    = True
 ENABLE_GITHUB_PAGES_LINK            = True
+
+# ── 섹터 수집 ──────────────────────────────────────────────
+ENABLE_SECTOR_FETCH                 = True
+SECTOR_TOP_N                        = 5   # 거래대금 상위 N개 섹터

@@ -16,6 +16,7 @@ from config.settings import (
     REQUEST_DELAY,
     REPORTS_DIR, ENABLE_DASHBOARD, ENABLE_GITHUB_PAGES_LINK, GITHUB_PAGES_BASE_URL,
     TV_RATIO_WATCH_MIN,
+    ENABLE_SECTOR_FETCH, SECTOR_TOP_N,
 )
 from scripts.market_calendar import get_now_kst, is_trading_day, get_run_type
 from scripts.storage import save_raw, save_processed, save_signals
@@ -218,7 +219,47 @@ def run():
         f"거래대금Top{len(top_tv)} / 교집합{len(intersection)}"
     )
 
-    # ── 4. report_data 기본 구조 (1차/2차 공통) ──────────────
+    # ── 4. 섹터 데이터 수집 ──────────────────────────────────────
+    sector_result: dict = {"overview": pd.DataFrame(), "top_sectors": [], "code_to_sector": {}}
+    if ENABLE_SECTOR_FETCH:
+        try:
+            from scripts import fetch_sector_data as _fsd
+            sector_result = _fsd.run(top_n=SECTOR_TOP_N)
+        except Exception as e:
+            logger.warning(f"섹터 수집 실패 (무시): {e}")
+
+    code_to_sector: dict = sector_result.get("code_to_sector", {})
+
+    # 주도섹터별 top stocks 구성 (filtered_df에서 구성종목 필터 + 거래대금 기준 정렬)
+    leading_sectors = []
+    for sec in sector_result.get("top_sectors", []):
+        sec_codes = set(sec.get("stock_codes", []))
+        if not sec_codes or filtered_df.empty:
+            continue
+        sec_df = filtered_df[filtered_df["종목코드"].isin(sec_codes)].copy()
+        if sec_df.empty:
+            continue
+        top_stocks = (
+            sec_df.nlargest(5, "거래대금")
+            [["종목명", "종목코드", "현재가", "등락률", "거래대금"]]
+            .to_dict("records")
+        )
+        pos_df = sec_df[sec_df["등락률"] > 0]
+        avg_chg = float(pos_df["등락률"].mean()) if not pos_df.empty else 0.0
+        leading_sectors.append({
+            "sector_name": sec["sector_name"],
+            "change_pct":  avg_chg,
+            "tv_eok":      round(float(sec_df["거래대금"].sum()) / 1e8, 0),
+            "top_stocks":  top_stocks,
+        })
+
+    # gainers_top20, trading_value_top20에 sector 태그 추가
+    def _add_sector(records: list) -> list:
+        for r in records:
+            r["sector"] = code_to_sector.get(str(r.get("종목코드", "")), "")
+        return records
+
+    # ── 5. report_data 기본 구조 (1차/2차 공통) ──────────────
     report_date   = now.strftime("%Y-%m-%d")
     snapshot_time = {"1차": "1450", "2차": "1750"}.get(run_type, timestamp_str.split("_")[1])
 
@@ -243,14 +284,15 @@ def run():
             "intersection_count":     len(intersection) if not intersection.empty else 0,
             "core_count":             0,
         },
-        "gainers_top20":          gainers.to_dict("records")      if not gainers.empty      else [],
-        "trading_value_top20":    top_tv.to_dict("records")       if not top_tv.empty       else [],
+        "gainers_top20":          _add_sector(gainers.to_dict("records") if not gainers.empty else []),
+        "trading_value_top20":    _add_sector(top_tv.to_dict("records")  if not top_tv.empty  else []),
         "intersection_candidates": intersection.to_dict("records") if not intersection.empty else [],
         "core_candidates":        [],
         "rejected_candidates":    [],
+        "leading_sectors":        leading_sectors,
     }
 
-    # ── 5. 전체 후보 분석 (1차/2차/수동 공통) ───────────────────
+    # ── 6. 전체 후보 분석 (1차/2차/수동 공통) ───────────────────
     # 1차(14:50): 장중 데이터 기준 → 종가 매수 후보 압축
     # 2차(17:50): 종가 확정 후 → 추가 진입 / 다음날 선행 후보 탐색
     top20_gainers = filtered_df[filtered_df["등락률"] > 0].nlargest(20, "등락률")
