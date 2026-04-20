@@ -82,4 +82,8 @@ def fetch_daily_history(code: str, pages: int = 7) -> pd.DataFrame:
     df.dropna(subset=["close"], inplace=True)
     df.sort_values("date", ascending=False, inplace=True)
     df.reset_index(drop=True, inplace=True)
+
+    # 네이버 sise_day에는 거래대금 컬럼이 없으므로 close×volume으로 근사
+    df["trading_value"] = df["close"] * df["volume"]
+
     return df

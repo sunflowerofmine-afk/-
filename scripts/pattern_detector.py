@@ -13,6 +13,11 @@ from config.settings import (
     HIGH_RANGE_HOLD_DAYS,
     PULLBACK_MAX_DROP_PCT,
     MIN_TRADING_VALUE_EOK,
+    STRUCTURE_BREAK_MAX_GAP_PCT,
+    TV_RATIO_OK_MIN,
+    TV_RATIO_WATCH_MIN,
+    SUSTAINED_TV_EOK_MIN,
+    SUSTAINED_CHANGE_MIN,
 )
 from scripts.indicators import is_big_candle, is_first_big_candle, is_ma_cluster, calc_all_ma
 
@@ -58,96 +63,203 @@ def detect_patterns(
     daily_df: pd.DataFrame,
 ) -> dict:
     """
-    3가지 패턴 탐지.
-    daily_df: index 0이 오늘(또는 최신), 오름차순 최신순.
+    3가지 패턴 탐지 (당일돌파형 / 고가횡보형 / 눌림관찰형).
+
+    daily_df: index 0이 오늘(최신), 이후 과거 순서.
     today_tv: 원 단위
-    반환: {pattern1, pattern2, pattern3, pattern_summary, details}
+
+    반환 필드:
+      pattern1            : 당일돌파형 여부
+      pattern2            : 눌림관찰형 여부
+      pattern3            : 고가횡보형 여부
+      pattern_summary     : 활성 패턴 이름 조합 (예: "당일돌파형", "고가횡보형+눌림관찰형")
+      pattern_type_label  : 대표 타입 문자열 (우선순위: 당일돌파형 > 고가횡보형 > 눌림관찰형 > 없음)
+      base_candle_day_offset : 기준봉 시점 (0=당일, 1=1일전, 2=2일전, 3=3일전, None=없음)
+      base_high_gap_pct   : (오늘종가 - 기준봉고가) / 기준봉고가 * 100 (None=기준봉 없음)
+      high_range_hold_flag: 오늘 종가가 기준봉 고가 대비 3% 이내
+      post_base_volume_decline_flag: 기준봉 이후 거래대금 감소 여부
+      pullback_watch_flag : 소폭 눌림 상태 (고가 대비 3~10% 이탈, 구조 유지)
+      structure_broken_flag: 기준봉 이후 STRUCTURE_BREAK_MAX_GAP_PCT 초과 밀림 발생
+      overheated_3d_flag  : 과열 여부 (3일 누적 급등 / 기준봉 위로 이격 과다 / 윗꼬리 과다)
+      details             : 세부 계산 정보
     """
     result = {
         "pattern1": False,
         "pattern2": False,
         "pattern3": False,
         "pattern_summary": "없음",
+        "pattern_type_label": "없음",
+        "base_candle_day_offset": None,
+        "base_high_gap_pct": None,
+        "high_range_hold_flag": False,
+        "tv_ratio": None,
+        "tv_3d_flow": [],
+        "sustained_popular_flag": False,
+        "status_summary": "약화",
+        "post_base_volume_decline_flag": False,
+        "pullback_watch_flag": False,
+        "structure_broken_flag": False,
+        "overheated_3d_flag": False,
         "details": {},
     }
 
-    if daily_df.empty or len(daily_df) < 3:
+    if daily_df.empty or len(daily_df) < 2:
         result["details"]["error"] = "데이터 부족"
         return result
+
+    tv_ok = today_tv >= MIN_TV_WON
 
     # ── 오늘 캔들 분석 ─────────────────────────────────────
     today_bc = is_big_candle(today_open, today_high, today_low, today_close,
                              today_change_pct, today_tv)
-    first_bc  = is_first_big_candle(daily_df, today_idx=0)
+    is_base_today = today_bc["big_candle"] or today_bc["loose_big_candle"]
 
-    # MA 계산 (close 컬럼 필요)
-    df_with_ma = calc_all_ma(daily_df)
-    row0 = df_with_ma.iloc[0]
-    ma_cluster = is_ma_cluster(
-        ma5=row0.get("ma5", 0),
-        ma10=row0.get("ma10", 0),
-        ma20=row0.get("ma20", 0),
-        ma60=row0.get("ma60"),
+    # ── 패턴1: 당일돌파형 ──────────────────────────────────
+    p1 = is_base_today and tv_ok
+
+    # ── 최근 1~3일 내 기준봉 탐지 ──────────────────────────
+    base_idx = _find_recent_big_candle(daily_df, start_idx=1, lookback=3)
+
+    # ── 최근 3일 거래대금 흐름 (1일전 ~ 3일전) ─────────────
+    SUSTAINED_TV_WON = SUSTAINED_TV_EOK_MIN * 100_000_000
+    tv_3d_flow = [
+        float(daily_df.iloc[i].get("trading_value", 0) or 0)
+        for i in range(1, min(4, len(daily_df)))
+    ]
+
+    # ── 지속 인기 필터: 최근 3일 중 2일 이상 강했는지 ────────
+    # (거래대금 300억 이상 OR 상승률 5% 이상)
+    strong_days = sum(
+        1 for i in range(1, min(4, len(daily_df)))
+        if (float(daily_df.iloc[i].get("trading_value", 0) or 0) >= SUSTAINED_TV_WON
+            or float(daily_df.iloc[i].get("change", 0) or 0) >= SUSTAINED_CHANGE_MIN)
     )
+    sustained_popular_flag = strong_days >= 2
 
-    tv_ok = today_tv >= MIN_TV_WON
+    # ── 기준봉 파생 지표 계산 ───────────────────────────────
+    base_high_gap_pct: float | None = None
+    high_range_hold_flag = False
+    post_base_volume_decline_flag = False
+    pullback_watch_flag = False
+    structure_broken_flag = False
+    tv_ratio: float | None = None
 
-    # ── 패턴 1: 첫 장대양봉 돌파형 ───────────────────────────
-    p1 = (
-        today_bc["big_candle"] and
-        first_bc["first_big_candle"] and
-        ma_cluster["cluster"] and
-        tv_ok
-    )
-    result["pattern1"] = p1
-    result["details"]["pattern1"] = {
-        "big_candle":       today_bc["big_candle"],
-        "first_big_candle": first_bc["first_big_candle"],
-        "ma_cluster":       ma_cluster["cluster"],
-        "tv_ok":            tv_ok,
-    }
-
-    # ── 패턴 2: 장대양봉 후 1~2거래일 눌림형 ────────────────
-    # 오늘은 양봉이 아님 (눌림), 1~2일 전에 기준봉 있음
-    base_idx = _find_recent_big_candle(daily_df, start_idx=1, lookback=2)
-    p2 = False
     if base_idx is not None:
         base_row  = daily_df.iloc[base_idx]
+        base_high = float(base_row.get("high", 0) or 0)
         base_tv   = float(base_row.get("trading_value", 0) or 0)
-        today_tv_lower = (today_tv < base_tv) if base_tv > 0 else False
-        weak = detect_weak_candle(today_open, today_close, today_change_pct)
-        p2 = weak and today_tv_lower
-    result["pattern2"] = p2
-    result["details"]["pattern2"] = {
-        "base_candle_found": base_idx is not None,
-        "weak_candle":       detect_weak_candle(today_open, today_close, today_change_pct),
-    }
 
-    # ── 패턴 3: 장대양봉 후 고가권 3일 횡보형 ───────────────
-    base_idx3 = _find_recent_big_candle(daily_df, start_idx=3, lookback=5)
-    p3 = False
-    if base_idx3 is not None:
-        base_high = float(daily_df.iloc[base_idx3].get("high", 0) or 0)
         if base_high > 0:
-            hold_days = min(base_idx3, HIGH_RANGE_HOLD_DAYS)
-            in_range  = True
-            for i in range(1, hold_days + 1):
-                if i >= len(daily_df):
-                    break
-                c = float(daily_df.iloc[i].get("close", 0) or 0)
-                gap = (base_high - c) / base_high * 100
-                if gap > HIGH_RANGE_HOLD_MAX_GAP_FROM_BASE_HIGH_PCT:
-                    in_range = False
-                    break
-            p3 = in_range
-    result["pattern3"] = p3
-    result["details"]["pattern3"] = {
-        "base_candle_found": base_idx3 is not None,
-        "hold_days":         HIGH_RANGE_HOLD_DAYS,
-    }
+            # 기준봉 고가 대비 오늘 종가 괴리율
+            base_high_gap_pct = (today_close - base_high) / base_high * 100
 
-    # ── 패턴 요약 ─────────────────────────────────────────
-    names = [f"패턴{i+1}" for i, flag in enumerate([p1, p2, p3]) if flag]
-    result["pattern_summary"] = "+".join(names) if names else "없음"
+            # 고가권 유지: 기준봉 고가 대비 -5% 이내
+            high_range_hold_flag = base_high_gap_pct >= -HIGH_RANGE_HOLD_MAX_GAP_FROM_BASE_HIGH_PCT
 
+            # 구조 붕괴: 기준봉~오늘 사이 중간일이 -8% 초과 밀린 날 존재
+            for i in range(1, base_idx):
+                day_close = float(daily_df.iloc[i].get("close", 0) or 0)
+                if day_close > 0:
+                    gap = (base_high - day_close) / base_high * 100
+                    if gap > STRUCTURE_BREAK_MAX_GAP_PCT:
+                        structure_broken_flag = True
+                        break
+
+            # 거래대금 ratio: 오늘 / 기준봉
+            if base_tv > 0:
+                tv_ratio = today_tv / base_tv
+                between_tvs = [
+                    float(daily_df.iloc[i].get("trading_value", 0) or 0)
+                    for i in range(1, base_idx)
+                ]
+                all_between_ok = all(v <= base_tv for v in between_tvs if v > 0) if between_tvs else True
+                post_base_volume_decline_flag = all_between_ok and (today_tv <= base_tv)
+
+            # 눌림 관찰형: 기준봉 고가 대비 -5%~-8% 구간, 구조 미붕괴
+            pullback_watch_flag = (
+                base_high_gap_pct < -HIGH_RANGE_HOLD_MAX_GAP_FROM_BASE_HIGH_PCT
+                and base_high_gap_pct >= -STRUCTURE_BREAK_MAX_GAP_PCT
+                and not structure_broken_flag
+            )
+
+    # ── 상태 요약 ─────────────────────────────────────────
+    if base_high_gap_pct is not None:
+        if base_high_gap_pct >= -3.0:
+            status_summary = "고가 유지"
+        elif base_high_gap_pct >= -5.0:
+            status_summary = "횡보"
+        elif base_high_gap_pct >= -8.0:
+            status_summary = "눌림"
+        else:
+            status_summary = "약화"
+    elif p1:
+        status_summary = "고가 유지"  # 당일돌파형은 오늘이 기준봉
+    else:
+        status_summary = "약화"
+
+    # ── 과열 판정 (윗꼬리 과다만 체크, 누적 상승률 기준 제거) ─
+    today_upper_tail_pct = (today_high - today_close) / today_close * 100 if today_close > 0 else 0
+    overheated_3d_flag = today_upper_tail_pct > 3.0
+
+    # ── 패턴3: 고가횡보형 ─────────────────────────────────
+    p3 = (
+        base_idx is not None
+        and high_range_hold_flag
+        and not structure_broken_flag
+        and (tv_ratio is None or tv_ratio >= TV_RATIO_WATCH_MIN)
+    )
+
+    # ── 패턴2: 눌림관찰형 ─────────────────────────────────
+    p2 = (
+        base_idx is not None
+        and pullback_watch_flag
+        and not structure_broken_flag
+        and (tv_ratio is None or tv_ratio >= TV_RATIO_WATCH_MIN)
+    )
+
+    # ── 대표 타입 ─────────────────────────────────────────
+    if p1:
+        pattern_type_label = "당일돌파형"
+        base_candle_day_offset = 0
+    elif p3:
+        pattern_type_label = "고가횡보형"
+        base_candle_day_offset = base_idx
+    elif p2:
+        pattern_type_label = "눌림관찰형"
+        base_candle_day_offset = base_idx
+    else:
+        pattern_type_label = "없음"
+        base_candle_day_offset = base_idx
+
+    active_labels = (
+        (["당일돌파형"] if p1 else [])
+        + (["고가횡보형"] if p3 else [])
+        + (["눌림관찰형"] if p2 else [])
+    )
+    pattern_summary = "+".join(active_labels) if active_labels else "없음"
+
+    result.update({
+        "pattern1": p1,
+        "pattern2": p2,
+        "pattern3": p3,
+        "pattern_summary": pattern_summary,
+        "pattern_type_label": pattern_type_label,
+        "base_candle_day_offset": base_candle_day_offset,
+        "base_high_gap_pct": base_high_gap_pct,
+        "high_range_hold_flag": high_range_hold_flag,
+        "tv_ratio": tv_ratio,
+        "tv_3d_flow": tv_3d_flow,
+        "sustained_popular_flag": sustained_popular_flag,
+        "status_summary": status_summary,
+        "post_base_volume_decline_flag": post_base_volume_decline_flag,
+        "pullback_watch_flag": pullback_watch_flag,
+        "structure_broken_flag": structure_broken_flag,
+        "overheated_3d_flag": overheated_3d_flag,
+        "details": {
+            "today_big_candle": today_bc.get("big_candle", False),
+            "today_loose_bc":   today_bc.get("loose_big_candle", False),
+            "base_idx":         base_idx,
+            "strong_days":      strong_days,
+        },
+    })
     return result

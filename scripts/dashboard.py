@@ -601,93 +601,135 @@ def _section_summary_cards(data: dict) -> str:
     return f'<div class="summary-grid">{items}</div>'
 
 
+_OFFSET_LABEL = {0: "당일", 1: "1일전", 2: "2일전", 3: "3일전"}
+_PATTERN_TYPE_ORDER = ["당일돌파형", "고가횡보형", "눌림관찰형", "없음"]
+_PATTERN_SECTION_TITLE = {
+    "당일돌파형": "🚀 당일 돌파형",
+    "고가횡보형": "📊 1~3일전 기준봉 후 고가횡보형",
+    "눌림관찰형": "📉 눌림 관찰형",
+    "없음":       "📌 기타 (교집합)",
+}
+_PATTERN_CARD_COLOR = {
+    "당일돌파형": "#3fb950",  # green
+    "고가횡보형": "#58a6ff",  # blue
+    "눌림관찰형": "#d29922",  # yellow
+    "없음":       "#8b949e",  # muted
+}
+
+
+def _candidate_card_html(c: dict) -> str:
+    ind  = c.get("indicators", {})
+    pat  = c.get("patterns",   {})
+    sup  = _supply_info(c.get("supply"))
+    news = _news_titles(c.get("news"))
+    score = _score_val(c.get("score"))
+    tv   = float(c.get("trading_value", 0))
+    chg  = float(c.get("change_pct",    0))
+    in_inter  = c.get("in_inter",    False)
+    has_pat   = c.get("has_pattern", False)
+
+    pat_label   = pat.get("pattern_type_label", "없음")
+    offset      = pat.get("base_candle_day_offset")
+    offset_str  = _OFFSET_LABEL.get(offset, "-") if offset is not None else "-"
+    gap_pct     = pat.get("base_high_gap_pct")
+    gap_str     = f"{gap_pct:+.1f}%" if gap_pct is not None else "-"
+    gap_cls     = "pos" if gap_pct is not None and gap_pct >= 0 else "neg" if gap_pct is not None and gap_pct < -3 else "warn"
+    vol_dec     = pat.get("post_base_volume_decline_flag", False)
+    overheated  = pat.get("overheated_3d_flag", False)
+    struct_ok   = not pat.get("structure_broken_flag", False)
+
+    card_color = _PATTERN_CARD_COLOR.get(pat_label, "#8b949e")
+    card_cls   = "candidate-card"
+    if in_inter:  card_cls += " in-inter"
+    elif has_pat: card_cls += " has-pattern"
+
+    inter_badge = '<span class="badge inter">★교집합</span> ' if in_inter else ""
+
+    chg_cls  = "val pos" if chg >= 0 else "val neg"
+    inst_str = _net_str(sup.get("institution_net"))
+    frgn_str = _net_str(sup.get("foreign_net"))
+    sup_ok   = sup.get("status") == "ok"
+
+    news_html = "".join(f'<div class="news-item">📰 {_e(t)}</div>' for t in news)
+    if not news_html:
+        news_html = '<div class="news-item" style="color:var(--muted)">뉴스 없음</div>'
+
+    tv_ratio    = pat.get("tv_ratio")
+    tv_ratio_str = f"{tv_ratio:.2f}" if tv_ratio is not None else "-"
+    tv_ratio_cls = "val pos" if tv_ratio is not None and tv_ratio >= 0.4 else "val warn" if tv_ratio is not None and tv_ratio >= 0.2 else "val neg"
+    status_summary = pat.get("status_summary", "-")
+    tv_3d_flow  = pat.get("tv_3d_flow", [])
+    tv_3d_str   = " → ".join(_tv_eok(v) for v in tv_3d_flow) if tv_3d_flow else "-"
+
+    return f"""
+<div class="{card_cls}" style="border-top: 3px solid {card_color}">
+  <div class="card-head">
+    <div>
+      <div class="name">{inter_badge}{_e(c.get('name',''))}</div>
+      <div class="code">{_e(c.get('code',''))} &middot; {_e(c.get('market',''))}</div>
+    </div>
+    <div class="score-badge">점수 {_e(score)}</div>
+  </div>
+  <div class="card-body">
+    <div class="card-row"><span class="lbl">패턴</span>
+      <span class="val" style="color:{card_color};font-weight:600">{_e(pat_label)}</span></div>
+    <div class="card-row"><span class="lbl">기준봉 시점</span>
+      <span class="val">{_e(offset_str)}</span></div>
+    <div class="card-row"><span class="lbl">상태</span>
+      <span class="val">{_e(status_summary)}</span></div>
+    <div class="card-row"><span class="lbl">기준봉고가 대비</span>
+      <span class="{gap_cls} val">{_e(gap_str)}</span></div>
+    <div class="card-row"><span class="lbl">대금ratio (기준봉 대비)</span>
+      <span class="{tv_ratio_cls}">{_e(tv_ratio_str)}</span></div>
+    <div class="card-row"><span class="lbl">최근3일 대금흐름</span>
+      <span class="val" style="font-size:11px">{_e(tv_3d_str)}</span></div>
+    <div class="card-row"><span class="lbl">기준봉 후 대금감소</span>
+      <span class="val">{_badge(vol_dec)}</span></div>
+    <div class="card-row"><span class="lbl">상승률</span>
+      <span class="{chg_cls}">{_sign(chg)}</span></div>
+    <div class="card-row"><span class="lbl">거래대금</span>
+      <span class="val">{_tv_eok(tv)}</span></div>
+    <div class="card-row"><span class="lbl">장대/준장대/첫장대</span>
+      <span class="val">{_badge(ind.get('big_candle'))} / {_badge(ind.get('loose_big_candle'))} / {_badge(ind.get('first_big_candle'))}</span></div>
+    <div class="card-row"><span class="lbl">이평밀집</span>
+      <span class="val">{_badge(ind.get('ma_cluster'))}</span></div>
+    <div class="card-row"><span class="lbl">거래량/거래대금 60일최고</span>
+      <span class="val">{_badge(ind.get('vol_peak'))} / {_badge(ind.get('tv_peak'))}</span></div>
+    <div class="card-row"><span class="lbl">기관 순매수</span>
+      <span class="val">{inst_str if sup_ok else '확인불가'}</span></div>
+    <div class="card-row"><span class="lbl">외국인 순매수</span>
+      <span class="val">{frgn_str if sup_ok else '확인불가'}</span></div>
+    <div style="margin-top:8px;">{news_html}</div>
+  </div>
+</div>"""
+
+
 def _section_core_candidates(candidates: list) -> str:
     parts = ['<div class="section-title">🎯 핵심 후보</div>']
     if not candidates:
         parts.append('<div class="empty-msg">조건 충족 핵심 후보 없음</div>')
         return "".join(parts)
 
-    cards = []
+    # 패턴 타입별 그룹화
+    groups: dict[str, list] = {t: [] for t in _PATTERN_TYPE_ORDER}
     for c in candidates:
-        ind    = c.get("indicators", {})
-        pat    = c.get("patterns",   {})
-        sup    = _supply_info(c.get("supply"))
-        news   = _news_titles(c.get("news"))
-        score  = _score_val(c.get("score"))
-        tv     = float(c.get("trading_value", 0))
-        chg    = float(c.get("change_pct",    0))
-        in_inter   = c.get("in_inter",    False)
-        has_pat    = c.get("has_pattern", False)
-        pat_summary = _e(pat.get("pattern_summary", "없음"))
+        label = c.get("patterns", {}).get("pattern_type_label", "없음")
+        groups.setdefault(label, []).append(c)
 
-        # 카드 테두리 클래스
-        card_cls = "candidate-card"
-        if in_inter:   card_cls += " in-inter"
-        elif has_pat:  card_cls += " has-pattern"
+    for label in _PATTERN_TYPE_ORDER:
+        group = groups.get(label, [])
+        if not group:
+            continue
+        title = _PATTERN_SECTION_TITLE.get(label, label)
+        color = _PATTERN_CARD_COLOR.get(label, "#8b949e")
+        parts.append(
+            f'<div class="section-title" style="border-color:{color}">{title} '
+            f'<span style="font-size:12px;font-weight:400;color:var(--muted)">({len(group)}개)</span></div>'
+        )
+        cards_html = "".join(_candidate_card_html(c) for c in group)
+        parts.append(f'<div class="candidate-grid">{cards_html}</div>')
 
-        # 패턴 태그
-        if pat_summary and pat_summary != "없음":
-            pat_tag = f'<span class="pattern-tag">{pat_summary}</span>'
-        else:
-            pat_tag = f'<span class="pattern-none">패턴없음</span>'
-
-        # 교집합 배지
-        inter_badge = ' <span class="badge inter">교집합</span>' if in_inter else ""
-
-        # 상승률 색상
-        chg_cls = "val pos" if chg >= 0 else "val neg"
-
-        # 수급
-        inst_str = _net_str(sup.get("institution_net"))
-        frgn_str = _net_str(sup.get("foreign_net"))
-        prog_str = _net_str(sup.get("program_net"))
-        sup_ok   = sup.get("status") == "ok"
-
-        # 뉴스 HTML
-        news_html = ""
-        for t in news:
-            news_html += f'<div class="news-item">📰 {_e(t)}</div>'
-        if not news_html:
-            news_html = '<div class="news-item" style="color:var(--muted)">뉴스 없음</div>'
-
-        cards.append(f"""
-<div class="{card_cls}">
-  <div class="card-head">
-    <div>
-      <div class="name">{_e(c.get('name',''))} {inter_badge}</div>
-      <div class="code">{_e(c.get('code',''))} &middot; {_e(c.get('market',''))}</div>
-    </div>
-    <div class="score-badge">점수 {_e(score)}</div>
-  </div>
-  <div class="card-body">
-    {pat_tag}
-    <div class="card-row"><span class="lbl">상승률</span>
-      <span class="{chg_cls}">{_sign(chg)}</span></div>
-    <div class="card-row"><span class="lbl">거래대금</span>
-      <span class="val">{_tv_eok(tv)}</span></div>
-    <div class="card-row"><span class="lbl">장대양봉</span>
-      <span class="val">{_badge(ind.get('big_candle'))}</span></div>
-    <div class="card-row"><span class="lbl">준장대양봉</span>
-      <span class="val">{_badge(ind.get('loose_big_candle'))}</span></div>
-    <div class="card-row"><span class="lbl">첫 장대양봉</span>
-      <span class="val">{_badge(ind.get('first_big_candle'))}</span></div>
-    <div class="card-row"><span class="lbl">이평 밀집</span>
-      <span class="val">{_badge(ind.get('ma_cluster'))}</span></div>
-    <div class="card-row"><span class="lbl">거래량 60일 최고</span>
-      <span class="val">{_badge(ind.get('vol_peak'))}</span></div>
-    <div class="card-row"><span class="lbl">거래대금 60일 최고</span>
-      <span class="val">{_badge(ind.get('tv_peak'))}</span></div>
-    <div class="card-row"><span class="lbl">기관 순매수</span>
-      <span class="val {'pos' if sup.get('institution_net') and sup['institution_net']>0 else 'neg' if sup.get('institution_net') and sup['institution_net']<0 else ''}">{inst_str if sup_ok else '확인불가'}</span></div>
-    <div class="card-row"><span class="lbl">외국인 순매수</span>
-      <span class="val">{frgn_str if sup_ok else '확인불가'}</span></div>
-    <div class="card-row"><span class="lbl">프로그램</span>
-      <span class="val">{prog_str if sup_ok else '확인불가'}</span></div>
-    <div style="margin-top:8px;">{news_html}</div>
-  </div>
-</div>""")
-
-    return ''.join(parts) + f'<div class="candidate-grid">{"".join(cards)}</div>'
+    return "".join(parts)
 
 
 def _section_table_gainers(rows: list) -> str:

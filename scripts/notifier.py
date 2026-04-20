@@ -203,38 +203,84 @@ def format_intersection(df, enriched: dict = {}) -> str:
 
 # ── 핵심 후보 상세 ────────────────────────────────────────
 
+_OFFSET_LABEL = {0: "당일", 1: "1일전", 2: "2일전", 3: "3일전"}
+_PATTERN_TYPE_ORDER = ["당일돌파형", "고가횡보형", "눌림관찰형", "없음"]
+
+
+def _format_candidate_card(seq: int, c: dict) -> str:
+    """단일 종목 카드 포맷"""
+    ind  = c.get("indicators", {})
+    pat  = c.get("patterns", {})
+    sup  = c.get("supply", {})
+    news = c.get("news", [])
+    tv   = float(c.get("trading_value", 0))
+
+    offset      = pat.get("base_candle_day_offset")
+    offset_str  = _OFFSET_LABEL.get(offset, "-")
+    gap_pct     = pat.get("base_high_gap_pct")
+    gap_str     = f"{gap_pct:+.1f}%" if gap_pct is not None else "-"
+    vol_dec     = pat.get("post_base_volume_decline_flag", False)
+    in_inter    = c.get("in_inter", False)
+    tv_ratio    = pat.get("tv_ratio")
+    tv_ratio_str = f"{tv_ratio:.2f}" if tv_ratio is not None else "-"
+    status      = pat.get("status_summary", "-")
+    tv_3d       = pat.get("tv_3d_flow", [])
+    tv_3d_str   = " → ".join(_tv_eok(v) for v in tv_3d) if tv_3d else "-"
+
+    tag = "★교집합" if in_inter else ""
+
+    return (
+        f"\n{seq}) <b>{c.get('name','')}({c.get('code','')})</b>"
+        f" [{c.get('market','')}]{' ' + tag if tag else ''}\n"
+        f"- 패턴: {pat.get('pattern_type_label','없음')} | 기준봉: {offset_str} | 상태: {status}\n"
+        f"- 상승률: {_sign(float(c.get('change_pct',0)))} | 거래대금: {_tv_eok(tv)}\n"
+        f"- 기준봉고가 대비: {gap_str} | 대금ratio: {tv_ratio_str}\n"
+        f"- 최근3일 대금흐름: {tv_3d_str}\n"
+        f"- 장대: {_yn(ind.get('big_candle'))} / 준장대: {_yn(ind.get('loose_big_candle'))} / "
+        f"첫장대: {_yn(ind.get('first_big_candle'))}\n"
+        f"- 이평밀집: {_yn(ind.get('ma_cluster'))} | "
+        f"거래량60최고: {_yn(ind.get('vol_peak'))} / 거래대금60최고: {_yn(ind.get('tv_peak'))}\n"
+        f"- 수급: {_supply_str(sup)}\n"
+        f"- 뉴스: {_news_str(news)}"
+    )
+
+
 def format_key_candidates(candidates: list[dict]) -> str:
     """
+    핵심 후보를 패턴 타입별로 그룹화하여 출력.
     candidates: [
       {name, code, market, change_pct, trading_value(원),
-       indicators, patterns, supply, news}
+       indicators, patterns, supply, news, in_inter}
     ]
     """
     if not candidates:
         return "<b>[핵심 후보]</b>\n없음\n"
 
-    lines = ["<b>[핵심 후보]</b>"]
-    for i, c in enumerate(candidates):
-        ind  = c.get("indicators", {})
-        pat  = c.get("patterns", {})
-        sup  = c.get("supply", {})
-        news = c.get("news", [])
-        tv   = float(c.get("trading_value", 0))
+    # 패턴 타입별 그룹화
+    groups: dict[str, list] = {t: [] for t in _PATTERN_TYPE_ORDER}
+    for c in candidates:
+        label = c.get("patterns", {}).get("pattern_type_label", "없음")
+        groups.setdefault(label, []).append(c)
 
-        lines.append(
-            f"\n{i+1}) <b>{c.get('name','')}({c.get('code','')})</b> [{c.get('market','')}]\n"
-            f"- 패턴: {pat.get('pattern_summary','?')}\n"
-            f"- 상승률: {_sign(float(c.get('change_pct',0)))}\n"
-            f"- 거래대금: {_tv_eok(tv)}\n"
-            f"- 장대양봉: {_yn(ind.get('big_candle'))} / "
-            f"준장대양봉: {_yn(ind.get('loose_big_candle'))} / "
-            f"첫장대양봉: {_yn(ind.get('first_big_candle'))}\n"
-            f"- 이평밀집: {_yn(ind.get('ma_cluster'))}\n"
-            f"- 수급: {_supply_str(sup)}\n"
-            f"- 거래량60최고: {_yn(ind.get('vol_peak'))} / "
-            f"거래대금60최고: {_yn(ind.get('tv_peak'))}\n"
-            f"- 뉴스: {_news_str(news)}"
-        )
+    lines = [f"<b>[핵심 후보 {len(candidates)}개]</b>"]
+    seq = 1
+
+    section_titles = {
+        "당일돌파형": "▶ 당일 돌파형",
+        "고가횡보형": "▶ 1~3일전 기준봉 후 고가횡보형",
+        "눌림관찰형": "▶ 눌림 관찰형",
+        "없음":       "▶ 기타 (교집합)",
+    }
+
+    for label in _PATTERN_TYPE_ORDER:
+        group = groups.get(label, [])
+        if not group:
+            continue
+        lines.append(f"\n<b>{section_titles[label]}</b>")
+        for c in group:
+            lines.append(_format_candidate_card(seq, c))
+            seq += 1
+
     return "\n".join(lines) + "\n"
 
 
@@ -261,14 +307,17 @@ def build_first_alert(
     gainers,
     top_tv,
     intersection,
-    run_time: str,
+    key_candidates: list = [],
+    run_time: str = "",
+    enriched: dict = {},
     dashboard_links: dict = {},
 ) -> str:
     parts = [
         format_market_summary(market_totals, run_time, "1차"),
-        format_top_gainers(gainers),
-        format_top_tv(top_tv),
-        format_intersection(intersection),
+        format_top_gainers(gainers, enriched),
+        format_top_tv(top_tv, enriched),
+        format_intersection(intersection, enriched),
+        format_key_candidates(key_candidates),
     ]
     link_str = _format_dashboard_links(dashboard_links)
     if link_str:
