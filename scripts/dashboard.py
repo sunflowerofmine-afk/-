@@ -599,7 +599,103 @@ tbody tr:hover td { background: var(--bg3); }
     margin-bottom: 8px;
 }
 
+/* ── 오늘 환경 / 핵심 신호 박스 ── */
+.top-boxes {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+.info-box {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+}
+.info-box-title {
+    font-size: 11px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px;
+}
+.env-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 5px 0; border-bottom: 1px solid var(--bg3); font-size: 13px;
+}
+.env-row:last-child { border-bottom: none; }
+.env-label { color: var(--muted); font-size: 12px; }
+.env-val   { font-weight: 600; }
+.signal-row { padding: 7px 0; border-bottom: 1px solid var(--bg3); }
+.signal-row:last-child { border-bottom: none; }
+.signal-num { font-size: 20px; font-weight: 700; color: var(--blue); }
+.signal-interp { font-size: 11px; color: var(--muted); margin-top: 1px; }
+
+/* ── 종목 패널 (좌/우 레이아웃) ── */
+.stock-layout {
+    display: grid;
+    grid-template-columns: 270px 1fr;
+    gap: 12px;
+    margin-bottom: 16px;
+    align-items: start;
+}
+.stock-list {
+    display: flex; flex-direction: column; gap: 6px;
+    max-height: 680px; overflow-y: auto;
+}
+.list-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-left: 3px solid transparent;
+    border-radius: 8px;
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: border-color 0.12s, background 0.12s;
+}
+.list-card:hover  { background: var(--bg3); }
+.list-card.active { background: var(--bg3); border-left-color: var(--blue); border-color: var(--blue); }
+.list-card.pat-break { border-left-color: var(--green); }
+.list-card.pat-hold  { border-left-color: var(--blue); }
+.list-card.pat-watch { border-left-color: var(--yellow); }
+.lc-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px; }
+.lc-name { font-weight: 700; font-size: 14px; }
+.lc-code { color: var(--muted); font-size: 11px; margin-left: 4px; }
+.priority-badge { font-size: 10px; font-weight: 700; border-radius: 3px; padding: 1px 6px; white-space: nowrap; }
+.priority-first { background: var(--yellow-bg); color: var(--yellow); }
+.priority-watch { background: var(--bg3); color: var(--muted); }
+.lc-stats { font-size: 12px; color: var(--muted); margin-bottom: 3px; }
+.lc-summary { font-size: 11px; color: var(--text); background: var(--bg3); border-radius: 3px; padding: 2px 6px; }
+
+/* ── 우측 상세 패널 ── */
+.stock-detail {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 18px;
+    min-height: 420px;
+}
+.detail-name  { font-size: 17px; font-weight: 700; margin-bottom: 4px; }
+.detail-meta  { font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+.detail-meta span { margin-right: 10px; }
+.detail-section { margin-bottom: 14px; }
+.detail-section-title {
+    font-size: 11px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.5px;
+    border-bottom: 1px solid var(--bg3);
+    padding-bottom: 4px; margin-bottom: 7px;
+}
+.detail-row { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 4px; }
+.detail-kv .k { color: var(--muted); font-size: 11px; display: block; }
+.detail-kv .v { font-weight: 600; font-size: 13px; }
+.llm-box { background: var(--bg3); border-radius: 6px; padding: 8px 12px; font-size: 13px; margin-bottom: 12px; }
+.str-item  { font-size: 13px; padding: 3px 0; color: var(--green); }
+.weak-item { font-size: 13px; padding: 3px 0; color: var(--yellow); }
+.chk-item  { font-size: 13px; padding: 3px 0; color: var(--muted); }
+.detail-empty { text-align: center; color: var(--muted); padding: 60px 20px; font-size: 14px; }
+
 /* ── 반응형 ── */
+@media (max-width: 768px) {
+    .top-boxes   { grid-template-columns: 1fr; }
+    .stock-layout { grid-template-columns: 1fr; }
+    .stock-list  { max-height: 300px; }
+}
 @media (max-width: 600px) {
     body { padding: 8px; font-size: 13px; }
     .candidate-grid { grid-template-columns: 1fr; }
@@ -649,34 +745,53 @@ def _section_header(data: dict) -> str:
 """
 
 
-def _section_market_summary(data: dict) -> str:
-    m = data.get("market_summary", {})
-    kospi_tv        = m.get("kospi_tv_eok", 0)
-    kosdaq_tv       = m.get("kosdaq_tv_eok", 0)
-    tv_1500         = m.get("tv_1500_count", 0)
-    gainers_tv_1500 = m.get("gainers_tv_1500_count", 0)
-    regime          = m.get("market_regime", "")
+def _section_env_and_signals(data: dict) -> str:
+    m        = data.get("market_summary", {})
+    core     = data.get("core_candidates", [])
+    rejected = data.get("rejected_candidates", [])
 
-    _regime_cfg = {
-        "강세": ("regime-bull", "🟢 강세"),
-        "약세": ("regime-bear", "🔴 약세"),
-        "중립": ("regime-neutral", "⚪ 중립"),
-    }
-    cls, label = _regime_cfg.get(regime, ("regime-neutral", "⚪ 중립"))
-    regime_html = f'<span class="{cls}">{label}</span>' if regime else ""
+    regime       = m.get("market_regime", "")
+    tv_1500      = m.get("tv_1500_count", 0)
+    g_tv_1500    = m.get("gainers_tv_1500_count", 0)
+    inter_n      = m.get("intersection_count", 0)
+    core_n       = len(core)
+    watch_n      = len([r for r in rejected if "패턴 없음" in r.get("reason", "")])
 
-    return f"""
-<div class="section-title">📊 시장 요약</div>
-<div class="market-summary">
-  <div class="ms-grid">
-    <div class="ms-item"><div class="ms-label">코스피 거래대금</div><div class="ms-value">{kospi_tv:,.0f}억</div></div>
-    <div class="ms-item"><div class="ms-label">코스닥 거래대금</div><div class="ms-value">{kosdaq_tv:,.0f}억</div></div>
-    <div class="ms-item"><div class="ms-label">1500억↑ 종목 수</div><div class="ms-value">{tv_1500}개</div></div>
-    <div class="ms-item"><div class="ms-label">상승Top20 중 1500억↑</div><div class="ms-value">{gainers_tv_1500}개</div></div>
+    _regime_cfg = {"강세": ("regime-bull", "🟢 강세"), "약세": ("regime-bear", "🔴 약세"), "중립": ("regime-neutral", "⚪ 중립")}
+    rcls, rlabel = _regime_cfg.get(regime, ("regime-neutral", "⚪ 중립"))
+    regime_html  = f'<span class="{rcls}" style="font-size:13px;padding:2px 10px">{rlabel}</span>'
+
+    inter_interp = "주도주 경쟁 있음" if inter_n > 0 else "주도주 부재"
+    tv1500_interp = "자금 집중" if tv_1500 >= 5 else ("보통" if tv_1500 >= 3 else "자금 분산")
+    g1500_interp  = "방향성 강함" if g_tv_1500 >= 3 else ("보통" if g_tv_1500 >= 1 else "방향성 약함")
+
+    env_box = f"""<div class="info-box">
+  <div class="info-box-title">오늘 환경</div>
+  <div class="env-row"><span class="env-label">시장 상태</span><span class="env-val">{regime_html}</span></div>
+  <div class="env-row"><span class="env-label">우선 확인</span><span class="env-val" style="color:var(--yellow)">{core_n}종목</span></div>
+  <div class="env-row"><span class="env-label">관찰</span><span class="env-val" style="color:var(--muted)">{watch_n}종목</span></div>
+</div>"""
+
+    signal_box = f"""<div class="info-box">
+  <div class="info-box-title">핵심 신호</div>
+  <div class="signal-row">
+    <span class="signal-num">{inter_n}개</span>
+    <span style="color:var(--muted);font-size:12px;margin-left:8px">교집합 (상승률+거래대금 Top20)</span>
+    <div class="signal-interp">→ {inter_interp}</div>
   </div>
-  {regime_html}
-</div>
-"""
+  <div class="signal-row">
+    <span class="signal-num">{tv_1500}개</span>
+    <span style="color:var(--muted);font-size:12px;margin-left:8px">1500억↑ 종목</span>
+    <div class="signal-interp">→ {tv1500_interp}</div>
+  </div>
+  <div class="signal-row">
+    <span class="signal-num">{g_tv_1500}개</span>
+    <span style="color:var(--muted);font-size:12px;margin-left:8px">상승Top20 중 1500억↑</span>
+    <div class="signal-interp">→ {g1500_interp}</div>
+  </div>
+</div>"""
+
+    return f'<div class="top-boxes">{env_box}{signal_box}</div>\n'
 
 
 def _section_sector_calendar(calendar: dict, today_str: str) -> str:
@@ -800,6 +915,226 @@ def _section_rejected_summary(rejected: list) -> str:
 
     items = " ".join(f'<span>{_e(k)}: {v}개</span>' for k, v in counts.items())
     return f'<div class="section-title">🚫 탈락 요약</div><div class="rejected-summary">{items}</div>'
+
+
+def _compute_priority(c: dict) -> str:
+    pat_label = c.get("patterns", {}).get("pattern_type_label", "없음")
+    if c.get("in_inter") or pat_label in ("당일돌파형", "고가횡보형"):
+        return "우선확인"
+    return "관찰우선"
+
+
+def _compute_summary_short(c: dict) -> str:
+    import re as _re
+    news = c.get("news")
+    if hasattr(news, "llm_summary") and news.llm_summary:
+        s = news.llm_summary
+        if s.startswith("재료:"):
+            s = s[3:].strip()
+        s = _re.sub(r'\s*\([^)]+\)\s*$', '', s).strip()
+        return s[:25]
+    pat_label = c.get("patterns", {}).get("pattern_type_label", "없음")
+    return f"교집합 · {pat_label}" if c.get("in_inter") else pat_label
+
+
+def _compute_strengths(c: dict) -> list:
+    strengths = []
+    pat = c.get("patterns", {})
+    ind = c.get("indicators", {})
+    sup = _supply_info(c.get("supply"))
+    if c.get("in_inter"):              strengths.append("상승률·거래대금 교집합")
+    if pat.get("new_high_60d"):        strengths.append("60일 신고가 돌파")
+    elif pat.get("near_high_60d"):     strengths.append("60일 고점권 근접")
+    tv_ratio = pat.get("tv_ratio")
+    if tv_ratio is not None and tv_ratio >= 0.4:
+        strengths.append(f"거래대금 유지 ratio {tv_ratio:.1f}")
+    if ind.get("big_candle"):          strengths.append("장대양봉")
+    if ind.get("ma_cluster"):          strengths.append("이평 밀집 후 이탈")
+    inst = sup.get("institution_net")
+    if inst is not None and inst > 0:  strengths.append(f"기관 순매수 {inst/1e8:+.0f}억")
+    frgn = sup.get("foreign_net")
+    if frgn is not None and frgn > 0:  strengths.append(f"외국인 순매수 {frgn/1e8:+.0f}억")
+    return strengths[:3]
+
+
+def _compute_weaknesses(c: dict) -> list:
+    weaknesses = []
+    pat = c.get("patterns", {})
+    sup = _supply_info(c.get("supply"))
+    tv_ratio = pat.get("tv_ratio")
+    if tv_ratio is not None and tv_ratio < 0.4:
+        weaknesses.append(f"거래대금 감소 ratio {tv_ratio:.1f}")
+    if pat.get("overheated_3d_flag"):              weaknesses.append("3일 연속 과열")
+    if pat.get("post_base_volume_decline_flag"):   weaknesses.append("기준봉 후 대금 감소")
+    chg = float(c.get("change_pct", 0))
+    if chg > 20:                                   weaknesses.append(f"당일 급등 과열 ({chg:.1f}%)")
+    inst = sup.get("institution_net")
+    if inst is not None and inst < 0:              weaknesses.append(f"기관 순매도 {inst/1e8:.0f}억")
+    frgn = sup.get("foreign_net")
+    if frgn is not None and frgn < 0:              weaknesses.append(f"외국인 순매도 {frgn/1e8:.0f}억")
+    if sup.get("status") != "ok":                  weaknesses.append("수급 미확인")
+    return weaknesses[:3]
+
+
+def _compute_checkpoints(c: dict) -> list:
+    pl = c.get("patterns", {}).get("pattern_type_label", "없음")
+    if pl == "당일돌파형":
+        return ["내일 거래대금 1500억 유지 여부", "시가 갭업 시 추격 주의", "재료 지속성 확인"]
+    if pl == "고가횡보형":
+        return ["기준봉 고가 돌파 여부", "거래대금 증가 동반 확인", "눌림 없이 횡보 유지"]
+    if pl == "눌림관찰형":
+        return ["추가 하락 시 -8% 이내 지지 확인", "거래량 감소 (눌림 정상 여부)", "기준봉 고가 재돌파 시 진입 검토"]
+    return ["교집합 유지 여부 확인", "거래대금 1500억 이상 유지"]
+
+
+def _section_stock_panel(candidates: list, rejected: list) -> str:
+    import json as _json
+
+    if not candidates:
+        return (
+            '<div class="section-title">🎯 핵심 후보</div>'
+            '<div class="empty-msg">조건 충족 핵심 후보 없음</div>'
+        )
+
+    _PAT_CLS = {"당일돌파형": "pat-break", "고가횡보형": "pat-hold", "눌림관찰형": "pat-watch"}
+
+    list_cards = []
+    js_data    = []
+
+    for idx, c in enumerate(candidates):
+        pat      = c.get("patterns", {})
+        sup      = _supply_info(c.get("supply"))
+        raw_news = c.get("news")
+        tv       = float(c.get("trading_value", 0))
+        chg      = float(c.get("change_pct", 0))
+
+        pat_label  = pat.get("pattern_type_label", "없음")
+        offset_str = _OFFSET_LABEL.get(pat.get("base_candle_day_offset"), "-")
+        pat_str    = f"{pat_label}({offset_str})" if pat_label != "없음" else "패턴없음"
+
+        priority = _compute_priority(c)
+        summary  = _compute_summary_short(c)
+
+        chg_str  = _sign(chg)
+        chg_cls  = "pos" if chg >= 0 else "neg"
+        tv_str   = _tv_eok(tv)
+        in_inter = c.get("in_inter", False)
+        new_high = pat.get("new_high_60d", False)
+        near_hi  = pat.get("near_high_60d", False)
+
+        tags = []
+        if in_inter:  tags.append("★교집합")
+        if new_high:  tags.append("🔺신고가")
+        elif near_hi: tags.append("📍고점권")
+        tags_str = "  ".join(tags)
+
+        pri_html  = (
+            '<span class="priority-badge priority-first">우선확인</span>'
+            if priority == "우선확인"
+            else '<span class="priority-badge priority-watch">관찰우선</span>'
+        )
+        pat_cls   = _PAT_CLS.get(pat_label, "")
+        active_cls = " active" if idx == 0 else ""
+
+        list_cards.append(f"""<div class="list-card {pat_cls}{active_cls}" data-idx="{idx}" onclick="renderDetail({idx})">
+  <div class="lc-head">
+    <div><span class="lc-name">{_e(c.get('name',''))}</span><span class="lc-code">{_e(c.get('code',''))}</span></div>
+    {pri_html}
+  </div>
+  <div class="lc-stats"><span class="{chg_cls}">{chg_str}</span> · {tv_str} · {_e(pat_str)}{'  ' + _e(tags_str) if tags_str else ''}</div>
+  <span class="lc-summary">{_e(summary)}</span>
+</div>""")
+
+        llm_summary = ""
+        if hasattr(raw_news, "llm_summary") and raw_news.llm_summary:
+            llm_summary = raw_news.llm_summary
+
+        high_tag = "🔺신고가" if new_high else ("📍고점권" if near_hi else "")
+        sup_inst = sup.get("institution_net")
+        sup_frgn = sup.get("foreign_net")
+
+        js_data.append({
+            "idx":         idx,
+            "name":        c.get("name", ""),
+            "code":        c.get("code", ""),
+            "market":      c.get("market", ""),
+            "chg_str":     chg_str,
+            "chg_pos":     chg >= 0,
+            "tv_str":      tv_str,
+            "pat_str":     pat_str,
+            "in_inter":    in_inter,
+            "high_tag":    high_tag,
+            "priority":    priority,
+            "llm_summary": llm_summary,
+            "score":       _score_val(c.get("score")),
+            "tv_ratio":    f"{pat.get('tv_ratio'):.2f}" if pat.get("tv_ratio") is not None else "-",
+            "inst_str":    f"{sup_inst/1e8:+.0f}억" if sup_inst is not None else "-",
+            "frgn_str":    f"{sup_frgn/1e8:+.0f}억" if sup_frgn is not None else "-",
+            "supply_ok":   sup.get("status") == "ok",
+            "strengths":   _compute_strengths(c),
+            "weaknesses":  _compute_weaknesses(c),
+            "checkpoints": _compute_checkpoints(c),
+        })
+
+    cands_json = _json.dumps(js_data, ensure_ascii=False)
+    list_html  = "\n".join(list_cards)
+
+    js = f"""<script>
+const CANDS = {cands_json};
+function renderDetail(idx) {{
+  const c = CANDS[idx];
+  if (!c) return;
+  document.querySelectorAll('.list-card').forEach(el => el.classList.remove('active'));
+  const card = document.querySelector('.list-card[data-idx="' + idx + '"]');
+  if (card) {{ card.classList.add('active'); card.scrollIntoView({{block:'nearest'}}); }}
+
+  const chgCls  = c.chg_pos ? 'td-pos' : 'td-neg';
+  const tagsHtml = (c.in_inter ? '<span class="badge inter">★교집합</span> ' : '') +
+                   (c.high_tag ? '<span style="color:var(--yellow)">' + c.high_tag + '</span>' : '');
+  const priHtml  = c.priority === '우선확인'
+    ? '<span class="priority-badge priority-first">우선확인</span>'
+    : '<span class="priority-badge priority-watch">관찰우선</span>';
+  const llmHtml  = c.llm_summary ? '<div class="llm-box">' + c.llm_summary + '</div>' : '';
+  const strHtml  = c.strengths.length
+    ? c.strengths.map(s => '<div class="str-item">✅ ' + s + '</div>').join('')
+    : '<div style="color:var(--muted);font-size:13px">해당 없음</div>';
+  const wkHtml   = c.weaknesses.length
+    ? c.weaknesses.map(w => '<div class="weak-item">⚠️ ' + w + '</div>').join('')
+    : '<div style="color:var(--muted);font-size:13px">해당 없음</div>';
+  const ckHtml   = c.checkpoints.map(p => '<div class="chk-item">□ ' + p + '</div>').join('');
+  const supHtml  = c.supply_ok
+    ? '<div class="detail-section"><div class="detail-section-title">수급</div><div style="font-size:13px">기관 <strong>' + c.inst_str + '</strong> &nbsp;/&nbsp; 외국인 <strong>' + c.frgn_str + '</strong></div></div>'
+    : '';
+
+  let h = '';
+  h += '<div class="detail-name">' + c.name + ' <span style="color:var(--muted);font-size:13px;font-weight:400">(' + c.code + ') ' + c.market + '</span> ' + priHtml + '</div>';
+  h += '<div class="detail-meta"><span class="' + chgCls + '">' + c.chg_str + '</span><span>' + c.tv_str + '</span><span>' + c.pat_str + '</span>' + tagsHtml + '</div>';
+  h += llmHtml;
+  h += '<div class="detail-section"><div class="detail-section-title">지표</div><div class="detail-row">';
+  h += '<div class="detail-kv"><span class="k">등락률</span><span class="v ' + chgCls + '">' + c.chg_str + '</span></div>';
+  h += '<div class="detail-kv"><span class="k">거래대금</span><span class="v">' + c.tv_str + '</span></div>';
+  h += '<div class="detail-kv"><span class="k">패턴</span><span class="v">' + c.pat_str + '</span></div>';
+  h += '<div class="detail-kv"><span class="k">점수</span><span class="v">' + c.score + '</span></div>';
+  h += '<div class="detail-kv"><span class="k">대금ratio</span><span class="v">' + c.tv_ratio + '</span></div>';
+  h += '</div></div>';
+  h += '<div class="detail-section"><div class="detail-section-title">강점</div>' + strHtml + '</div>';
+  h += '<div class="detail-section"><div class="detail-section-title">약점</div>' + wkHtml + '</div>';
+  h += supHtml;
+  h += '<div class="detail-section"><div class="detail-section-title">체크포인트</div>' + ckHtml + '</div>';
+  document.getElementById('stock-detail').innerHTML = h;
+}}
+if (CANDS.length > 0) renderDetail(0);
+</script>"""
+
+    return (
+        f'<div class="section-title">🎯 핵심 후보 {len(candidates)}개</div>\n'
+        f'<div class="stock-layout">\n'
+        f'  <div class="stock-list" id="stock-list">\n{list_html}\n  </div>\n'
+        f'  <div class="stock-detail" id="stock-detail">'
+        f'<div class="detail-empty">← 좌측 종목을 선택하세요</div></div>\n'
+        f'</div>\n'
+        f'{js}\n'
+    )
 
 
 def _section_summary_cards(data: dict) -> str:
@@ -1094,19 +1429,16 @@ def _build_html(data: dict) -> str:
     snap     = _e(meta.get("snapshot_time", "-"))
     run_type = _e(meta.get("run_type", "-"))
 
-    core = data.get("core_candidates", [])
+    core     = data.get("core_candidates", [])
     rejected = data.get("rejected_candidates", [])
     today_str = meta.get("date", "")
     body_parts = [
         _section_header(data),
-        _section_market_summary(data),
+        _section_env_and_signals(data),
+        _section_stock_panel(core, rejected),
+        _section_watch_candidates(rejected),
         _section_leading_sectors(data.get("leading_sectors", [])),
         _section_sector_calendar(data.get("sector_calendar", {}), today_str),
-        _section_core_candidates(core),
-    ]
-    if not core:
-        body_parts.append(_section_watch_candidates(rejected))
-    body_parts += [
         _section_table_intersection(data.get("intersection_candidates", [])),
         _section_rejected_summary(rejected),
         _section_table_gainers(data.get("gainers_top20", [])),
