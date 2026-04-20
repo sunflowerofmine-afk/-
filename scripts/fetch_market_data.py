@@ -48,7 +48,8 @@ def _fetch_page(market_code: int, page: int) -> pd.DataFrame:
     rows = []
     for tr in table.select("tr"):
         cols = tr.select("td")
-        if len(cols) < 7:
+        # 현재 페이지 구조(13컬럼): N/종목명/현재가/전일비/등락률/액면가/시가총액/상장주식수/외국인비율/거래량/PER/ROE/게시판
+        if len(cols) < 10:
             continue
         name_tag = cols[1].select_one("a")
         if name_tag is None:
@@ -58,10 +59,11 @@ def _fetch_page(market_code: int, page: int) -> pd.DataFrame:
         code_match = re.search(r"code=(\w+)", href)
         code = code_match.group(1) if code_match else ""
 
-        # 거래대금: 네이버는 백만원 단위 표시 → 원 단위로 변환
-        tv_raw = _parse_number(cols[6].text)
+        # 거래량(col[9]) × 현재가(col[2])로 거래대금 계산 (sise_market_sum에 거래대금 컬럼 없음)
         try:
-            tv_won = float(tv_raw) * 1_000_000 if tv_raw else 0.0
+            price  = float(_parse_number(cols[2].text) or "0")
+            volume = float(_parse_number(cols[9].text) or "0")
+            tv_won = price * volume  # 원 단위
         except ValueError:
             tv_won = 0.0
 
@@ -71,7 +73,7 @@ def _fetch_page(market_code: int, page: int) -> pd.DataFrame:
             "현재가":   _parse_number(cols[2].text),
             "전일비":   _parse_number(cols[3].text),
             "등락률":   _parse_number(cols[4].text),
-            "거래량":   _parse_number(cols[5].text),
+            "거래량":   _parse_number(cols[9].text),
             "거래대금": tv_won,   # 원 단위
         })
 
