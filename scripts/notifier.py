@@ -136,12 +136,15 @@ def format_market_summary(market_totals: dict, run_time: str, run_type: str,
     g_tv1500 = ex.get("gainers_tv_1500_count", 0)
     inter_n  = ex.get("intersection_count", 0)
     core_n   = ex.get("core_count", 0)
-    judgment = "✅ 종베 가능" if g_tv1500 >= 3 else "⚠️ 종베 비우호"
+    regime   = ex.get("market_regime", "")
+    _regime_map = {"강세장": "🟢 강세장", "약세장": "🔴 약세장", "중립": "⚪ 중립"}
+    regime_str = _regime_map.get(regime, "")
+    regime_line = f" | {regime_str}" if regime_str else ""
 
     return (
         f"<b>[종가베팅 스캔] {date_str} · {base_time} KST</b>\n"
-        f"코스피 {kospi:,.0f}억 | 코스닥 {kosdaq:,.0f}억\n"
-        f"1500억↑ {tv1500}개 | 상승Top 중 {g_tv1500}개 | {judgment}\n"
+        f"코스피 {kospi:,.0f}억 | 코스닥 {kosdaq:,.0f}억{regime_line}\n"
+        f"1500억↑ {tv1500}개 | 상승Top 중 {g_tv1500}개\n"
         f"교집합 {inter_n}개 | 핵심후보 {core_n}개\n"
     )
 

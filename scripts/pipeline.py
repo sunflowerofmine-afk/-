@@ -49,6 +49,27 @@ def _setup_logging(timestamp_str: str):
     )
 
 
+def _get_market_regime() -> str:
+    """KODEX 200 MA 기반 시장 상태: 강세장 / 약세장 / 중립"""
+    try:
+        df = fetch_chart_data("069500")
+        if df.empty or len(df) < 201:
+            return "중립"
+        close = df["close"].astype(float)
+        price = close.iloc[0]
+        ma20  = close.iloc[:20].mean()
+        ma50  = close.iloc[:50].mean()
+        ma200 = close.iloc[:200].mean()
+        if price > ma200 and ma20 > ma50:
+            return "강세장"
+        if price < ma200 and ma20 < ma50:
+            return "약세장"
+        return "중립"
+    except Exception as e:
+        logging.getLogger(__name__).warning(f"시장 상태 판단 실패: {e}")
+        return "중립"
+
+
 def _enrich_candidates(codes: list[str], all_df: pd.DataFrame) -> dict:
     """
     상위 후보 종목에 대해 히스토리, 지표, 패턴, 수급, 뉴스 수집.
@@ -226,7 +247,11 @@ def run():
         f"거래대금Top{len(top_tv)} / 교집합{len(intersection)}"
     )
 
-    # ── 4. 섹터 데이터 수집 ──────────────────────────────────────
+    # ── 4. 시장 상태 판단 (KODEX 200 기반) ──────────────────────────
+    market_regime = _get_market_regime()
+    logger.info(f"시장 상태: {market_regime}")
+
+    # ── 5. 섹터 데이터 수집 ──────────────────────────────────────
     sector_result: dict = {"overview": pd.DataFrame(), "top_sectors": [], "code_to_sector": {}}
     if ENABLE_SECTOR_FETCH:
         try:
@@ -266,7 +291,7 @@ def run():
             r["sector"] = code_to_sector.get(str(r.get("종목코드", "")), "")
         return records
 
-    # ── 5. report_data 기본 구조 (1차/2차 공통) ──────────────
+    # ── 6. report_data 기본 구조 (1차/2차 공통) ──────────────
     report_date   = now.strftime("%Y-%m-%d")
     snapshot_time = {"1차": "1450", "2차": "1750"}.get(run_type, timestamp_str.split("_")[1])
 
@@ -290,6 +315,7 @@ def run():
             "tv_count":               len(top_tv),
             "intersection_count":     len(intersection) if not intersection.empty else 0,
             "core_count":             0,
+            "market_regime":          market_regime,
         },
         "gainers_top20":          _add_sector(gainers.to_dict("records") if not gainers.empty else []),
         "trading_value_top20":    _add_sector(top_tv.to_dict("records")  if not top_tv.empty  else []),
@@ -317,7 +343,7 @@ def run():
             logger.warning(f"sector_calendar.json 저장 실패: {e}")
         report_data["sector_calendar"] = _cal
 
-    # ── 6. 전체 후보 분석 (1차/2차/수동 공통) ───────────────────
+    # ── 7. 전체 후보 분석 (1차/2차/수동 공통) ───────────────────
     # 1차(14:50): 장중 데이터 기준 → 종가 매수 후보 압축
     # 2차(17:50): 종가 확정 후 → 추가 진입 / 다음날 선행 후보 탐색
     top20_gainers = filtered_df[filtered_df["등락률"] > 0].nlargest(20, "등락률")
@@ -492,6 +518,7 @@ def run():
         "gainers_tv_1500_count": gainers_tv_1500_count,
         "intersection_count":    len(intersection) if not intersection.empty else 0,
         "core_count":            len(key_candidates),
+        "market_regime":         market_regime,
     }
     if run_type == "1차":
         msg = ntf.build_first_alert(

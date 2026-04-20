@@ -492,7 +492,7 @@ tbody tr:hover td { background: var(--bg3); }
 .ms-item { text-align: center; }
 .ms-label { font-size: 11px; color: var(--muted); margin-bottom: 3px; }
 .ms-value { font-size: 20px; font-weight: 700; color: var(--text); }
-.judgment-ok {
+.regime-bull {
     display: inline-block;
     background: var(--green-bg);
     color: var(--green);
@@ -502,11 +502,21 @@ tbody tr:hover td { background: var(--bg3); }
     font-size: 15px;
     font-weight: 700;
 }
-.judgment-ng {
+.regime-bear {
     display: inline-block;
-    background: var(--yellow-bg);
-    color: var(--yellow);
-    border: 1px solid var(--yellow);
+    background: rgba(255,80,80,0.1);
+    color: var(--red);
+    border: 1px solid var(--red);
+    border-radius: 6px;
+    padding: 4px 16px;
+    font-size: 15px;
+    font-weight: 700;
+}
+.regime-neutral {
+    display: inline-block;
+    background: var(--bg2);
+    color: var(--muted);
+    border: 1px solid var(--border);
     border-radius: 6px;
     padding: 4px 16px;
     font-size: 15px;
@@ -632,15 +642,19 @@ def _section_header(data: dict) -> str:
 
 def _section_market_summary(data: dict) -> str:
     m = data.get("market_summary", {})
-    kospi_tv          = m.get("kospi_tv_eok", 0)
-    kosdaq_tv         = m.get("kosdaq_tv_eok", 0)
-    tv_1500           = m.get("tv_1500_count", 0)
-    gainers_tv_1500   = m.get("gainers_tv_1500_count", 0)
+    kospi_tv        = m.get("kospi_tv_eok", 0)
+    kosdaq_tv       = m.get("kosdaq_tv_eok", 0)
+    tv_1500         = m.get("tv_1500_count", 0)
+    gainers_tv_1500 = m.get("gainers_tv_1500_count", 0)
+    regime          = m.get("market_regime", "")
 
-    if gainers_tv_1500 >= 3:
-        judgment_html = '<span class="judgment-ok">✅ 종베 가능</span>'
-    else:
-        judgment_html = '<span class="judgment-ng">⚠️ 종베 비우호</span>'
+    _regime_cfg = {
+        "강세장": ("regime-bull", "🟢 강세장"),
+        "약세장": ("regime-bear", "🔴 약세장"),
+        "중립":   ("regime-neutral", "⚪ 중립"),
+    }
+    cls, label = _regime_cfg.get(regime, ("regime-neutral", "⚪ 중립"))
+    regime_html = f'<span class="{cls}">{label}</span>' if regime else ""
 
     return f"""
 <div class="section-title">📊 시장 요약</div>
@@ -651,7 +665,7 @@ def _section_market_summary(data: dict) -> str:
     <div class="ms-item"><div class="ms-label">1500억↑ 종목 수</div><div class="ms-value">{tv_1500}개</div></div>
     <div class="ms-item"><div class="ms-label">상승Top20 중 1500억↑</div><div class="ms-value">{gainers_tv_1500}개</div></div>
   </div>
-  {judgment_html}
+  {regime_html}
 </div>
 """
 
