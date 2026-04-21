@@ -3,9 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>종가베팅 대시보드</title>
+<title>종가베팅 스캔 2026-04-21 2134 (수동)</title>
 <style>
-
 :root {
     --bg:        #0d1117;
     --bg2:       #161b22;
@@ -470,61 +469,60 @@ tbody tr:hover td { background: var(--bg3); }
     .summary-grid   { grid-template-columns: repeat(3, 1fr); }
     thead th, tbody td { padding: 6px 8px; }
 }
-
-a { color: var(--blue); text-decoration: none; }
-a:hover { text-decoration: underline; }
-.idx-date { font-weight: 600; white-space: nowrap; padding: 10px 16px; }
-.idx-links { padding: 10px 16px; }
-.date-picker-wrap {
-  display: flex; align-items: center; gap: 10px;
-  padding: 12px 0 8px;
-}
-#date-picker {
-  background: var(--bg2); color: var(--fg);
-  border: 1px solid var(--border); border-radius: 6px;
-  padding: 6px 10px; font-size: 14px; cursor: pointer;
-}
-#date-go {
-  background: var(--blue); color: #000; font-weight: 700;
-  border: none; border-radius: 6px;
-  padding: 6px 14px; font-size: 14px; cursor: pointer;
-}
-#date-go:hover { opacity: 0.85; }
-#date-msg { font-size: 12px; color: var(--red); }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <div class="page-header">
-    <h1>📈 종가베팅 대시보드</h1>
+
+<div class="page-header">
+  <h1>📈 종가베팅 스캔 리포트<span class="regime-bull" style="font-size:14px;padding:3px 12px;margin-left:10px;">🟢 강세</span></h1>
+  <div class="meta">
+    <span>📅 2026-04-21</span>
+    <span>기준시각 21:34</span>
+    <span>실행시각 21:34 KST</span>
+    <span>분류 수동</span>
   </div>
-  <div class="date-picker-wrap">
-    <input type="date" id="date-picker">
-    <button id="date-go">이동</button>
-    <span id="date-msg"></span>
-  </div>
-  <div class="tbl-wrap">
-    <table>
-      <thead><tr><th>날짜</th><th>리포트</th></tr></thead>
-      <tbody><tr><td class="idx-date">2026-04-22</td><td class="idx-links"><a href="reports/2026-04-22_0650.html">수동 06:50</a></td></tr>
-<tr><td class="idx-date">2026-04-21</td><td class="idx-links"><a href="reports/2026-04-21_0516.html">수동 05:16</a> &nbsp;·&nbsp; <a href="reports/2026-04-21_0539.html">수동 05:39</a> &nbsp;·&nbsp; <a href="reports/2026-04-21_0543.html">수동 05:43</a> &nbsp;·&nbsp; <a href="reports/2026-04-21_0552.html">수동 05:52</a> &nbsp;·&nbsp; <a href="reports/2026-04-21_0702.html">수동 07:02</a> &nbsp;·&nbsp; <a href="reports/2026-04-21_2030.html">수동 20:30</a> &nbsp;·&nbsp; <a href="reports/2026-04-21_2134.html">수동 21:34</a> &nbsp;·&nbsp; <a href="reports/2026-04-21_2150.html">수동 21:50</a> &nbsp;·&nbsp; <a href="reports/2026-04-21_2203.html">수동 22:03</a></td></tr>
-<tr><td class="idx-date">2026-04-20</td><td class="idx-links"><a href="reports/2026-04-20_1649.html">수동 16:49</a> &nbsp;·&nbsp; <a href="reports/2026-04-20_1700.html">수동 17:00</a> &nbsp;·&nbsp; <a href="reports/2026-04-20_2019.html">수동 20:19</a> &nbsp;·&nbsp; <a href="reports/2026-04-20_2107.html">수동 21:07</a> &nbsp;·&nbsp; <a href="reports/2026-04-20_2115.html">수동 21:15</a> &nbsp;·&nbsp; <a href="reports/2026-04-20_2144.html">수동 21:44</a> &nbsp;·&nbsp; <a href="reports/2026-04-20_2223.html">수동 22:23</a> &nbsp;·&nbsp; <a href="reports/2026-04-20_2228.html">수동 22:28</a></td></tr>
-<tr><td class="idx-date">2026-04-19</td><td class="idx-links"><a href="reports/2026-04-19_0640.html">수동 06:40</a></td></tr>
-<tr><td class="idx-date">2026-04-17</td><td class="idx-links"><a href="reports/2026-04-17_0626.html">수동 06:26</a> &nbsp;·&nbsp; <a href="reports/2026-04-17_0753.html">수동 07:53</a> &nbsp;·&nbsp; <a href="reports/2026-04-17_1901.html">수동 19:01</a> &nbsp;·&nbsp; <a href="reports/2026-04-17_2039.html">수동 20:39</a></td></tr></tbody>
-    </table>
+  <div class="meta" style="margin-top:4px;">
+    <span>코스피 0억</span>
+    <span>코스닥 0억</span>
   </div>
 </div>
-<script>
-const DATE_MAP = {"2026-04-22": "reports/2026-04-22_0650.html", "2026-04-21": "reports/2026-04-21_2203.html", "2026-04-20": "reports/2026-04-20_2228.html", "2026-04-19": "reports/2026-04-19_0640.html", "2026-04-17": "reports/2026-04-17_2039.html"};
-const picker = document.getElementById('date-picker');
-const msg    = document.getElementById('date-msg');
-document.getElementById('date-go').addEventListener('click', () => {
-  const d = picker.value;
-  if (!d) { msg.textContent = '날짜를 선택하세요'; return; }
-  const url = DATE_MAP[d];
-  if (url) { location.href = url; }
-  else { msg.textContent = '해당 날짜 리포트 없음'; }
-});
-</script>
+
+<div class="top-boxes"><div class="info-box">
+  <div class="info-box-title">오늘 환경</div>
+  <div class="env-row"><span class="env-label">시장 상태</span><span class="env-val"><span class="regime-bull" style="font-size:13px;padding:2px 10px">🟢 강세</span></span></div>
+  <div class="env-row"><span class="env-label">우선 확인</span><span class="env-val" style="color:var(--yellow)">0종목</span></div>
+  <div class="env-row"><span class="env-label">관찰</span><span class="env-val" style="color:var(--muted)">0종목</span></div>
+</div><div class="info-box">
+  <div class="info-box-title">핵심 신호</div>
+  <div class="signal-row">
+    <span class="signal-num">2개</span>
+    <span style="color:var(--muted);font-size:12px;margin-left:8px">교집합 (상승률+거래대금 Top20)</span>
+    <div class="signal-interp">→ 주도주 경쟁 있음</div>
+  </div>
+  <div class="signal-row">
+    <span class="signal-num">0개</span>
+    <span style="color:var(--muted);font-size:12px;margin-left:8px">1500억↑ 종목</span>
+    <div class="signal-interp">→ 자금 분산</div>
+  </div>
+  <div class="signal-row">
+    <span class="signal-num">0개</span>
+    <span style="color:var(--muted);font-size:12px;margin-left:8px">상승Top20 중 1500억↑</span>
+    <div class="signal-interp">→ 방향성 약함</div>
+  </div>
+</div></div>
+
+<div class="section-title">🎯 핵심 후보</div><div class="empty-msg">조건 충족 핵심 후보 없음</div>
+
+
+
+<div class="section-title">🔀 교집합 (상승률Top20 ∩ 거래대금Top20)</div><div class="tbl-wrap"><table><thead><tr><th>#</th><th>종목명</th><th>코드</th><th>등락률</th><th>거래대금</th></tr></thead><tbody><tr><td>1</td><td class="td-name">솔루스첨단소재</td><td class="td-code">336370</td><td class="td-pos">+26.07%</td><td>0억</td></tr><tr><td>2</td><td class="td-name">삼성SDI</td><td class="td-code">006400</td><td class="td-pos">+19.89%</td><td>0억</td></tr></tbody></table></div>
+<div class="section-title">🚫 탈락 요약</div><div class="rejected-summary"><span>거래대금 부족: 38개</span></div>
+<div class="section-title">📊 상승률 Top20</div><div class="tbl-wrap"><table><thead><tr><th>#</th><th>종목명</th><th>섹터</th><th>코드</th><th>시장</th><th>등락률</th><th>거래대금</th></tr></thead><tbody><tr><td>1</td><td class="td-name">정원엔시스</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">045510</td><td>KOSDAQ</td><td class="td-pos">+29.96%</td><td>0억</td></tr><tr><td>2</td><td class="td-name">씨아이에스</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">222080</td><td>KOSDAQ</td><td class="td-pos">+29.96%</td><td>0억</td></tr><tr><td>3</td><td class="td-name">주성엔지니어링</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">036930</td><td>KOSDAQ</td><td class="td-pos">+29.95%</td><td>0억</td></tr><tr><td>4</td><td class="td-name">한중엔시에스</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">107640</td><td>KOSDAQ</td><td class="td-pos">+29.93%</td><td>0억</td></tr><tr><td>5</td><td class="td-name">에이에프더블류</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">312610</td><td>KOSDAQ</td><td class="td-pos">+29.93%</td><td>0억</td></tr><tr><td>6</td><td class="td-name">씨이랩</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">189330</td><td>KOSDAQ</td><td class="td-pos">+29.90%</td><td>0억</td></tr><tr><td>7</td><td class="td-name">벨로크</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">424760</td><td>KOSDAQ</td><td class="td-pos">+29.86%</td><td>0억</td></tr><tr><td>8</td><td class="td-name">화인써키트</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">127980</td><td>KOSDAQ</td><td class="td-pos">+29.85%</td><td>0억</td></tr><tr><td>9</td><td class="td-name">이브이첨단소재</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">131400</td><td>KOSDAQ</td><td class="td-pos">+29.83%</td><td>0억</td></tr><tr><td>10</td><td class="td-name">중앙첨단소재</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">051980</td><td>KOSDAQ</td><td class="td-pos">+29.71%</td><td>0억</td></tr><tr><td>11</td><td class="td-name">파인텍</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">131760</td><td>KOSDAQ</td><td class="td-pos">+29.69%</td><td>0억</td></tr><tr><td>12</td><td class="td-name">솔루스첨단소재</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">336370</td><td>KOSPI</td><td class="td-pos">+26.07%</td><td>0억</td></tr><tr><td>13</td><td class="td-name">지에프아이</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">493330</td><td>KOSDAQ</td><td class="td-pos">+25.70%</td><td>0억</td></tr><tr><td>14</td><td class="td-name">APS이노베이션</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">079810</td><td>KOSDAQ</td><td class="td-pos">+25.53%</td><td>0억</td></tr><tr><td>15</td><td class="td-name">제이오</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">418550</td><td>KOSDAQ</td><td class="td-pos">+22.76%</td><td>0억</td></tr><tr><td>16</td><td class="td-name">삼성SDI</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">006400</td><td>KOSPI</td><td class="td-pos">+19.89%</td><td>0억</td></tr><tr><td>17</td><td class="td-name">필에너지</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">378340</td><td>KOSDAQ</td><td class="td-pos">+19.48%</td><td>0억</td></tr><tr><td>18</td><td class="td-name">엠플러스</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">259630</td><td>KOSDAQ</td><td class="td-pos">+18.02%</td><td>0억</td></tr><tr><td>19</td><td class="td-name">엔켐</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">348370</td><td>KOSDAQ</td><td class="td-pos">+17.96%</td><td>0억</td></tr><tr><td>20</td><td class="td-name">삼기에너지솔루션즈</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">419050</td><td>KOSDAQ</td><td class="td-pos">+17.56%</td><td>0억</td></tr></tbody></table></div>
+<div class="section-title">💰 거래대금 Top20</div><div class="tbl-wrap"><table><thead><tr><th>#</th><th>종목명</th><th>섹터</th><th>코드</th><th>시장</th><th>거래대금</th><th>등락률</th></tr></thead><tbody><tr><td>1</td><td class="td-name">솔루스첨단소재</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">336370</td><td>KOSPI</td><td>0억</td><td class="td-pos">+26.07%</td></tr><tr><td>2</td><td class="td-name">삼성SDI</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">006400</td><td>KOSPI</td><td>0억</td><td class="td-pos">+19.89%</td></tr><tr><td>3</td><td class="td-name">HD현대마린솔루션</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">443060</td><td>KOSPI</td><td>0억</td><td class="td-pos">+17.53%</td></tr><tr><td>4</td><td class="td-name">대우건설</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">047040</td><td>KOSPI</td><td>0억</td><td class="td-pos">+16.90%</td></tr><tr><td>5</td><td class="td-name">KEC</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">092220</td><td>KOSPI</td><td>0억</td><td class="td-pos">+15.94%</td></tr><tr><td>6</td><td class="td-name">우진플라임</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">049800</td><td>KOSPI</td><td>0억</td><td class="td-pos">+15.92%</td></tr><tr><td>7</td><td class="td-name">이수스페셜티케미컬</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">457190</td><td>KOSPI</td><td>0억</td><td class="td-pos">+13.80%</td></tr><tr><td>8</td><td class="td-name">삼성전기</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">009150</td><td>KOSPI</td><td>0억</td><td class="td-pos">+13.53%</td></tr><tr><td>9</td><td class="td-name">GS건설</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">006360</td><td>KOSPI</td><td>0억</td><td class="td-pos">+13.27%</td></tr><tr><td>10</td><td class="td-name">한화엔진</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">082740</td><td>KOSPI</td><td>0억</td><td class="td-pos">+11.60%</td></tr><tr><td>11</td><td class="td-name">현대리바트</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">079430</td><td>KOSPI</td><td>0억</td><td class="td-pos">+11.42%</td></tr><tr><td>12</td><td class="td-name">LG에너지솔루션</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">373220</td><td>KOSPI</td><td>0억</td><td class="td-pos">+11.42%</td></tr><tr><td>13</td><td class="td-name">수산세보틱스</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">017550</td><td>KOSPI</td><td>0억</td><td class="td-pos">+10.97%</td></tr><tr><td>14</td><td class="td-name">애경케미칼</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">161000</td><td>KOSPI</td><td>0억</td><td class="td-pos">+10.90%</td></tr><tr><td>15</td><td class="td-name">한농화성</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">011500</td><td>KOSPI</td><td>0억</td><td class="td-pos">+10.50%</td></tr><tr><td>16</td><td class="td-name">HD현대중공업</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">329180</td><td>KOSPI</td><td>0억</td><td class="td-pos">+9.92%</td></tr><tr><td>17</td><td class="td-name">코스모화학</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">005420</td><td>KOSPI</td><td>0억</td><td class="td-pos">+9.86%</td></tr><tr><td>18</td><td class="td-name">DI동일</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">001530</td><td>KOSPI</td><td>0억</td><td class="td-pos">+9.41%</td></tr><tr><td>19</td><td class="td-name">OCI홀딩스</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">010060</td><td>KOSPI</td><td>0억</td><td class="td-pos">+9.34%</td></tr><tr><td>20</td><td class="td-name">STX엔진</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">077970</td><td>KOSPI</td><td>0억</td><td class="td-pos">+9.31%</td></tr></tbody></table></div>
+<div style="text-align:center;color:var(--muted);font-size:11px;margin-top:24px;padding:16px 0;">
+  korea-close-betting-bot &middot; 2026-04-21 2134
+</div>
+</div>
 </body>
 </html>

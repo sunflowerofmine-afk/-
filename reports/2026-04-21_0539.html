@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>종가베팅 스캔 2026-04-21 0539 (수동)</title>
+<style>
+:root {
+    --bg:        #0d1117;
+    --bg2:       #161b22;
+    --bg3:       #21262d;
+    --border:    #30363d;
+    --text:      #e6edf3;
+    --muted:     #8b949e;
+    --green:     #3fb950;
+    --green-bg:  #0f2d13;
+    --yellow:    #d29922;
+    --yellow-bg: #2d2200;
+    --red:       #f85149;
+    --red-bg:    #2d0f0f;
+    --blue:      #58a6ff;
+    --purple:    #bc8cff;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    padding: 12px;
+}
+.wrap { max-width: 1100px; margin: 0 auto; }
+
+/* ── 헤더 ── */
+.page-header {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin-bottom: 16px;
+}
+.page-header h1 { font-size: 18px; color: var(--blue); margin-bottom: 6px; }
+.page-header .meta { color: var(--muted); font-size: 13px; }
+.page-header .meta span { margin-right: 16px; }
+
+/* ── 섹션 타이틀 ── */
+.section-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+    border-left: 3px solid var(--blue);
+    padding-left: 10px;
+    margin: 20px 0 10px;
+}
+
+/* ── 요약 카드 그리드 ── */
+.summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 10px;
+    margin-bottom: 16px;
+}
+.summary-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    text-align: center;
+}
+.summary-card .label { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+.summary-card .value { font-size: 22px; font-weight: 700; color: var(--blue); }
+.summary-card .sub   { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+/* ── 핵심 후보 카드 ── */
+.candidate-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 14px;
+    margin-bottom: 8px;
+}
+.candidate-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+}
+.candidate-card.has-pattern { border-color: var(--green); }
+.candidate-card.in-inter    { border-color: var(--yellow); }
+.card-head {
+    background: var(--bg3);
+    padding: 10px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+}
+.card-head .name   { font-weight: 700; font-size: 15px; }
+.card-head .code   { color: var(--muted); font-size: 12px; }
+.card-head .market { font-size: 11px; color: var(--muted);
+                     background: var(--bg); border-radius: 4px; padding: 2px 6px; }
+.card-head .score-badge {
+    background: var(--blue);
+    color: #000;
+    font-weight: 700;
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-size: 13px;
+    white-space: nowrap;
+}
+.card-body { padding: 12px 14px; }
+.card-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 3px 0;
+    border-bottom: 1px solid var(--bg3);
+}
+.card-row:last-child { border-bottom: none; }
+.card-row .lbl { color: var(--muted); font-size: 12px; min-width: 90px; }
+.card-row .val { font-size: 13px; text-align: right; }
+.val.pos  { color: var(--green); }
+.val.neg  { color: var(--red); }
+.val.warn { color: var(--yellow); }
+.pattern-tag {
+    display: inline-block;
+    background: var(--green-bg);
+    color: var(--green);
+    border: 1px solid var(--green);
+    border-radius: 4px;
+    padding: 1px 8px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+.pattern-none {
+    display: inline-block;
+    background: var(--bg3);
+    color: var(--muted);
+    border-radius: 4px;
+    padding: 1px 8px;
+    font-size: 12px;
+    margin-bottom: 8px;
+}
+.news-item {
+    background: var(--bg3);
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 4px;
+    word-break: break-all;
+}
+
+/* ── 배지 ── */
+.badge { border-radius: 4px; padding: 1px 7px; font-size: 12px; font-weight: 600; }
+.badge.ok { background: var(--green-bg);  color: var(--green); }
+.badge.ng { background: var(--red-bg);    color: var(--red); }
+.badge.na { background: var(--bg3);       color: var(--muted); }
+.badge.inter { background: var(--yellow-bg); color: var(--yellow); }
+
+/* ── 테이블 ── */
+.tbl-wrap { overflow-x: auto; margin-bottom: 8px; }
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    background: var(--bg2);
+    border-radius: 8px;
+    overflow: hidden;
+}
+thead th {
+    background: var(--bg3);
+    color: var(--muted);
+    font-weight: 600;
+    text-align: left;
+    padding: 8px 12px;
+    white-space: nowrap;
+    border-bottom: 1px solid var(--border);
+}
+tbody td {
+    padding: 7px 12px;
+    border-bottom: 1px solid var(--bg3);
+    vertical-align: middle;
+}
+tbody tr:last-child td { border-bottom: none; }
+tbody tr:hover td { background: var(--bg3); }
+.td-name { font-weight: 600; }
+.td-code { color: var(--muted); font-size: 11px; }
+.td-pos  { color: var(--green); }
+.td-neg  { color: var(--red); }
+.td-warn { color: var(--yellow); }
+
+/* ── 섹터 ── */
+.sector-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 10px;
+    margin-bottom: 8px;
+}
+.sector-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+}
+.sector-head {
+    background: var(--bg3);
+    padding: 8px 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 6px;
+}
+.sector-head .s-name { font-weight: 700; font-size: 14px; }
+.sector-head .s-chg  { font-size: 12px; }
+.sector-head .s-tv   { font-size: 11px; color: var(--muted); }
+.sector-stocks { width: 100%; border-collapse: collapse; font-size: 12px; }
+.sector-stocks td { padding: 4px 10px; border-bottom: 1px solid var(--bg3); }
+.sector-stocks tr:last-child td { border-bottom: none; }
+.sector-stocks .s-stock-name { font-weight: 600; }
+.sector-stocks .s-stock-tv   { color: var(--muted); text-align: right; }
+.sector-tag {
+    display: inline-block;
+    background: var(--bg3);
+    color: var(--blue);
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-size: 11px;
+    margin-left: 4px;
+}
+
+/* ── 탈락 영역 ── */
+.rejected-list { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.rejected-item {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 12px;
+}
+.rejected-item .r-name { font-weight: 600; margin-bottom: 2px; }
+.rejected-item .r-reason { color: var(--red); font-size: 11px; }
+
+/* ── 시장 요약 ── */
+.market-summary {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-bottom: 16px;
+}
+.ms-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 10px;
+    margin-bottom: 12px;
+}
+.ms-item { text-align: center; }
+.ms-label { font-size: 11px; color: var(--muted); margin-bottom: 3px; }
+.ms-value { font-size: 20px; font-weight: 700; color: var(--text); }
+.judgment-ok {
+    display: inline-block;
+    background: var(--green-bg);
+    color: var(--green);
+    border: 1px solid var(--green);
+    border-radius: 6px;
+    padding: 4px 16px;
+    font-size: 15px;
+    font-weight: 700;
+}
+.judgment-ng {
+    display: inline-block;
+    background: var(--yellow-bg);
+    color: var(--yellow);
+    border: 1px solid var(--yellow);
+    border-radius: 6px;
+    padding: 4px 16px;
+    font-size: 15px;
+    font-weight: 700;
+}
+
+/* ── 관찰 후보 ── */
+.watch-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 10px;
+    margin-bottom: 8px;
+}
+.watch-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+}
+.watch-card .name { font-weight: 600; font-size: 14px; }
+.watch-card .code { color: var(--muted); font-size: 11px; margin-left: 6px; }
+.watch-body { margin-top: 6px; font-size: 13px; color: var(--muted); }
+.watch-note { font-size: 11px; color: var(--yellow); font-weight: 400; margin-left: 8px; }
+
+/* ── 탈락 요약 ── */
+.rejected-summary {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 8px;
+}
+.rejected-summary span { margin-right: 16px; }
+
+/* ── 섹터 캘린더 ── */
+.cal-table {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+    background: var(--bg2);
+    border-radius: 8px;
+    overflow: hidden;
+    font-size: 12px;
+}
+.cal-table thead th {
+    text-align: center;
+    padding: 6px;
+    font-size: 12px;
+}
+.cal-cell {
+    vertical-align: top;
+    padding: 6px 8px;
+    border: 1px solid var(--bg3);
+    min-height: 56px;
+    min-width: 0;
+}
+.cal-cell.cal-today { background: var(--bg3); border-color: var(--blue); }
+.cal-day { font-size: 11px; color: var(--muted); margin-bottom: 3px; }
+.cal-sector {
+    display: block;
+    font-size: 11px;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 1px;
+}
+
+/* ── 없음 메시지 ── */
+.empty-msg {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 13px;
+    margin-bottom: 8px;
+}
+
+/* ── 반응형 ── */
+@media (max-width: 600px) {
+    body { padding: 8px; font-size: 13px; }
+    .candidate-grid { grid-template-columns: 1fr; }
+    .summary-grid   { grid-template-columns: repeat(3, 1fr); }
+    thead th, tbody td { padding: 6px 8px; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="page-header">
+  <h1>📈 종가베팅 스캔 리포트</h1>
+  <div class="meta">
+    <span>📅 2026-04-21</span>
+    <span>기준시각 05:39</span>
+    <span>실행시각 05:39 KST</span>
+    <span>분류 수동</span>
+  </div>
+  <div class="meta" style="margin-top:4px;">
+    <span>코스피 357,851억</span>
+    <span>코스닥 143,014억</span>
+  </div>
+</div>
+
+
+<div class="section-title">📊 시장 요약</div>
+<div class="market-summary">
+  <div class="ms-grid">
+    <div class="ms-item"><div class="ms-label">코스피 거래대금</div><div class="ms-value">357,851억</div></div>
+    <div class="ms-item"><div class="ms-label">코스닥 거래대금</div><div class="ms-value">143,014억</div></div>
+    <div class="ms-item"><div class="ms-label">1500억↑ 종목 수</div><div class="ms-value">37개</div></div>
+    <div class="ms-item"><div class="ms-label">상승Top20 중 1500억↑</div><div class="ms-value">2개</div></div>
+  </div>
+  <span class="judgment-ng">⚠️ 종베 비우호</span>
+</div>
+
+<div class="section-title">🏭 주도 섹터</div><div class="sector-grid"><div class="sector-card"><div class="sector-head"><span class="s-name">레저용장비와제품</span><span class="s-chg pos">+11.15%</span><span class="s-tv">518억</span></div><table class="sector-stocks"><tr><td class="s-stock-name">오로라</td><td class="td-pos">+20.46%</td><td class="s-stock-tv">279억</td></tr><tr><td class="s-stock-name">삼천리자전거</td><td class="td-pos">+29.94%</td><td class="s-stock-tv">193억</td></tr><tr><td class="s-stock-name">알톤</td><td class="td-pos">+3.94%</td><td class="s-stock-tv">33억</td></tr><tr><td class="s-stock-name">이녹스</td><td class="td-neg">-1.72%</td><td class="s-stock-tv">4억</td></tr></table></div><div class="sector-card"><div class="sector-head"><span class="s-name">전기제품</span><span class="s-chg pos">+3.26%</span><span class="s-tv">18,375억</span></div><table class="sector-stocks"><tr><td class="s-stock-name">삼성SDI</td><td class="td-pos">+4.87%</td><td class="s-stock-tv">4,449억</td></tr><tr><td class="s-stock-name">에코프로머티</td><td class="td-pos">+4.61%</td><td class="s-stock-tv">2,909억</td></tr><tr><td class="s-stock-name">LG에너지솔루션</td><td class="td-pos">+2.63%</td><td class="s-stock-tv">2,419억</td></tr><tr><td class="s-stock-name">엘앤에프</td><td class="td-neg">-1.02%</td><td class="s-stock-tv">1,209억</td></tr></table></div><div class="sector-card"><div class="sector-head"><span class="s-name">통신장비</span><span class="s-chg pos">+4.92%</span><span class="s-tv">17,000억</span></div><table class="sector-stocks"><tr><td class="s-stock-name">빛과전자</td><td class="td-pos">+11.26%</td><td class="s-stock-tv">3,600억</td></tr><tr><td class="s-stock-name">대한광통신</td><td class="td-neg">-2.50%</td><td class="s-stock-tv">3,240억</td></tr><tr><td class="s-stock-name">아이씨티케이</td><td class="td-pos">+3.29%</td><td class="s-stock-tv">2,435억</td></tr><tr><td class="s-stock-name">쏠리드</td><td class="td-pos">+1.19%</td><td class="s-stock-tv">1,607억</td></tr></table></div><div class="sector-card"><div class="sector-head"><span class="s-name">무역회사와판매업체</span><span class="s-chg pos">+2.30%</span><span class="s-tv">773억</span></div><table class="sector-stocks"><tr><td class="s-stock-name">포스코인터내셔널</td><td class="td-pos">+2.67%</td><td class="s-stock-tv">561억</td></tr><tr><td class="s-stock-name">GS글로벌</td><td class="td-pos">+4.46%</td><td class="s-stock-tv">113억</td></tr><tr><td class="s-stock-name">LX인터내셔널</td><td class="td-pos">+1.72%</td><td class="s-stock-tv">70억</td></tr><tr><td class="s-stock-name">현대코퍼레이션</td><td class="td-pos">+2.39%</td><td class="s-stock-tv">22억</td></tr></table></div><div class="sector-card"><div class="sector-head"><span class="s-name">상업서비스와공급품</span><span class="s-chg pos">+5.63%</span><span class="s-tv">2,804억</span></div><table class="sector-stocks"><tr><td class="s-stock-name">드림시큐리티</td><td class="td-pos">+29.98%</td><td class="s-stock-tv">2,329억</td></tr><tr><td class="s-stock-name">나이스정보통신</td><td class="td-pos">+23.67%</td><td class="s-stock-tv">293억</td></tr><tr><td class="s-stock-name">에코프로에이치엔</td><td class="td-neg">-0.48%</td><td class="s-stock-tv">85억</td></tr><tr><td class="s-stock-name">에스원</td><td class="td-neg">-0.76%</td><td class="s-stock-tv">25억</td></tr></table></div></div>
+<div class="section-title">📅 최근 4주간 주도섹터</div><div class="tbl-wrap"><table class="cal-table"><thead><tr><th>월</th><th>화</th><th>수</th><th>목</th><th>금</th></tr></thead><tbody><tr><td class="cal-cell"><div class="cal-day">30</div></td><td class="cal-cell"><div class="cal-day">31</div></td><td class="cal-cell"><div class="cal-day">1</div></td><td class="cal-cell"><div class="cal-day">2</div></td><td class="cal-cell"><div class="cal-day">3</div></td></tr><tr><td class="cal-cell"><div class="cal-day">6</div></td><td class="cal-cell"><div class="cal-day">7</div></td><td class="cal-cell"><div class="cal-day">8</div></td><td class="cal-cell"><div class="cal-day">9</div></td><td class="cal-cell"><div class="cal-day">10</div></td></tr><tr><td class="cal-cell"><div class="cal-day">13</div></td><td class="cal-cell"><div class="cal-day">14</div></td><td class="cal-cell"><div class="cal-day">15</div></td><td class="cal-cell"><div class="cal-day">16</div></td><td class="cal-cell"><div class="cal-day">17</div></td></tr><tr><td class="cal-cell"><div class="cal-day">20</div></td><td class="cal-cell cal-today"><div class="cal-day">21</div><span class="cal-sector">레저용장비와제품</span><span class="cal-sector">전기제품</span><span class="cal-sector">통신장비</span><span class="cal-sector">무역회사와판매업체</span></td><td class="cal-cell"><div class="cal-day">22</div></td><td class="cal-cell"><div class="cal-day">23</div></td><td class="cal-cell"><div class="cal-day">24</div></td></tr></tbody></table></div>
+<div class="section-title">🎯 핵심 후보</div><div class="section-title" style="border-color:#3fb950">🚀 당일 돌파형 <span style="font-size:12px;font-weight:400;color:var(--muted)">(5개)</span></div><div class="candidate-grid">
+<div class="candidate-card in-inter" style="border-top: 3px solid #3fb950">
+  <div class="card-head">
+    <div>
+      <div class="name"><span class="badge inter">★교집합</span> 주성엔지니어링</div>
+      <div class="code">036930 &middot; KOSDAQ</div>
+    </div>
+    <div class="score-badge">점수 14</div>
+  </div>
+  <div class="card-body">
+    <div class="card-row"><span class="lbl">패턴</span>
+      <span class="val" style="color:#3fb950;font-weight:600">당일돌파형</span></div>
+    <div class="card-row"><span class="lbl">기준봉 시점</span>
+      <span class="val">당일</span></div>
+    <div class="card-row"><span class="lbl">상태</span>
+      <span class="val">고가 유지</span></div>
+    <div class="card-row"><span class="lbl">기준봉고가 대비</span>
+      <span class="warn val">-</span></div>
+    <div class="card-row"><span class="lbl">대금ratio (기준봉 대비)</span>
+      <span class="val neg">-</span></div>
+    <div class="card-row"><span class="lbl">최근3일 대금흐름</span>
+      <span class="val" style="font-size:11px">692억 → 1,214억 → 2,042억</span></div>
+    
+    <div class="card-row"><span class="lbl">60일 신고가</span>
+      <span class="val">🔺 신고가</span></div>
+    <div class="card-row"><span class="lbl">기준봉 후 대금감소</span>
+      <span class="val"><span class="badge ng">X</span></span></div>
+    <div class="card-row"><span class="lbl">상승률</span>
+      <span class="val pos">+29.97%</span></div>
+    <div class="card-row"><span class="lbl">거래대금</span>
+      <span class="val">8,752억</span></div>
+    <div class="card-row"><span class="lbl">장대/준장대/첫장대</span>
+      <span class="val"><span class="badge ok">O</span> / <span class="badge ok">O</span> / <span class="badge ok">O</span></span></div>
+    <div class="card-row"><span class="lbl">이평밀집</span>
+      <span class="val"><span class="badge na">-</span></span></div>
+    <div class="card-row"><span class="lbl">거래량/거래대금 60일최고</span>
+      <span class="val"><span class="badge ok">O</span> / <span class="badge ok">O</span></span></div>
+    <div class="card-row"><span class="lbl">기관 순매수</span>
+      <span class="val">+997억</span></div>
+    <div class="card-row"><span class="lbl">외국인 순매수</span>
+      <span class="val">+109억</span></div>
+    <div style="margin-top:8px;"><div class="news-item">📰 곽노정 SK하이닉스 사장 &quot;협력사와 상생 협력 강화할 것&quot;</div><div class="news-item">📰 곽노정 &quot;반도체 산업 지각 변동…협력사와 상호 신뢰로 경쟁력 갖출 ....</div><div style="margin-top:6px;font-size:12px;color:var(--fg);padding:4px 8px;background:var(--bg3);border-radius:4px">재료: [SK하이닉스] 협력 강화 기대감 (신규재료)</div></div>
+  </div>
+</div>
+<div class="candidate-card has-pattern" style="border-top: 3px solid #3fb950">
+  <div class="card-head">
+    <div>
+      <div class="name">이수페타시스</div>
+      <div class="code">007660 &middot; KOSPI</div>
+    </div>
+    <div class="score-badge">점수 10</div>
+  </div>
+  <div class="card-body">
+    <div class="card-row"><span class="lbl">패턴</span>
+      <span class="val" style="color:#3fb950;font-weight:600">당일돌파형</span></div>
+    <div class="card-row"><span class="lbl">기준봉 시점</span>
+      <span class="val">당일</span></div>
+    <div class="card-row"><span class="lbl">상태</span>
+      <span class="val">고가 유지</span></div>
+    <div class="card-row"><span class="lbl">기준봉고가 대비</span>
+      <span class="warn val">-</span></div>
+    <div class="card-row"><span class="lbl">대금ratio (기준봉 대비)</span>
+      <span class="val neg">-</span></div>
+    <div class="card-row"><span class="lbl">최근3일 대금흐름</span>
+      <span class="val" style="font-size:11px">603억 → 905억 → 1,150억</span></div>
+    
+    <div class="card-row"><span class="lbl">60일 신고가</span>
+      <span class="val">—</span></div>
+    <div class="card-row"><span class="lbl">기준봉 후 대금감소</span>
+      <span class="val"><span class="badge ng">X</span></span></div>
+    <div class="card-row"><span class="lbl">상승률</span>
+      <span class="val pos">+10.81%</span></div>
+    <div class="card-row"><span class="lbl">거래대금</span>
+      <span class="val">4,895억</span></div>
+    <div class="card-row"><span class="lbl">장대/준장대/첫장대</span>
+      <span class="val"><span class="badge ng">X</span> / <span class="badge ok">O</span> / <span class="badge ok">O</span></span></div>
+    <div class="card-row"><span class="lbl">이평밀집</span>
+      <span class="val"><span class="badge na">-</span></span></div>
+    <div class="card-row"><span class="lbl">거래량/거래대금 60일최고</span>
+      <span class="val"><span class="badge ok">O</span> / <span class="badge ok">O</span></span></div>
+    <div class="card-row"><span class="lbl">기관 순매수</span>
+      <span class="val">+1471억</span></div>
+    <div class="card-row"><span class="lbl">외국인 순매수</span>
+      <span class="val">+102억</span></div>
+    <div style="margin-top:8px;"><div class="news-item">📰 AI 인프라 투자 열기에…반도체 기판株, 다시 웃는다</div><div class="news-item">📰 “환희에 팔았다”…상위 1%, SK하닉 신고가에 팔고 대한전선 담아 [...</div><div style="margin-top:6px;font-size:12px;color:var(--fg);padding:4px 8px;background:var(--bg3);border-radius:4px">재료: [AI/반도체] AI 인프라 투자 확대 기대 (섹터확산)</div></div>
+  </div>
+</div>
+<div class="candidate-card has-pattern" style="border-top: 3px solid #3fb950">
+  <div class="card-head">
+    <div>
+      <div class="name">드림시큐리티</div>
+      <div class="code">203650 &middot; KOSDAQ</div>
+    </div>
+    <div class="score-badge">점수 9</div>
+  </div>
+  <div class="card-body">
+    <div class="card-row"><span class="lbl">패턴</span>
+      <span class="val" style="color:#3fb950;font-weight:600">당일돌파형</span></div>
+    <div class="card-row"><span class="lbl">기준봉 시점</span>
+      <span class="val">당일</span></div>
+    <div class="card-row"><span class="lbl">상태</span>
+      <span class="val">고가 유지</span></div>
+    <div class="card-row"><span class="lbl">기준봉고가 대비</span>
+      <span class="warn val">-</span></div>
+    <div class="card-row"><span class="lbl">대금ratio (기준봉 대비)</span>
+      <span class="val neg">-</span></div>
+    <div class="card-row"><span class="lbl">최근3일 대금흐름</span>
+      <span class="val" style="font-size:11px">1,523억 → 851억 → 485억</span></div>
+    
+    <div class="card-row"><span class="lbl">60일 신고가</span>
+      <span class="val">🔺 신고가</span></div>
+    <div class="card-row"><span class="lbl">기준봉 후 대금감소</span>
+      <span class="val"><span class="badge ng">X</span></span></div>
+    <div class="card-row"><span class="lbl">상승률</span>
+      <span class="val pos">+29.98%</span></div>
+    <div class="card-row"><span class="lbl">거래대금</span>
+      <span class="val">2,329억</span></div>
+    <div class="card-row"><span class="lbl">장대/준장대/첫장대</span>
+      <span class="val"><span class="badge ok">O</span> / <span class="badge ok">O</span> / <span class="badge ok">O</span></span></div>
+    <div class="card-row"><span class="lbl">이평밀집</span>
+      <span class="val"><span class="badge na">-</span></span></div>
+    <div class="card-row"><span class="lbl">거래량/거래대금 60일최고</span>
+      <span class="val"><span class="badge ok">O</span> / <span class="badge ok">O</span></span></div>
+    <div class="card-row"><span class="lbl">기관 순매수</span>
+      <span class="val">+5억</span></div>
+    <div class="card-row"><span class="lbl">외국인 순매수</span>
+      <span class="val">-0억</span></div>
+    <div style="margin-top:8px;"><div class="news-item">📰 포스트 AI는 양자컴?…ETF·개별주 급등세</div><div class="news-item">📰 &#x27;미토스 쇼크&#x27; 양자암호·보안주 불기둥...증권가는 이 종목 찍었다</div><div style="margin-top:6px;font-size:12px;color:var(--fg);padding:4px 8px;background:var(--bg3);border-radius:4px">재료: [양자암호/보안] 포스트 AI 기대감 (섹터확산)</div></div>
+  </div>
+</div>
+<div class="candidate-card has-pattern" style="border-top: 3px solid #3fb950">
+  <div class="card-head">
+    <div>
+      <div class="name">퍼스텍</div>
+      <div class="code">010820 &middot; KOSPI</div>
+    </div>
+    <div class="score-badge">점수 8</div>
+  </div>
+  <div class="card-body">
+    <div class="card-row"><span class="lbl">패턴</span>
+      <span class="val" style="color:#3fb950;font-weight:600">당일돌파형</span></div>
+    <div class="card-row"><span class="lbl">기준봉 시점</span>
+      <span class="val">당일</span></div>
+    <div class="card-row"><span class="lbl">상태</span>
+      <span class="val">고가 유지</span></div>
+    <div class="card-row"><span class="lbl">기준봉고가 대비</span>
+      <span class="warn val">-</span></div>
+    <div class="card-row"><span class="lbl">대금ratio (기준봉 대비)</span>
+      <span class="val neg">-</span></div>
+    <div class="card-row"><span class="lbl">최근3일 대금흐름</span>
+      <span class="val" style="font-size:11px">3,601억 → 505억 → 944억</span></div>
+    
+    <div class="card-row"><span class="lbl">60일 신고가</span>
+      <span class="val">🔺 신고가</span></div>
+    <div class="card-row"><span class="lbl">기준봉 후 대금감소</span>
+      <span class="val"><span class="badge ng">X</span></span></div>
+    <div class="card-row"><span class="lbl">상승률</span>
+      <span class="val pos">+16.47%</span></div>
+    <div class="card-row"><span class="lbl">거래대금</span>
+      <span class="val">4,314억</span></div>
+    <div class="card-row"><span class="lbl">장대/준장대/첫장대</span>
+      <span class="val"><span class="badge ok">O</span> / <span class="badge ok">O</span> / <span class="badge ok">O</span></span></div>
+    <div class="card-row"><span class="lbl">이평밀집</span>
+      <span class="val"><span class="badge na">-</span></span></div>
+    <div class="card-row"><span class="lbl">거래량/거래대금 60일최고</span>
+      <span class="val"><span class="badge ng">X</span> / <span class="badge ok">O</span></span></div>
+    <div class="card-row"><span class="lbl">기관 순매수</span>
+      <span class="val">-193억</span></div>
+    <div class="card-row"><span class="lbl">외국인 순매수</span>
+      <span class="val">+78억</span></div>
+    <div style="margin-top:8px;"><div class="news-item">📰 [서울데이터랩]코스피 거래상위 종목 강세 우위…진원생명과학·주연...</div><div class="news-item">📰 [서울데이터랩]코스피 거래상위 종목 강세…대한전선·대우건설 급등...</div><div style="margin-top:6px;font-size:12px;color:var(--fg);padding:4px 8px;background:var(--bg3);border-radius:4px">재료: [방산/우주항공] 지정학적 리스크 및 스페이스X 기대감 (섹터확산)</div></div>
+  </div>
+</div>
+<div class="candidate-card has-pattern" style="border-top: 3px solid #3fb950">
+  <div class="card-head">
+    <div>
+      <div class="name">빛과전자</div>
+      <div class="code">069540 &middot; KOSDAQ</div>
+    </div>
+    <div class="score-badge">점수 6</div>
+  </div>
+  <div class="card-body">
+    <div class="card-row"><span class="lbl">패턴</span>
+      <span class="val" style="color:#3fb950;font-weight:600">당일돌파형</span></div>
+    <div class="card-row"><span class="lbl">기준봉 시점</span>
+      <span class="val">당일</span></div>
+    <div class="card-row"><span class="lbl">상태</span>
+      <span class="val">고가 유지</span></div>
+    <div class="card-row"><span class="lbl">기준봉고가 대비</span>
+      <span class="warn val">-</span></div>
+    <div class="card-row"><span class="lbl">대금ratio (기준봉 대비)</span>
+      <span class="val neg">-</span></div>
+    <div class="card-row"><span class="lbl">최근3일 대금흐름</span>
+      <span class="val" style="font-size:11px">4,170억 → 3,753억 → 0억</span></div>
+    
+    <div class="card-row"><span class="lbl">60일 신고가</span>
+      <span class="val">—</span></div>
+    <div class="card-row"><span class="lbl">기준봉 후 대금감소</span>
+      <span class="val"><span class="badge ng">X</span></span></div>
+    <div class="card-row"><span class="lbl">상승률</span>
+      <span class="val pos">+11.26%</span></div>
+    <div class="card-row"><span class="lbl">거래대금</span>
+      <span class="val">3,600억</span></div>
+    <div class="card-row"><span class="lbl">장대/준장대/첫장대</span>
+      <span class="val"><span class="badge ng">X</span> / <span class="badge ok">O</span> / <span class="badge ok">O</span></span></div>
+    <div class="card-row"><span class="lbl">이평밀집</span>
+      <span class="val"><span class="badge na">-</span></span></div>
+    <div class="card-row"><span class="lbl">거래량/거래대금 60일최고</span>
+      <span class="val"><span class="badge ng">X</span> / <span class="badge ng">X</span></span></div>
+    <div class="card-row"><span class="lbl">기관 순매수</span>
+      <span class="val">-31억</span></div>
+    <div class="card-row"><span class="lbl">외국인 순매수</span>
+      <span class="val">+0억</span></div>
+    <div style="margin-top:8px;"><div class="news-item">📰 [서울데이터랩]코스닥 거래상위 종목 강세…에스아이리소스·드림시큐...</div><div class="news-item">📰 젠슨 황 한마디에…광통신·양자컴株 ‘어질어질’</div><div style="margin-top:6px;font-size:12px;color:var(--fg);padding:4px 8px;background:var(--bg3);border-radius:4px">재료: [광통신] 젠슨 황 발언 영향 (섹터확산)</div></div>
+  </div>
+</div></div>
+<div class="section-title">🔀 교집합 (상승률Top20 ∩ 거래대금Top20)</div><div class="tbl-wrap"><table><thead><tr><th>#</th><th>종목명</th><th>코드</th><th>등락률</th><th>거래대금</th></tr></thead><tbody><tr><td>1</td><td class="td-name">주성엔지니어링</td><td class="td-code">036930</td><td class="td-pos">+29.97%</td><td>8,752억</td></tr></tbody></table></div>
+<div class="section-title">🚫 탈락 요약</div><div class="rejected-summary"><span>거래대금 부족: 18개</span> <span>패턴 없음 + 교집합 아님: 16개</span></div>
+<div class="section-title">📊 상승률 Top20</div><div class="tbl-wrap"><table><thead><tr><th>#</th><th>종목명</th><th>코드</th><th>시장</th><th>등락률</th><th>거래대금</th></tr></thead><tbody><tr><td>1</td><td class="td-name">파인텍</td><td class="td-code">131760</td><td>KOSDAQ</td><td class="td-pos">+30.00%</td><td>85억</td></tr><tr><td>2</td><td class="td-name">씨이랩</td><td class="td-code">189330</td><td>KOSDAQ</td><td class="td-pos">+30.00%</td><td>43억</td></tr><tr><td>3</td><td class="td-name">진원생명과학</td><td class="td-code">011000</td><td>KOSPI</td><td class="td-pos">+29.99%</td><td>395억</td></tr><tr><td>4</td><td class="td-name">벨로크</td><td class="td-code">424760</td><td>KOSDAQ</td><td class="td-pos">+29.99%</td><td>302억</td></tr><tr><td>5</td><td class="td-name">한국정보통신</td><td class="td-code">025770</td><td>KOSDAQ</td><td class="td-pos">+29.98%</td><td>495억</td></tr><tr><td>6</td><td class="td-name">드림시큐리티<span class="sector-tag">상업서비스와공급품</span></td><td class="td-code">203650</td><td>KOSDAQ</td><td class="td-pos">+29.98%</td><td>2,329억</td></tr><tr><td>7</td><td class="td-name">주성엔지니어링</td><td class="td-code">036930</td><td>KOSDAQ</td><td class="td-pos">+29.97%</td><td>8,752억</td></tr><tr><td>8</td><td class="td-name">로지시스</td><td class="td-code">067730</td><td>KOSDAQ</td><td class="td-pos">+29.97%</td><td>78억</td></tr><tr><td>9</td><td class="td-name">혜인</td><td class="td-code">003010</td><td>KOSPI</td><td class="td-pos">+29.94%</td><td>989억</td></tr><tr><td>10</td><td class="td-name">SGA솔루션즈</td><td class="td-code">184230</td><td>KOSDAQ</td><td class="td-pos">+29.94%</td><td>186억</td></tr><tr><td>11</td><td class="td-name">삼천리자전거<span class="sector-tag">레저용장비와제품</span></td><td class="td-code">024950</td><td>KOSDAQ</td><td class="td-pos">+29.94%</td><td>193억</td></tr><tr><td>12</td><td class="td-name">케이씨에스</td><td class="td-code">115500</td><td>KOSDAQ</td><td class="td-pos">+29.92%</td><td>406억</td></tr><tr><td>13</td><td class="td-name">위메이드맥스</td><td class="td-code">101730</td><td>KOSDAQ</td><td class="td-pos">+29.88%</td><td>5억</td></tr><tr><td>14</td><td class="td-name">제이오</td><td class="td-code">418550</td><td>KOSDAQ</td><td class="td-pos">+26.40%</td><td>497억</td></tr><tr><td>15</td><td class="td-name">나이스정보통신<span class="sector-tag">상업서비스와공급품</span></td><td class="td-code">036800</td><td>KOSDAQ</td><td class="td-pos">+23.67%</td><td>293억</td></tr><tr><td>16</td><td class="td-name">동아엘텍</td><td class="td-code">088130</td><td>KOSDAQ</td><td class="td-pos">+22.43%</td><td>407억</td></tr><tr><td>17</td><td class="td-name">더코디</td><td class="td-code">224060</td><td>KOSDAQ</td><td class="td-pos">+22.37%</td><td>22억</td></tr><tr><td>18</td><td class="td-name">라닉스<span class="sector-tag">통신장비</span></td><td class="td-code">317120</td><td>KOSDAQ</td><td class="td-pos">+20.72%</td><td>418억</td></tr><tr><td>19</td><td class="td-name">오로라<span class="sector-tag">레저용장비와제품</span></td><td class="td-code">039830</td><td>KOSDAQ</td><td class="td-pos">+20.46%</td><td>279억</td></tr><tr><td>20</td><td class="td-name">상신이디피<span class="sector-tag">전기제품</span></td><td class="td-code">091580</td><td>KOSDAQ</td><td class="td-pos">+20.22%</td><td>607억</td></tr></tbody></table></div>
+<div class="section-title">💰 거래대금 Top20</div><div class="tbl-wrap"><table><thead><tr><th>#</th><th>종목명</th><th>코드</th><th>시장</th><th>거래대금</th><th>등락률</th></tr></thead><tbody><tr><td>1</td><td class="td-name">삼성전자</td><td class="td-code">005930</td><td>KOSPI</td><td>35,275억</td><td class="td-neg">-0.69%</td></tr><tr><td>2</td><td class="td-name">SK하이닉스</td><td class="td-code">000660</td><td>KOSPI</td><td>35,028억</td><td class="td-pos">+3.37%</td></tr><tr><td>3</td><td class="td-name">주성엔지니어링</td><td class="td-code">036930</td><td>KOSDAQ</td><td>8,752억</td><td class="td-pos">+29.97%</td></tr><tr><td>4</td><td class="td-name">대한전선</td><td class="td-code">001440</td><td>KOSPI</td><td>6,579억</td><td class="td-pos">+2.80%</td></tr><tr><td>5</td><td class="td-name">두산에너빌리티</td><td class="td-code">034020</td><td>KOSPI</td><td>6,265억</td><td class="td-pos">+2.30%</td></tr><tr><td>6</td><td class="td-name">대우건설</td><td class="td-code">047040</td><td>KOSPI</td><td>4,907억</td><td class="td-neg">-2.09%</td></tr><tr><td>7</td><td class="td-name">이수페타시스</td><td class="td-code">007660</td><td>KOSPI</td><td>4,895억</td><td class="td-pos">+10.81%</td></tr><tr><td>8</td><td class="td-name">삼성SDI<span class="sector-tag">전기제품</span></td><td class="td-code">006400</td><td>KOSPI</td><td>4,449억</td><td class="td-pos">+4.87%</td></tr><tr><td>9</td><td class="td-name">현대차</td><td class="td-code">005380</td><td>KOSPI</td><td>4,360억</td><td class="td-neg">-2.04%</td></tr><tr><td>10</td><td class="td-name">퍼스텍</td><td class="td-code">010820</td><td>KOSPI</td><td>4,314억</td><td class="td-pos">+16.47%</td></tr><tr><td>11</td><td class="td-name">엑스게이트</td><td class="td-code">356680</td><td>KOSDAQ</td><td>4,262억</td><td class="td-pos">+9.67%</td></tr><tr><td>12</td><td class="td-name">삼성전기</td><td class="td-code">009150</td><td>KOSPI</td><td>4,103억</td><td class="td-pos">+0.15%</td></tr><tr><td>13</td><td class="td-name">빛과전자<span class="sector-tag">통신장비</span></td><td class="td-code">069540</td><td>KOSDAQ</td><td>3,600억</td><td class="td-pos">+11.26%</td></tr><tr><td>14</td><td class="td-name">SK스퀘어</td><td class="td-code">402340</td><td>KOSPI</td><td>3,366억</td><td class="td-pos">+2.79%</td></tr><tr><td>15</td><td class="td-name">에코프로</td><td class="td-code">086520</td><td>KOSDAQ</td><td>3,271억</td><td class="td-pos">+2.44%</td></tr><tr><td>16</td><td class="td-name">대한광통신<span class="sector-tag">통신장비</span></td><td class="td-code">010170</td><td>KOSDAQ</td><td>3,240억</td><td class="td-neg">-2.50%</td></tr><tr><td>17</td><td class="td-name">LIG디펜스앤에어로스페이스</td><td class="td-code">079550</td><td>KOSPI</td><td>3,233억</td><td class="td-pos">+5.14%</td></tr><tr><td>18</td><td class="td-name">에코프로머티<span class="sector-tag">전기제품</span></td><td class="td-code">450080</td><td>KOSPI</td><td>2,909억</td><td class="td-pos">+4.61%</td></tr><tr><td>19</td><td class="td-name">하나마이크론</td><td class="td-code">067310</td><td>KOSDAQ</td><td>2,659억</td><td class="td-pos">+7.35%</td></tr><tr><td>20</td><td class="td-name">현대건설</td><td class="td-code">000720</td><td>KOSPI</td><td>2,625억</td><td class="td-neg">-1.53%</td></tr></tbody></table></div>
+<div style="text-align:center;color:var(--muted);font-size:11px;margin-top:24px;padding:16px 0;">
+  korea-close-betting-bot &middot; 2026-04-21 0539
+</div>
+</div>
+</body>
+</html>
