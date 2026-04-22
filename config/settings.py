@@ -76,8 +76,6 @@ TOP_TRADING_VALUE_COUNT             = 20
 ENABLE_NEWS_FETCH                   = True
 ENABLE_SUPPLY_FETCH                 = True
 GEMINI_API_KEY                      = os.getenv("GEMINI_API_KEY", "")
-USE_GITHUB_ARTIFACT_UPLOAD          = True
-
 # ── 1차 필터 조건 ──────────────────────────────────────────
 MIN_PRICE                           = 1000
 MIN_CHANGE_PCT                      = -5.0
