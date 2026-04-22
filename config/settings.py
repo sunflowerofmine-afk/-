@@ -94,3 +94,6 @@ ENABLE_GITHUB_PAGES_LINK            = True
 # ── 섹터 수집 ──────────────────────────────────────────────
 ENABLE_SECTOR_FETCH                 = True
 SECTOR_TOP_N                        = 5   # 거래대금 상위 N개 섹터
+
+# ── NXT 수집 (2차/수동 실행 시 KRX 데이터에 합산) ─────────────
+ENABLE_NXT_FETCH                    = True

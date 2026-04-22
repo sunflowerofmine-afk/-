@@ -17,6 +17,7 @@ from config.settings import (
     REPORTS_DIR, ENABLE_DASHBOARD, ENABLE_GITHUB_PAGES_LINK, GITHUB_PAGES_BASE_URL,
     TV_RATIO_WATCH_MIN,
     ENABLE_SECTOR_FETCH, SECTOR_TOP_N,
+    ENABLE_NXT_FETCH,
 )
 from scripts.market_calendar import get_now_kst, is_trading_day, get_run_type
 from scripts.storage import save_raw, save_processed, save_signals
@@ -227,6 +228,19 @@ def run():
 
     # 전체 합치기
     all_df = pd.concat(raw_data.values(), ignore_index=True)
+
+    # ── 1-1. NXT 데이터 합산 (2차/수동 실행 시) ─────────────────
+    if run_type in ("2차", "수동") and ENABLE_NXT_FETCH:
+        try:
+            from scripts.fetch_nxt_data import fetch_nxt_quant, merge_nxt_into_df
+            logger.info("NXT 거래상위 수집 시작...")
+            nxt_dict = fetch_nxt_quant()
+            if nxt_dict:
+                all_df = merge_nxt_into_df(all_df, nxt_dict)
+            else:
+                logger.warning("NXT 수집 결과 없음 — KRX 데이터만 사용")
+        except Exception as e:
+            logger.warning(f"NXT 수집 실패 (무시, KRX만 사용): {e}")
 
     # ── 2. 제외 필터 + 1차 가격 필터 (raw 저장 이후 적용) ──────
     filtered_df = filter_excluded_stocks(all_df)
