@@ -31,6 +31,7 @@ class SupplyData:
     foreign_net:     Optional[float] = None
     program_net:     Optional[float] = None
     status:          str = "failed"           # "ok" / "failed"
+    supply_date:     Optional[str]  = None    # 수급 기준 날짜 (YYYY.MM.DD)
 
 
 @dataclass

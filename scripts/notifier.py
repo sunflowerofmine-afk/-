@@ -84,14 +84,17 @@ def _supply_str(supply) -> str:
             return "확인불가"
         inst = supply.institution_net
         frgn = supply.foreign_net
+        date = supply.supply_date or ""
     else:
         if supply.get("status") == "failed":
             return "확인불가"
         inst = supply.get("institution_net")
         frgn = supply.get("foreign_net")
+        date = supply.get("supply_date") or ""
     inst_s = f"기관 {inst/100_000_000:+.0f}억" if inst is not None else "기관 -"
     frgn_s = f"외국인 {frgn/100_000_000:+.0f}억" if frgn is not None else "외국인 -"
-    return f"{inst_s} / {frgn_s}"
+    date_s = f" ({date})" if date else ""
+    return f"{inst_s} / {frgn_s}{date_s}"
 
 
 def _news_str(news) -> str:
