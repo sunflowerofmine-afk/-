@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>종가베팅 스캔 2026-04-22 1859 (수동)</title>
+<title>종가베팅 스캔 2026-04-22 0650 (수동)</title>
 <style>
 :root {
     --bg:        #0d1117;
@@ -343,6 +343,9 @@ tbody tr:hover td { background: var(--bg3); }
     min-width: 0;
 }
 .cal-cell.cal-today { background: var(--bg3); border-color: var(--blue); }
+.cal-cell.has-report { cursor: pointer; }
+.cal-cell.has-report:hover { background: var(--bg3); border-color: var(--blue); }
+.cal-cell.has-report .cal-day { color: var(--blue); font-weight: 700; }
 .cal-day { font-size: 11px; color: var(--muted); margin-bottom: 3px; }
 .cal-sector {
     display: block;
@@ -469,22 +472,67 @@ tbody tr:hover td { background: var(--bg3); }
     .summary-grid   { grid-template-columns: repeat(3, 1fr); }
     thead th, tbody td { padding: 6px 8px; }
 }
+
+/* ── 히스토리 네비게이션 바 ── */
+.hist-nav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    margin: -12px -12px 16px;
+}
+.hist-select {
+    background: var(--bg2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 13px;
+    cursor: pointer;
+    flex: 1;
+    max-width: 300px;
+}
+.nav-btn {
+    color: var(--blue);
+    text-decoration: none;
+    font-size: 12px;
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg2);
+    white-space: nowrap;
+    display: inline-block;
+}
+.nav-btn:hover { background: var(--bg3); }
+.nav-btn.disabled { color: var(--muted); pointer-events: none; cursor: default; border-color: var(--bg3); }
 </style>
 </head>
 <body>
 <div class="wrap">
+<div class="hist-nav">
+  <a href="2026-04-21_2203.html" class="nav-btn">&#9664; 이전</a>
+  <select class="hist-select" onchange="if(this.value) location.href=this.value"><optgroup label="2026-04-22"><option value="2026-04-22_1816.html">2026-04-22 수동 18:16</option><option value="2026-04-22_1450.html">2026-04-22 1차 (14:50)</option><option value="2026-04-22_0904.html">2026-04-22 수동 09:04</option><option value="2026-04-22_0650.html" selected>2026-04-22 수동 06:50</option></optgroup><optgroup label="2026-04-21"><option value="2026-04-21_2203.html">2026-04-21 수동 22:03</option><option value="2026-04-21_2150.html">2026-04-21 수동 21:50</option><option value="2026-04-21_2134.html">2026-04-21 수동 21:34</option><option value="2026-04-21_2109.html">2026-04-21 수동 21:09</option><option value="2026-04-21_2030.html">2026-04-21 수동 20:30</option><option value="2026-04-21_2002.html">2026-04-21 수동 20:02</option><option value="2026-04-21_1948.html">2026-04-21 수동 19:48</option><option value="2026-04-21_1450.html">2026-04-21 1차 (14:50)</option><option value="2026-04-21_0702.html">2026-04-21 수동 07:02</option><option value="2026-04-21_0552.html">2026-04-21 수동 05:52</option><option value="2026-04-21_0543.html">2026-04-21 수동 05:43</option><option value="2026-04-21_0539.html">2026-04-21 수동 05:39</option><option value="2026-04-21_0516.html">2026-04-21 수동 05:16</option></optgroup><optgroup label="2026-04-20"><option value="2026-04-20_2228.html">2026-04-20 수동 22:28</option><option value="2026-04-20_2223.html">2026-04-20 수동 22:23</option><option value="2026-04-20_2144.html">2026-04-20 수동 21:44</option><option value="2026-04-20_2115.html">2026-04-20 수동 21:15</option><option value="2026-04-20_2107.html">2026-04-20 수동 21:07</option><option value="2026-04-20_2019.html">2026-04-20 수동 20:19</option><option value="2026-04-20_1700.html">2026-04-20 수동 17:00</option><option value="2026-04-20_1649.html">2026-04-20 수동 16:49</option></optgroup><optgroup label="2026-04-19"><option value="2026-04-19_0640.html">2026-04-19 수동 06:40</option></optgroup><optgroup label="2026-04-17"><option value="2026-04-17_2039.html">2026-04-17 수동 20:39</option><option value="2026-04-17_1901.html">2026-04-17 수동 19:01</option><option value="2026-04-17_0753.html">2026-04-17 수동 07:53</option><option value="2026-04-17_0626.html">2026-04-17 수동 06:26</option></optgroup></select>
+  <a href="2026-04-22_0904.html" class="nav-btn">다음 &#9654;</a>
+  <a href="../index.html" class="nav-btn">&#8801; 목록</a>
+</div>
+
 
 <div class="page-header">
-  <h1>📈 종가베팅 스캔 리포트<span class="regime-neutral" style="font-size:14px;padding:3px 12px;margin-left:10px;">⚪ 중립</span></h1>
+  <h1>📈 종가베팅 스캔 리포트</h1>
   <div class="meta">
     <span>📅 2026-04-22</span>
-    <span>기준시각 18:59</span>
-    <span>실행시각 18:59 KST</span>
+    <span>기준시각 06:50</span>
+    <span>실행시각 06:50 KST</span>
     <span>분류 수동</span>
   </div>
   <div class="meta" style="margin-top:4px;">
-    <span>코스피 484,385억</span>
-    <span>코스닥 145,569억</span>
+    <span>코스피 469,254억</span>
+    <span>코스닥 159,926억</span>
   </div>
 </div>
 
@@ -492,7 +540,7 @@ tbody tr:hover td { background: var(--bg3); }
   <div class="info-box-title">오늘 환경</div>
   <div class="env-row"><span class="env-label">시장 상태</span><span class="env-val"><span class="regime-neutral" style="font-size:13px;padding:2px 10px">⚪ 중립</span></span></div>
   <div class="env-row"><span class="env-label">우선 확인</span><span class="env-val" style="color:var(--yellow)">9종목</span></div>
-  <div class="env-row"><span class="env-label">관찰</span><span class="env-val" style="color:var(--muted)">14종목</span></div>
+  <div class="env-row"><span class="env-label">관찰</span><span class="env-val" style="color:var(--muted)">0종목</span></div>
 </div><div class="info-box">
   <div class="info-box-title">핵심 신호</div>
   <div class="signal-row">
@@ -501,12 +549,12 @@ tbody tr:hover td { background: var(--bg3); }
     <div class="signal-interp">→ 주도주 경쟁 있음</div>
   </div>
   <div class="signal-row">
-    <span class="signal-num">80개</span>
+    <span class="signal-num">75개</span>
     <span style="color:var(--muted);font-size:12px;margin-left:8px">1500억↑ 종목</span>
     <div class="signal-interp">→ 자금 집중</div>
   </div>
   <div class="signal-row">
-    <span class="signal-num">6개</span>
+    <span class="signal-num">5개</span>
     <span style="color:var(--muted);font-size:12px;margin-left:8px">상승Top20 중 1500억↑</span>
     <div class="signal-interp">→ 방향성 강함</div>
   </div>
@@ -515,83 +563,83 @@ tbody tr:hover td { background: var(--bg3); }
 <div class="section-title">🎯 핵심 후보 9개</div>
 <div class="stock-layout">
   <div class="stock-list" id="stock-list">
-<div class="list-card pat-break active" data-idx="0" onclick="renderDetail(0)">
+<div class="list-card  active" data-idx="0" onclick="renderDetail(0)">
   <div class="lc-head">
-    <div><span class="lc-name">이수페타시스</span><span class="lc-code">007660</span></div>
+    <div><span class="lc-name">씨아이에스</span><span class="lc-code">222080</span></div>
     <span class="priority-badge priority-first">우선확인</span>
   </div>
-  <div class="lc-stats"><span class="pos">+21.17%</span> · 21,988억 · 당일돌파형(당일)  ★교집합  🔺신고가</div>
-  <span class="lc-summary">[AI/반도체] AI 병목 해결 부품사 부각</span>
+  <div class="lc-stats"><span class="pos">+29.96%</span> · 7,135억 · 패턴없음  ★교집합</div>
+  <span class="lc-summary">교집합 · 없음</span>
 </div>
-<div class="list-card pat-break" data-idx="1" onclick="renderDetail(1)">
+<div class="list-card " data-idx="1" onclick="renderDetail(1)">
   <div class="lc-head">
-    <div><span class="lc-name">애경케미칼</span><span class="lc-code">161000</span></div>
+    <div><span class="lc-name">주성엔지니어링</span><span class="lc-code">36930</span></div>
     <span class="priority-badge priority-first">우선확인</span>
   </div>
-  <div class="lc-stats"><span class="pos">+24.35%</span> · 7,291억 · 당일돌파형(당일)  ★교집합  🔺신고가</div>
-  <span class="lc-summary">[화학] 고유가 대체 바이오 소재 부각</span>
+  <div class="lc-stats"><span class="pos">+29.95%</span> · 12,011억 · 패턴없음  ★교집합</div>
+  <span class="lc-summary">교집합 · 없음</span>
 </div>
-<div class="list-card pat-break" data-idx="2" onclick="renderDetail(2)">
+<div class="list-card " data-idx="2" onclick="renderDetail(2)">
   <div class="lc-head">
-    <div><span class="lc-name">미래에셋벤처투자</span><span class="lc-code">100790</span></div>
+    <div><span class="lc-name">삼성SDI</span><span class="lc-code">6400</span></div>
     <span class="priority-badge priority-first">우선확인</span>
   </div>
-  <div class="lc-stats"><span class="pos">+21.86%</span> · 7,546억 · 당일돌파형(당일)  ★교집합  🔺신고가</div>
-  <span class="lc-summary">[벤처투자] 스페이스X 상장 기대감</span>
+  <div class="lc-stats"><span class="pos">+19.89%</span> · 16,333억 · 패턴없음  ★교집합</div>
+  <span class="lc-summary">교집합 · 없음</span>
 </div>
-<div class="list-card pat-break" data-idx="3" onclick="renderDetail(3)">
+<div class="list-card " data-idx="3" onclick="renderDetail(3)">
   <div class="lc-head">
-    <div><span class="lc-name">삼아알미늄</span><span class="lc-code">006110</span></div>
-    <span class="priority-badge priority-first">우선확인</span>
+    <div><span class="lc-name">대우건설</span><span class="lc-code">47040</span></div>
+    <span class="priority-badge priority-watch">관찰우선</span>
   </div>
-  <div class="lc-stats"><span class="pos">+21.88%</span> · 3,126억 · 당일돌파형(당일)  🔺신고가</div>
-  <span class="lc-summary">[알루미늄] 중동 사태 장기화 우려</span>
+  <div class="lc-stats"><span class="pos">+16.90%</span> · 30,944억 · 패턴없음</div>
+  <span class="lc-summary">없음</span>
 </div>
-<div class="list-card pat-break" data-idx="4" onclick="renderDetail(4)">
+<div class="list-card " data-idx="4" onclick="renderDetail(4)">
   <div class="lc-head">
-    <div><span class="lc-name">DS단석</span><span class="lc-code">017860</span></div>
-    <span class="priority-badge priority-first">우선확인</span>
+    <div><span class="lc-name">LG에너지솔루션</span><span class="lc-code">373220</span></div>
+    <span class="priority-badge priority-watch">관찰우선</span>
   </div>
-  <div class="lc-stats"><span class="pos">+29.95%</span> · 3,095억 · 당일돌파형(당일)  🔺신고가</div>
-  <span class="lc-summary">[기타] 한승욱 회장 지분 확대</span>
+  <div class="lc-stats"><span class="pos">+11.42%</span> · 6,518억 · 패턴없음</div>
+  <span class="lc-summary">없음</span>
 </div>
-<div class="list-card pat-break" data-idx="5" onclick="renderDetail(5)">
+<div class="list-card " data-idx="5" onclick="renderDetail(5)">
   <div class="lc-head">
-    <div><span class="lc-name">HD현대중공업</span><span class="lc-code">329180</span></div>
-    <span class="priority-badge priority-first">우선확인</span>
+    <div><span class="lc-name">한중엔시에스</span><span class="lc-code">107640</span></div>
+    <span class="priority-badge priority-watch">관찰우선</span>
   </div>
-  <div class="lc-stats"><span class="pos">+11.28%</span> · 13,066억 · 당일돌파형(당일)  📍고점권</div>
-  <span class="lc-summary">[조선] 조선/방산/전력기기 섹터 동반 상승</span>
+  <div class="lc-stats"><span class="pos">+29.93%</span> · 1,962억 · 패턴없음</div>
+  <span class="lc-summary">없음</span>
 </div>
-<div class="list-card pat-break" data-idx="6" onclick="renderDetail(6)">
+<div class="list-card " data-idx="6" onclick="renderDetail(6)">
   <div class="lc-head">
-    <div><span class="lc-name">LG이노텍</span><span class="lc-code">011070</span></div>
-    <span class="priority-badge priority-first">우선확인</span>
+    <div><span class="lc-name">삼성전기</span><span class="lc-code">9150</span></div>
+    <span class="priority-badge priority-watch">관찰우선</span>
   </div>
-  <div class="lc-stats"><span class="pos">+17.65%</span> · 5,866억 · 당일돌파형(당일)  🔺신고가</div>
-  <span class="lc-summary">[기타] 재료 불명확</span>
+  <div class="lc-stats"><span class="pos">+13.53%</span> · 8,434억 · 패턴없음</div>
+  <span class="lc-summary">없음</span>
 </div>
-<div class="list-card pat-break" data-idx="7" onclick="renderDetail(7)">
+<div class="list-card " data-idx="7" onclick="renderDetail(7)">
   <div class="lc-head">
-    <div><span class="lc-name">LIG디펜스앤에어로스페이스</span><span class="lc-code">079550</span></div>
-    <span class="priority-badge priority-first">우선확인</span>
+    <div><span class="lc-name">GS건설</span><span class="lc-code">6360</span></div>
+    <span class="priority-badge priority-watch">관찰우선</span>
   </div>
-  <div class="lc-stats"><span class="pos">+12.21%</span> · 26,679억 · 당일돌파형(당일)  🔺신고가</div>
-  <span class="lc-summary">[방산] 해궁 첫 수출</span>
+  <div class="lc-stats"><span class="pos">+13.27%</span> · 4,344억 · 패턴없음</div>
+  <span class="lc-summary">없음</span>
 </div>
-<div class="list-card pat-break" data-idx="8" onclick="renderDetail(8)">
+<div class="list-card " data-idx="8" onclick="renderDetail(8)">
   <div class="lc-head">
-    <div><span class="lc-name">KEC</span><span class="lc-code">092220</span></div>
-    <span class="priority-badge priority-first">우선확인</span>
+    <div><span class="lc-name">파인텍</span><span class="lc-code">131760</span></div>
+    <span class="priority-badge priority-watch">관찰우선</span>
   </div>
-  <div class="lc-stats"><span class="pos">+29.97%</span> · 1,526억 · 당일돌파형(당일)</div>
-  <span class="lc-summary">[기타] 재료 불명확</span>
+  <div class="lc-stats"><span class="pos">+29.69%</span> · 1,534억 · 패턴없음</div>
+  <span class="lc-summary">없음</span>
 </div>
   </div>
   <div class="stock-detail" id="stock-detail"><div class="detail-empty">← 좌측 종목을 선택하세요</div></div>
 </div>
 <script>
-const CANDS = [{"idx": 0, "name": "이수페타시스", "code": "007660", "market": "KOSPI", "chg_str": "+21.17%", "chg_pos": true, "tv_str": "21,988억", "pat_str": "당일돌파형(당일)", "in_inter": true, "high_tag": "🔺신고가", "priority": "우선확인", "llm_summary": "재료: [AI/반도체] AI 병목 해결 부품사 부각 (신규재료)", "score": "12", "tv_ratio": "-", "inst_str": "+104억", "frgn_str": "+1649억", "supply_ok": true, "strengths": ["상승률·거래대금 교집합", "60일 신고가 돌파", "장대양봉"], "weaknesses": ["당일 급등 과열 (21.2%)"], "checkpoints": ["내일 거래대금 1500억 유지 여부", "시가 갭업 시 추격 주의", "재료 지속성 확인"]}, {"idx": 1, "name": "애경케미칼", "code": "161000", "market": "KOSPI", "chg_str": "+24.35%", "chg_pos": true, "tv_str": "7,291억", "pat_str": "당일돌파형(당일)", "in_inter": true, "high_tag": "🔺신고가", "priority": "우선확인", "llm_summary": "재료: [화학] 고유가 대체 바이오 소재 부각 (신규재료)", "score": "10", "tv_ratio": "-", "inst_str": "-2억", "frgn_str": "+16억", "supply_ok": true, "strengths": ["상승률·거래대금 교집합", "60일 신고가 돌파", "장대양봉"], "weaknesses": ["당일 급등 과열 (24.4%)", "기관 순매도 -2억"], "checkpoints": ["내일 거래대금 1500억 유지 여부", "시가 갭업 시 추격 주의", "재료 지속성 확인"]}, {"idx": 2, "name": "미래에셋벤처투자", "code": "100790", "market": "KOSDAQ", "chg_str": "+21.86%", "chg_pos": true, "tv_str": "7,546억", "pat_str": "당일돌파형(당일)", "in_inter": true, "high_tag": "🔺신고가", "priority": "우선확인", "llm_summary": "재료: [벤처투자] 스페이스X 상장 기대감 (섹터확산)", "score": "9", "tv_ratio": "-", "inst_str": "-50억", "frgn_str": "+345억", "supply_ok": true, "strengths": ["상승률·거래대금 교집합", "60일 신고가 돌파", "장대양봉"], "weaknesses": ["당일 급등 과열 (21.9%)", "기관 순매도 -50억"], "checkpoints": ["내일 거래대금 1500억 유지 여부", "시가 갭업 시 추격 주의", "재료 지속성 확인"]}, {"idx": 3, "name": "삼아알미늄", "code": "006110", "market": "KOSPI", "chg_str": "+21.88%", "chg_pos": true, "tv_str": "3,126억", "pat_str": "당일돌파형(당일)", "in_inter": false, "high_tag": "🔺신고가", "priority": "우선확인", "llm_summary": "재료: [알루미늄] 중동 사태 장기화 우려 (섹터확산)", "score": "11", "tv_ratio": "-", "inst_str": "+242억", "frgn_str": "+92억", "supply_ok": true, "strengths": ["60일 신고가 돌파", "장대양봉", "이평 밀집 후 이탈"], "weaknesses": ["당일 급등 과열 (21.9%)"], "checkpoints": ["내일 거래대금 1500억 유지 여부", "시가 갭업 시 추격 주의", "재료 지속성 확인"]}, {"idx": 4, "name": "DS단석", "code": "017860", "market": "KOSPI", "chg_str": "+29.95%", "chg_pos": true, "tv_str": "3,095억", "pat_str": "당일돌파형(당일)", "in_inter": false, "high_tag": "🔺신고가", "priority": "우선확인", "llm_summary": "재료: [기타] 한승욱 회장 지분 확대 (신규재료)", "score": "11", "tv_ratio": "-", "inst_str": "+12억", "frgn_str": "+52억", "supply_ok": true, "strengths": ["60일 신고가 돌파", "장대양봉", "이평 밀집 후 이탈"], "weaknesses": ["당일 급등 과열 (29.9%)"], "checkpoints": ["내일 거래대금 1500억 유지 여부", "시가 갭업 시 추격 주의", "재료 지속성 확인"]}, {"idx": 5, "name": "HD현대중공업", "code": "329180", "market": "KOSPI", "chg_str": "+11.28%", "chg_pos": true, "tv_str": "13,066억", "pat_str": "당일돌파형(당일)", "in_inter": false, "high_tag": "📍고점권", "priority": "우선확인", "llm_summary": "재료: [조선] 조선/방산/전력기기 섹터 동반 상승 (섹터확산)", "score": "10", "tv_ratio": "-", "inst_str": "+1140억", "frgn_str": "-657억", "supply_ok": true, "strengths": ["60일 고점권 근접", "이평 밀집 후 이탈", "기관 순매수 +1140억"], "weaknesses": ["외국인 순매도 -657억"], "checkpoints": ["내일 거래대금 1500억 유지 여부", "시가 갭업 시 추격 주의", "재료 지속성 확인"]}, {"idx": 6, "name": "LG이노텍", "code": "011070", "market": "KOSPI", "chg_str": "+17.65%", "chg_pos": true, "tv_str": "5,866억", "pat_str": "당일돌파형(당일)", "in_inter": false, "high_tag": "🔺신고가", "priority": "우선확인", "llm_summary": "재료: [기타] 재료 불명확 (단순수급)", "score": "10", "tv_ratio": "-", "inst_str": "+290억", "frgn_str": "-506억", "supply_ok": true, "strengths": ["60일 신고가 돌파", "장대양봉", "이평 밀집 후 이탈"], "weaknesses": ["외국인 순매도 -506억"], "checkpoints": ["내일 거래대금 1500억 유지 여부", "시가 갭업 시 추격 주의", "재료 지속성 확인"]}, {"idx": 7, "name": "LIG디펜스앤에어로스페이스", "code": "079550", "market": "KOSPI", "chg_str": "+12.21%", "chg_pos": true, "tv_str": "26,679억", "pat_str": "당일돌파형(당일)", "in_inter": false, "high_tag": "🔺신고가", "priority": "우선확인", "llm_summary": "재료: [방산] 해궁 첫 수출 (신규재료)", "score": "8", "tv_ratio": "-", "inst_str": "-271억", "frgn_str": "+296억", "supply_ok": true, "strengths": ["60일 신고가 돌파", "이평 밀집 후 이탈", "외국인 순매수 +296억"], "weaknesses": ["기관 순매도 -271억"], "checkpoints": ["내일 거래대금 1500억 유지 여부", "시가 갭업 시 추격 주의", "재료 지속성 확인"]}, {"idx": 8, "name": "KEC", "code": "092220", "market": "KOSPI", "chg_str": "+29.97%", "chg_pos": true, "tv_str": "1,526억", "pat_str": "당일돌파형(당일)", "in_inter": false, "high_tag": "", "priority": "우선확인", "llm_summary": "재료: [기타] 재료 불명확 (단순수급)", "score": "7", "tv_ratio": "-", "inst_str": "-2억", "frgn_str": "+104억", "supply_ok": true, "strengths": ["장대양봉", "이평 밀집 후 이탈", "외국인 순매수 +104억"], "weaknesses": ["당일 급등 과열 (30.0%)", "기관 순매도 -2억"], "checkpoints": ["내일 거래대금 1500억 유지 여부", "시가 갭업 시 추격 주의", "재료 지속성 확인"]}];
+const CANDS = [{"idx": 0, "name": "씨아이에스", "code": "222080", "market": "KOSDAQ", "chg_str": "+29.96%", "chg_pos": true, "tv_str": "7,135억", "pat_str": "패턴없음", "in_inter": true, "high_tag": "", "priority": "우선확인", "llm_summary": "", "score": "13", "tv_ratio": "-", "inst_str": "-", "frgn_str": "-", "supply_ok": false, "strengths": ["상승률·거래대금 교집합"], "weaknesses": ["당일 급등 과열 (30.0%)", "수급 미확인"], "checkpoints": ["교집합 유지 여부 확인", "거래대금 1500억 이상 유지"]}, {"idx": 1, "name": "주성엔지니어링", "code": "36930", "market": "KOSDAQ", "chg_str": "+29.95%", "chg_pos": true, "tv_str": "12,011억", "pat_str": "패턴없음", "in_inter": true, "high_tag": "", "priority": "우선확인", "llm_summary": "", "score": "13", "tv_ratio": "-", "inst_str": "-", "frgn_str": "-", "supply_ok": false, "strengths": ["상승률·거래대금 교집합"], "weaknesses": ["당일 급등 과열 (29.9%)", "수급 미확인"], "checkpoints": ["교집합 유지 여부 확인", "거래대금 1500억 이상 유지"]}, {"idx": 2, "name": "삼성SDI", "code": "6400", "market": "KOSPI", "chg_str": "+19.89%", "chg_pos": true, "tv_str": "16,333억", "pat_str": "패턴없음", "in_inter": true, "high_tag": "", "priority": "우선확인", "llm_summary": "", "score": "12", "tv_ratio": "-", "inst_str": "-", "frgn_str": "-", "supply_ok": false, "strengths": ["상승률·거래대금 교집합"], "weaknesses": ["수급 미확인"], "checkpoints": ["교집합 유지 여부 확인", "거래대금 1500억 이상 유지"]}, {"idx": 3, "name": "대우건설", "code": "47040", "market": "KOSPI", "chg_str": "+16.90%", "chg_pos": true, "tv_str": "30,944억", "pat_str": "패턴없음", "in_inter": false, "high_tag": "", "priority": "관찰우선", "llm_summary": "", "score": "11", "tv_ratio": "-", "inst_str": "-", "frgn_str": "-", "supply_ok": false, "strengths": [], "weaknesses": ["수급 미확인"], "checkpoints": ["교집합 유지 여부 확인", "거래대금 1500억 이상 유지"]}, {"idx": 4, "name": "LG에너지솔루션", "code": "373220", "market": "KOSPI", "chg_str": "+11.42%", "chg_pos": true, "tv_str": "6,518억", "pat_str": "패턴없음", "in_inter": false, "high_tag": "", "priority": "관찰우선", "llm_summary": "", "score": "10", "tv_ratio": "-", "inst_str": "-", "frgn_str": "-", "supply_ok": false, "strengths": [], "weaknesses": ["수급 미확인"], "checkpoints": ["교집합 유지 여부 확인", "거래대금 1500억 이상 유지"]}, {"idx": 5, "name": "한중엔시에스", "code": "107640", "market": "KOSDAQ", "chg_str": "+29.93%", "chg_pos": true, "tv_str": "1,962억", "pat_str": "패턴없음", "in_inter": false, "high_tag": "", "priority": "관찰우선", "llm_summary": "", "score": "9", "tv_ratio": "-", "inst_str": "-", "frgn_str": "-", "supply_ok": false, "strengths": [], "weaknesses": ["당일 급등 과열 (29.9%)", "수급 미확인"], "checkpoints": ["교집합 유지 여부 확인", "거래대금 1500억 이상 유지"]}, {"idx": 6, "name": "삼성전기", "code": "9150", "market": "KOSPI", "chg_str": "+13.53%", "chg_pos": true, "tv_str": "8,434억", "pat_str": "패턴없음", "in_inter": false, "high_tag": "", "priority": "관찰우선", "llm_summary": "", "score": "8", "tv_ratio": "-", "inst_str": "-", "frgn_str": "-", "supply_ok": false, "strengths": [], "weaknesses": ["수급 미확인"], "checkpoints": ["교집합 유지 여부 확인", "거래대금 1500억 이상 유지"]}, {"idx": 7, "name": "GS건설", "code": "6360", "market": "KOSPI", "chg_str": "+13.27%", "chg_pos": true, "tv_str": "4,344억", "pat_str": "패턴없음", "in_inter": false, "high_tag": "", "priority": "관찰우선", "llm_summary": "", "score": "8", "tv_ratio": "-", "inst_str": "-", "frgn_str": "-", "supply_ok": false, "strengths": [], "weaknesses": ["수급 미확인"], "checkpoints": ["교집합 유지 여부 확인", "거래대금 1500억 이상 유지"]}, {"idx": 8, "name": "파인텍", "code": "131760", "market": "KOSDAQ", "chg_str": "+29.69%", "chg_pos": true, "tv_str": "1,534억", "pat_str": "패턴없음", "in_inter": false, "high_tag": "", "priority": "관찰우선", "llm_summary": "", "score": "7", "tv_ratio": "-", "inst_str": "-", "frgn_str": "-", "supply_ok": false, "strengths": [], "weaknesses": ["당일 급등 과열 (29.7%)", "수급 미확인"], "checkpoints": ["교집합 유지 여부 확인", "거래대금 1500억 이상 유지"]}];
 function renderDetail(idx) {
   const c = CANDS[idx];
   if (!c) return;
@@ -637,15 +685,15 @@ function renderDetail(idx) {
 if (CANDS.length > 0) renderDetail(0);
 </script>
 
-<div class="section-title">👁 관찰 후보<span class="watch-note">매수 후보 아님 · 관찰용</span></div><div class="watch-grid"><div class="watch-card"><div><span class="name">SK하이닉스</span><span class="code">000660</span></div><div class="watch-body">거래대금 <strong>70,401억</strong> &nbsp;·&nbsp; 등락률 <strong class="neg">-0.08%</strong></div></div><div class="watch-card"><div><span class="name">삼성전자</span><span class="code">005930</span></div><div class="watch-body">거래대금 <strong>66,414억</strong> &nbsp;·&nbsp; 등락률 <strong class="neg">-0.68%</strong></div></div><div class="watch-card"><div><span class="name">삼성SDI</span><span class="code">006400</span></div><div class="watch-body">거래대금 <strong>31,313억</strong> &nbsp;·&nbsp; 등락률 <strong class="pos">+2.17%</strong></div></div></div>
-<div class="section-title">🏭 주도 섹터</div><div class="sector-grid"><div class="sector-card"><div class="sector-head"><span class="s-name">창업투자</span><span class="s-chg pos">+4.51%</span><span class="s-tv">13,428억</span></div><table class="sector-stocks"><tr><td class="s-stock-name">미래에셋벤처투자</td><td class="td-pos">+21.86%</td><td class="s-stock-tv">7,546억</td></tr><tr><td class="s-stock-name">아주IB투자</td><td class="td-pos">+16.75%</td><td class="s-stock-tv">5,225억</td></tr><tr><td class="s-stock-name">DSC인베스트먼트</td><td class="td-pos">+4.77%</td><td class="s-stock-tv">256억</td></tr><tr><td class="s-stock-name">나우IB</td><td class="td-pos">+3.17%</td><td class="s-stock-tv">186억</td></tr></table></div><div class="sector-card"><div class="sector-head"><span class="s-name">전자장비와기기</span><span class="s-chg pos">+4.71%</span><span class="s-tv">61,445억</span></div><table class="sector-stocks"><tr><td class="s-stock-name">이수페타시스</td><td class="td-pos">+21.17%</td><td class="s-stock-tv">21,988억</td></tr><tr><td class="s-stock-name">삼성전기</td><td class="td-pos">+5.18%</td><td class="s-stock-tv">16,087억</td></tr><tr><td class="s-stock-name">LG이노텍</td><td class="td-pos">+17.65%</td><td class="s-stock-tv">5,866억</td></tr><tr><td class="s-stock-name">태성</td><td class="td-pos">+12.08%</td><td class="s-stock-tv">2,270억</td></tr></table></div><div class="sector-card"><div class="sector-head"><span class="s-name">조선</span><span class="s-chg pos">+4.80%</span><span class="s-tv">43,655억</span></div><table class="sector-stocks"><tr><td class="s-stock-name">HD현대중공업</td><td class="td-pos">+11.28%</td><td class="s-stock-tv">13,066억</td></tr><tr><td class="s-stock-name">삼성중공업</td><td class="td-pos">+5.30%</td><td class="s-stock-tv">9,293억</td></tr><tr><td class="s-stock-name">한화오션</td><td class="td-pos">+2.90%</td><td class="s-stock-tv">7,079억</td></tr><tr><td class="s-stock-name">한화엔진</td><td class="td-pos">+11.39%</td><td class="s-stock-tv">4,820억</td></tr></table></div><div class="sector-card"><div class="sector-head"><span class="s-name">전자제품</span><span class="s-chg pos">+1.73%</span><span class="s-tv">3,738억</span></div><table class="sector-stocks"><tr><td class="s-stock-name">LG전자</td><td class="td-pos">+4.90%</td><td class="s-stock-tv">3,522억</td></tr><tr><td class="s-stock-name">아남전자</td><td class="td-pos">+3.25%</td><td class="s-stock-tv">165억</td></tr><tr><td class="s-stock-name">가온그룹</td><td class="td-neg">-3.41%</td><td class="s-stock-tv">29억</td></tr><tr><td class="s-stock-name">앤씨앤</td><td class="td-neg">-1.54%</td><td class="s-stock-tv">8억</td></tr></table></div><div class="sector-card"><div class="sector-head"><span class="s-name">디스플레이패널</span><span class="s-chg pos">+2.81%</span><span class="s-tv">1,714억</span></div><table class="sector-stocks"><tr><td class="s-stock-name">LG디스플레이</td><td class="td-pos">+4.81%</td><td class="s-stock-tv">1,707억</td></tr><tr><td class="s-stock-name">육일씨엔에쓰</td><td class="td-neg">-0.70%</td><td class="s-stock-tv">4억</td></tr><tr><td class="s-stock-name">코텍</td><td class="td-pos">+0.82%</td><td class="s-stock-tv">3억</td></tr><tr><td class="s-stock-name">비덴트</td><td class="td-pos">+0.00%</td><td class="s-stock-tv">0억</td></tr></table></div></div>
-<div class="section-title">📅 최근 4주간 주도섹터</div><div class="tbl-wrap"><table class="cal-table"><thead><tr><th>월</th><th>화</th><th>수</th><th>목</th><th>금</th></tr></thead><tbody><tr><td class="cal-cell"><div class="cal-day">30</div></td><td class="cal-cell"><div class="cal-day">31</div></td><td class="cal-cell"><div class="cal-day">1</div></td><td class="cal-cell"><div class="cal-day">2</div></td><td class="cal-cell"><div class="cal-day">3</div></td></tr><tr><td class="cal-cell"><div class="cal-day">6</div></td><td class="cal-cell"><div class="cal-day">7</div></td><td class="cal-cell"><div class="cal-day">8</div></td><td class="cal-cell"><div class="cal-day">9</div></td><td class="cal-cell"><div class="cal-day">10</div></td></tr><tr><td class="cal-cell"><div class="cal-day">13</div></td><td class="cal-cell"><div class="cal-day">14</div></td><td class="cal-cell"><div class="cal-day">15</div></td><td class="cal-cell"><div class="cal-day">16</div></td><td class="cal-cell"><div class="cal-day">17</div></td></tr><tr><td class="cal-cell"><div class="cal-day">20</div></td><td class="cal-cell"><div class="cal-day">21</div><span class="cal-sector">전기제품</span><span class="cal-sector">전자장비와기기</span><span class="cal-sector">종이와목재</span><span class="cal-sector">조선</span></td><td class="cal-cell cal-today"><div class="cal-day">22</div><span class="cal-sector">창업투자</span><span class="cal-sector">전자장비와기기</span><span class="cal-sector">조선</span><span class="cal-sector">전자제품</span></td><td class="cal-cell"><div class="cal-day">23</div></td><td class="cal-cell"><div class="cal-day">24</div></td></tr></tbody></table></div>
-<div class="section-title">🔀 교집합 (상승률Top20 ∩ 거래대금Top20)</div><div class="tbl-wrap"><table><thead><tr><th>#</th><th>종목명</th><th>코드</th><th>등락률</th><th>거래대금</th></tr></thead><tbody><tr><td>1</td><td class="td-name">애경케미칼</td><td class="td-code">161000</td><td class="td-pos">+24.35%</td><td>7,291억</td></tr><tr><td>2</td><td class="td-name">미래에셋벤처투자</td><td class="td-code">100790</td><td class="td-pos">+21.86%</td><td>7,546억</td></tr><tr><td>3</td><td class="td-name">이수페타시스</td><td class="td-code">007660</td><td class="td-pos">+21.17%</td><td>21,988억</td></tr></tbody></table></div>
-<div class="section-title">🚫 탈락 요약</div><div class="rejected-summary"><span>거래대금 부족: 14개</span> <span>패턴 없음 + 교집합 아님: 14개</span></div>
-<div class="section-title">📊 상승률 Top20</div><div class="tbl-wrap"><table><thead><tr><th>#</th><th>종목명</th><th>섹터</th><th>코드</th><th>시장</th><th>등락률</th><th>거래대금</th></tr></thead><tbody><tr><td>1</td><td class="td-name">핑거</td><td style="font-size:11px;color:var(--blue)">IT서비스</td><td class="td-code">163730</td><td>KOSDAQ</td><td class="td-pos">+30.00%</td><td>767억</td></tr><tr><td>2</td><td class="td-name">라이온켐텍</td><td style="font-size:11px;color:var(--blue)">건축자재</td><td class="td-code">171120</td><td>KOSDAQ</td><td class="td-pos">+30.00%</td><td>374억</td></tr><tr><td>3</td><td class="td-name">정원엔시스</td><td style="font-size:11px;color:var(--blue)">IT서비스</td><td class="td-code">045510</td><td>KOSDAQ</td><td class="td-pos">+29.99%</td><td>47억</td></tr><tr><td>4</td><td class="td-name">에이에프더블류</td><td style="font-size:11px;color:var(--blue)">자동차부품</td><td class="td-code">312610</td><td>KOSDAQ</td><td class="td-pos">+29.99%</td><td>32억</td></tr><tr><td>5</td><td class="td-name">포톤</td><td style="font-size:11px;color:var(--blue)">핸드셋</td><td class="td-code">208710</td><td>KOSDAQ</td><td class="td-pos">+29.98%</td><td>64억</td></tr><tr><td>6</td><td class="td-name">동일스틸럭스</td><td style="font-size:11px;color:var(--blue)">철강</td><td class="td-code">023790</td><td>KOSDAQ</td><td class="td-pos">+29.98%</td><td>200억</td></tr><tr><td>7</td><td class="td-name">KEC</td><td style="font-size:11px;color:var(--blue)">반도체와반도체장비</td><td class="td-code">092220</td><td>KOSPI</td><td class="td-pos">+29.97%</td><td>1,526억</td></tr><tr><td>8</td><td class="td-name">DS단석</td><td style="font-size:11px;color:var(--blue)">화학</td><td class="td-code">017860</td><td>KOSPI</td><td class="td-pos">+29.95%</td><td>3,095억</td></tr><tr><td>9</td><td class="td-name">바이젠셀</td><td style="font-size:11px;color:var(--blue)">제약</td><td class="td-code">308080</td><td>KOSDAQ</td><td class="td-pos">+29.88%</td><td>87억</td></tr><tr><td>10</td><td class="td-name">케이알엠</td><td style="font-size:11px;color:var(--blue)">반도체와반도체장비</td><td class="td-code">093640</td><td>KOSDAQ</td><td class="td-pos">+24.46%</td><td>62억</td></tr><tr><td>11</td><td class="td-name">나노</td><td style="font-size:11px;color:var(--blue)">화학</td><td class="td-code">187790</td><td>KOSDAQ</td><td class="td-pos">+24.44%</td><td>356억</td></tr><tr><td>12</td><td class="td-name">애경케미칼</td><td style="font-size:11px;color:var(--blue)">화학</td><td class="td-code">161000</td><td>KOSPI</td><td class="td-pos">+24.35%</td><td>7,291억</td></tr><tr><td>13</td><td class="td-name">OCI</td><td style="font-size:11px;color:var(--blue)">화학</td><td class="td-code">456040</td><td>KOSPI</td><td class="td-pos">+23.63%</td><td>1,224억</td></tr><tr><td>14</td><td class="td-name">삼아알미늄</td><td style="font-size:11px;color:var(--blue)">비철금속</td><td class="td-code">006110</td><td>KOSPI</td><td class="td-pos">+21.88%</td><td>3,126억</td></tr><tr><td>15</td><td class="td-name">미래에셋벤처투자</td><td style="font-size:11px;color:var(--blue)">창업투자</td><td class="td-code">100790</td><td>KOSDAQ</td><td class="td-pos">+21.86%</td><td>7,546억</td></tr><tr><td>16</td><td class="td-name">케이프</td><td style="font-size:11px;color:var(--blue)">증권</td><td class="td-code">064820</td><td>KOSDAQ</td><td class="td-pos">+21.37%</td><td>883억</td></tr><tr><td>17</td><td class="td-name">이수페타시스</td><td style="font-size:11px;color:var(--blue)">전자장비와기기</td><td class="td-code">007660</td><td>KOSPI</td><td class="td-pos">+21.17%</td><td>21,988억</td></tr><tr><td>18</td><td class="td-name">SGC에너지</td><td style="font-size:11px;color:var(--blue)">에너지장비및서비스</td><td class="td-code">005090</td><td>KOSPI</td><td class="td-pos">+20.27%</td><td>722억</td></tr><tr><td>19</td><td class="td-name">에이프로</td><td style="font-size:11px;color:var(--blue)">전자장비와기기</td><td class="td-code">262260</td><td>KOSDAQ</td><td class="td-pos">+19.49%</td><td>107억</td></tr><tr><td>20</td><td class="td-name">와이엠텍</td><td style="font-size:11px;color:var(--blue)">전기제품</td><td class="td-code">273640</td><td>KOSDAQ</td><td class="td-pos">+18.85%</td><td>371억</td></tr></tbody></table></div>
-<div class="section-title">💰 거래대금 Top20</div><div class="tbl-wrap"><table><thead><tr><th>#</th><th>종목명</th><th>섹터</th><th>코드</th><th>시장</th><th>거래대금</th><th>등락률</th></tr></thead><tbody><tr><td>1</td><td class="td-name">SK하이닉스</td><td style="font-size:11px;color:var(--blue)">반도체와반도체장비</td><td class="td-code">000660</td><td>KOSPI</td><td>70,401억</td><td class="td-neg">-0.08%</td></tr><tr><td>2</td><td class="td-name">삼성전자</td><td style="font-size:11px;color:var(--blue)">반도체와반도체장비</td><td class="td-code">005930</td><td>KOSPI</td><td>66,414억</td><td class="td-neg">-0.68%</td></tr><tr><td>3</td><td class="td-name">삼성SDI</td><td style="font-size:11px;color:var(--blue)">전기제품</td><td class="td-code">006400</td><td>KOSPI</td><td>31,313억</td><td class="td-pos">+2.17%</td></tr><tr><td>4</td><td class="td-name">LIG디펜스앤에어로스페이스</td><td style="font-size:11px;color:var(--blue)">우주항공과국방</td><td class="td-code">079550</td><td>KOSPI</td><td>26,679억</td><td class="td-pos">+12.21%</td></tr><tr><td>5</td><td class="td-name">이수페타시스</td><td style="font-size:11px;color:var(--blue)">전자장비와기기</td><td class="td-code">007660</td><td>KOSPI</td><td>21,988억</td><td class="td-pos">+21.17%</td></tr><tr><td>6</td><td class="td-name">삼성전기</td><td style="font-size:11px;color:var(--blue)">전자장비와기기</td><td class="td-code">009150</td><td>KOSPI</td><td>16,087억</td><td class="td-pos">+5.18%</td></tr><tr><td>7</td><td class="td-name">HD현대중공업</td><td style="font-size:11px;color:var(--blue)">조선</td><td class="td-code">329180</td><td>KOSPI</td><td>13,066억</td><td class="td-pos">+11.28%</td></tr><tr><td>8</td><td class="td-name">주성엔지니어링</td><td style="font-size:11px;color:var(--blue)">반도체와반도체장비</td><td class="td-code">036930</td><td>KOSDAQ</td><td>9,802억</td><td class="td-pos">+1.26%</td></tr><tr><td>9</td><td class="td-name">두산에너빌리티</td><td style="font-size:11px;color:var(--blue)">기계</td><td class="td-code">034020</td><td>KOSPI</td><td>9,395억</td><td class="td-pos">+0.17%</td></tr><tr><td>10</td><td class="td-name">현대차</td><td style="font-size:11px;color:var(--blue)">자동차</td><td class="td-code">005380</td><td>KOSPI</td><td>9,319억</td><td class="td-neg">-0.92%</td></tr><tr><td>11</td><td class="td-name">삼성중공업</td><td style="font-size:11px;color:var(--blue)">조선</td><td class="td-code">010140</td><td>KOSPI</td><td>9,293억</td><td class="td-pos">+5.30%</td></tr><tr><td>12</td><td class="td-name">대우건설</td><td style="font-size:11px;color:var(--blue)">건설</td><td class="td-code">047040</td><td>KOSPI</td><td>8,358억</td><td class="td-neg">-0.91%</td></tr><tr><td>13</td><td class="td-name">LG에너지솔루션</td><td style="font-size:11px;color:var(--blue)">전기제품</td><td class="td-code">373220</td><td>KOSPI</td><td>8,155억</td><td class="td-pos">+1.36%</td></tr><tr><td>14</td><td class="td-name">미래에셋벤처투자</td><td style="font-size:11px;color:var(--blue)">창업투자</td><td class="td-code">100790</td><td>KOSDAQ</td><td>7,546억</td><td class="td-pos">+21.86%</td></tr><tr><td>15</td><td class="td-name">애경케미칼</td><td style="font-size:11px;color:var(--blue)">화학</td><td class="td-code">161000</td><td>KOSPI</td><td>7,291억</td><td class="td-pos">+24.35%</td></tr><tr><td>16</td><td class="td-name">에코프로</td><td style="font-size:11px;color:var(--blue)">화학</td><td class="td-code">086520</td><td>KOSDAQ</td><td>7,231억</td><td class="td-pos">+0.37%</td></tr><tr><td>17</td><td class="td-name">한화오션</td><td style="font-size:11px;color:var(--blue)">조선</td><td class="td-code">042660</td><td>KOSPI</td><td>7,079억</td><td class="td-pos">+2.90%</td></tr><tr><td>18</td><td class="td-name">LG이노텍</td><td style="font-size:11px;color:var(--blue)">전자장비와기기</td><td class="td-code">011070</td><td>KOSPI</td><td>5,866억</td><td class="td-pos">+17.65%</td></tr><tr><td>19</td><td class="td-name">LS ELECTRIC</td><td style="font-size:11px;color:var(--blue)">전기장비</td><td class="td-code">010120</td><td>KOSPI</td><td>5,820억</td><td class="td-pos">+5.14%</td></tr><tr><td>20</td><td class="td-name">OCI홀딩스</td><td style="font-size:11px;color:var(--blue)">화학</td><td class="td-code">010060</td><td>KOSPI</td><td>5,606억</td><td class="td-pos">+5.19%</td></tr></tbody></table></div>
+
+
+
+<div class="section-title">🔀 교집합 (상승률Top20 ∩ 거래대금Top20)</div><div class="tbl-wrap"><table><thead><tr><th>#</th><th>종목명</th><th>코드</th><th>등락률</th><th>거래대금</th></tr></thead><tbody><tr><td>1</td><td class="td-name">씨아이에스</td><td class="td-code">222080</td><td class="td-pos">+29.96%</td><td>7,135억</td></tr><tr><td>2</td><td class="td-name">주성엔지니어링</td><td class="td-code">36930</td><td class="td-pos">+29.95%</td><td>12,011억</td></tr><tr><td>3</td><td class="td-name">삼성SDI</td><td class="td-code">6400</td><td class="td-pos">+19.89%</td><td>16,333억</td></tr></tbody></table></div>
+
+<div class="section-title">📊 상승률 Top20</div><div class="tbl-wrap"><table><thead><tr><th>#</th><th>종목명</th><th>섹터</th><th>코드</th><th>시장</th><th>등락률</th><th>거래대금</th></tr></thead><tbody><tr><td>1</td><td class="td-name">씨아이에스</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">222080</td><td>KOSDAQ</td><td class="td-pos">+29.96%</td><td>7,135억</td></tr><tr><td>2</td><td class="td-name">정원엔시스</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">45510</td><td>KOSDAQ</td><td class="td-pos">+29.96%</td><td>53억</td></tr><tr><td>3</td><td class="td-name">주성엔지니어링</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">36930</td><td>KOSDAQ</td><td class="td-pos">+29.95%</td><td>12,011억</td></tr><tr><td>4</td><td class="td-name">한중엔시에스</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">107640</td><td>KOSDAQ</td><td class="td-pos">+29.93%</td><td>1,962억</td></tr><tr><td>5</td><td class="td-name">에이에프더블류</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">312610</td><td>KOSDAQ</td><td class="td-pos">+29.93%</td><td>16억</td></tr><tr><td>6</td><td class="td-name">씨이랩</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">189330</td><td>KOSDAQ</td><td class="td-pos">+29.90%</td><td>178억</td></tr><tr><td>7</td><td class="td-name">벨로크</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">424760</td><td>KOSDAQ</td><td class="td-pos">+29.86%</td><td>214억</td></tr><tr><td>8</td><td class="td-name">화인써키트</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">127980</td><td>KOSDAQ</td><td class="td-pos">+29.85%</td><td>262억</td></tr><tr><td>9</td><td class="td-name">이브이첨단소재</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">131400</td><td>KOSDAQ</td><td class="td-pos">+29.83%</td><td>205억</td></tr><tr><td>10</td><td class="td-name">중앙첨단소재</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">51980</td><td>KOSDAQ</td><td class="td-pos">+29.71%</td><td>628억</td></tr><tr><td>11</td><td class="td-name">파인텍</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">131760</td><td>KOSDAQ</td><td class="td-pos">+29.69%</td><td>1,534억</td></tr><tr><td>12</td><td class="td-name">솔루스첨단소재</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">336370</td><td>KOSPI</td><td class="td-pos">+26.07%</td><td>704억</td></tr><tr><td>13</td><td class="td-name">지에프아이</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">493330</td><td>KOSDAQ</td><td class="td-pos">+25.70%</td><td>122억</td></tr><tr><td>14</td><td class="td-name">APS이노베이션</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">79810</td><td>KOSDAQ</td><td class="td-pos">+25.53%</td><td>711억</td></tr><tr><td>15</td><td class="td-name">제이오</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">418550</td><td>KOSDAQ</td><td class="td-pos">+22.76%</td><td>1,100억</td></tr><tr><td>16</td><td class="td-name">삼성SDI</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">6400</td><td>KOSPI</td><td class="td-pos">+19.89%</td><td>16,333억</td></tr><tr><td>17</td><td class="td-name">필에너지</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">378340</td><td>KOSDAQ</td><td class="td-pos">+19.48%</td><td>600억</td></tr><tr><td>18</td><td class="td-name">엠플러스</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">259630</td><td>KOSDAQ</td><td class="td-pos">+18.02%</td><td>933억</td></tr><tr><td>19</td><td class="td-name">엔켐</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">348370</td><td>KOSDAQ</td><td class="td-pos">+17.96%</td><td>904억</td></tr><tr><td>20</td><td class="td-name">삼기에너지솔루션즈</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">419050</td><td>KOSDAQ</td><td class="td-pos">+17.56%</td><td>553억</td></tr></tbody></table></div>
+<div class="section-title">💰 거래대금 Top20</div><div class="tbl-wrap"><table><thead><tr><th>#</th><th>종목명</th><th>섹터</th><th>코드</th><th>시장</th><th>거래대금</th><th>등락률</th></tr></thead><tbody><tr><td>1</td><td class="td-name">SK하이닉스</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">660</td><td>KOSPI</td><td>38,372억</td><td class="td-pos">+4.97%</td></tr><tr><td>2</td><td class="td-name">삼성전자</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">5930</td><td>KOSPI</td><td>36,584억</td><td class="td-pos">+2.10%</td></tr><tr><td>3</td><td class="td-name">대우건설</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">47040</td><td>KOSPI</td><td>30,944억</td><td class="td-pos">+16.90%</td></tr><tr><td>4</td><td class="td-name">삼성SDI</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">6400</td><td>KOSPI</td><td>16,333억</td><td class="td-pos">+19.89%</td></tr><tr><td>5</td><td class="td-name">주성엔지니어링</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">36930</td><td>KOSDAQ</td><td>12,011억</td><td class="td-pos">+29.95%</td></tr><tr><td>6</td><td class="td-name">삼성전기</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">9150</td><td>KOSPI</td><td>8,434억</td><td class="td-pos">+13.53%</td></tr><tr><td>7</td><td class="td-name">씨아이에스</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">222080</td><td>KOSDAQ</td><td>7,135억</td><td class="td-pos">+29.96%</td></tr><tr><td>8</td><td class="td-name">LG에너지솔루션</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">373220</td><td>KOSPI</td><td>6,518억</td><td class="td-pos">+11.42%</td></tr><tr><td>9</td><td class="td-name">대한광통신</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">10170</td><td>KOSDAQ</td><td>5,552억</td><td class="td-pos">+3.36%</td></tr><tr><td>10</td><td class="td-name">두산에너빌리티</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">34020</td><td>KOSPI</td><td>5,523억</td><td class="td-pos">+4.23%</td></tr><tr><td>11</td><td class="td-name">현대차</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">5380</td><td>KOSPI</td><td>5,168억</td><td class="td-pos">+3.61%</td></tr><tr><td>12</td><td class="td-name">제주반도체</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">80220</td><td>KOSDAQ</td><td>4,527억</td><td class="td-pos">+8.95%</td></tr><tr><td>13</td><td class="td-name">대한전선</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">1440</td><td>KOSPI</td><td>4,401억</td><td class="td-pos">+2.85%</td></tr><tr><td>14</td><td class="td-name">HD현대중공업</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">329180</td><td>KOSPI</td><td>4,351억</td><td class="td-pos">+9.92%</td></tr><tr><td>15</td><td class="td-name">GS건설</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">6360</td><td>KOSPI</td><td>4,344억</td><td class="td-pos">+13.27%</td></tr><tr><td>16</td><td class="td-name">POSCO홀딩스</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">5490</td><td>KOSPI</td><td>4,318억</td><td class="td-pos">+8.22%</td></tr><tr><td>17</td><td class="td-name">미래에셋벤처투자</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">100790</td><td>KOSDAQ</td><td>4,076억</td><td class="td-pos">+4.07%</td></tr><tr><td>18</td><td class="td-name">에코프로</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">86520</td><td>KOSDAQ</td><td>4,001억</td><td class="td-pos">+5.21%</td></tr><tr><td>19</td><td class="td-name">에코프로머티</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">450080</td><td>KOSPI</td><td>3,780억</td><td class="td-pos">+7.91%</td></tr><tr><td>20</td><td class="td-name">SK스퀘어</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">402340</td><td>KOSPI</td><td>3,292억</td><td class="td-pos">+2.43%</td></tr></tbody></table></div>
 <div style="text-align:center;color:var(--muted);font-size:11px;margin-top:24px;padding:16px 0;">
-  korea-close-betting-bot &middot; 2026-04-22 1859
+  korea-close-betting-bot &middot; 2026-04-22 0650
 </div>
 </div>
 </body>

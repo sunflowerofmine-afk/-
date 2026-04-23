@@ -344,6 +344,9 @@ tbody tr:hover td { background: var(--bg3); }
     min-width: 0;
 }
 .cal-cell.cal-today { background: var(--bg3); border-color: var(--blue); }
+.cal-cell.has-report { cursor: pointer; }
+.cal-cell.has-report:hover { background: var(--bg3); border-color: var(--blue); }
+.cal-cell.has-report .cal-day { color: var(--blue); font-weight: 700; }
 .cal-day { font-size: 11px; color: var(--muted); margin-bottom: 3px; }
 .cal-sector {
     display: block;
@@ -471,6 +474,44 @@ tbody tr:hover td { background: var(--bg3); }
     thead th, tbody td { padding: 6px 8px; }
 }
 
+/* ── 히스토리 네비게이션 바 ── */
+.hist-nav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    margin: -12px -12px 16px;
+}
+.hist-select {
+    background: var(--bg2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 13px;
+    cursor: pointer;
+    flex: 1;
+    max-width: 300px;
+}
+.nav-btn {
+    color: var(--blue);
+    text-decoration: none;
+    font-size: 12px;
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg2);
+    white-space: nowrap;
+    display: inline-block;
+}
+.nav-btn:hover { background: var(--bg3); }
+.nav-btn.disabled { color: var(--muted); pointer-events: none; cursor: default; border-color: var(--bg3); }
+
 a { color: var(--blue); text-decoration: none; }
 a:hover { text-decoration: underline; }
 .idx-date { font-weight: 600; white-space: nowrap; padding: 10px 16px; }
@@ -506,8 +547,8 @@ a:hover { text-decoration: underline; }
   <div class="tbl-wrap">
     <table>
       <thead><tr><th>날짜</th><th>리포트</th></tr></thead>
-      <tbody><tr><td class="idx-date">2026-04-22</td><td class="idx-links"><a href="reports/2026-04-22_1450.html">1차 (14:50)</a> &nbsp;·&nbsp; <a href="reports/2026-04-22_1750.html">2차 (17:50)</a> &nbsp;·&nbsp; <a href="reports/2026-04-22_0650.html">수동 06:50</a> &nbsp;·&nbsp; <a href="reports/2026-04-22_0904.html">수동 09:04</a> &nbsp;·&nbsp; <a href="reports/2026-04-22_1816.html">수동 18:16</a> &nbsp;·&nbsp; <a href="reports/2026-04-22_1859.html">수동 18:59</a></td></tr>
-<tr><td class="idx-date">2026-04-21</td><td class="idx-links"><a href="reports/2026-04-21_1450.html">1차 (14:50)</a> &nbsp;·&nbsp; <a href="reports/2026-04-21_0516.html">수동 05:16</a> &nbsp;·&nbsp; <a href="reports/2026-04-21_0539.html">수동 05:39</a> &nbsp;·&nbsp; <a href="reports/2026-04-21_0543.html">수동 05:43</a> &nbsp;·&nbsp; <a href="reports/2026-04-21_0552.html">수동 05:52</a> &nbsp;·&nbsp; <a href="reports/2026-04-21_0702.html">수동 07:02</a> &nbsp;·&nbsp; <a href="reports/2026-04-21_1948.html">수동 19:48</a> &nbsp;·&nbsp; <a href="reports/2026-04-21_2030.html">수동 20:30</a> &nbsp;·&nbsp; <a href="reports/2026-04-21_2109.html">수동 21:09</a> &nbsp;·&nbsp; <a href="reports/2026-04-21_2134.html">수동 21:34</a> &nbsp;·&nbsp; <a href="reports/2026-04-21_2150.html">수동 21:50</a> &nbsp;·&nbsp; <a href="reports/2026-04-21_2203.html">수동 22:03</a></td></tr>
+      <tbody><tr><td class="idx-date">2026-04-22</td><td class="idx-links"><a href="reports/2026-04-22_1450.html">1차 (14:50)</a> &nbsp;·&nbsp; <a href="reports/2026-04-22_0650.html">수동 06:50</a> &nbsp;·&nbsp; <a href="reports/2026-04-22_0904.html">수동 09:04</a> &nbsp;·&nbsp; <a href="reports/2026-04-22_1816.html">수동 18:16</a></td></tr>
+<tr><td class="idx-date">2026-04-21</td><td class="idx-links"><a href="reports/2026-04-21_1450.html">1차 (14:50)</a> &nbsp;·&nbsp; <a href="reports/2026-04-21_0516.html">수동 05:16</a> &nbsp;·&nbsp; <a href="reports/2026-04-21_0539.html">수동 05:39</a> &nbsp;·&nbsp; <a href="reports/2026-04-21_0543.html">수동 05:43</a> &nbsp;·&nbsp; <a href="reports/2026-04-21_0552.html">수동 05:52</a> &nbsp;·&nbsp; <a href="reports/2026-04-21_0702.html">수동 07:02</a> &nbsp;·&nbsp; <a href="reports/2026-04-21_1948.html">수동 19:48</a> &nbsp;·&nbsp; <a href="reports/2026-04-21_2002.html">수동 20:02</a> &nbsp;·&nbsp; <a href="reports/2026-04-21_2030.html">수동 20:30</a> &nbsp;·&nbsp; <a href="reports/2026-04-21_2109.html">수동 21:09</a> &nbsp;·&nbsp; <a href="reports/2026-04-21_2134.html">수동 21:34</a> &nbsp;·&nbsp; <a href="reports/2026-04-21_2150.html">수동 21:50</a> &nbsp;·&nbsp; <a href="reports/2026-04-21_2203.html">수동 22:03</a></td></tr>
 <tr><td class="idx-date">2026-04-20</td><td class="idx-links"><a href="reports/2026-04-20_1649.html">수동 16:49</a> &nbsp;·&nbsp; <a href="reports/2026-04-20_1700.html">수동 17:00</a> &nbsp;·&nbsp; <a href="reports/2026-04-20_2019.html">수동 20:19</a> &nbsp;·&nbsp; <a href="reports/2026-04-20_2107.html">수동 21:07</a> &nbsp;·&nbsp; <a href="reports/2026-04-20_2115.html">수동 21:15</a> &nbsp;·&nbsp; <a href="reports/2026-04-20_2144.html">수동 21:44</a> &nbsp;·&nbsp; <a href="reports/2026-04-20_2223.html">수동 22:23</a> &nbsp;·&nbsp; <a href="reports/2026-04-20_2228.html">수동 22:28</a></td></tr>
 <tr><td class="idx-date">2026-04-19</td><td class="idx-links"><a href="reports/2026-04-19_0640.html">수동 06:40</a></td></tr>
 <tr><td class="idx-date">2026-04-17</td><td class="idx-links"><a href="reports/2026-04-17_0626.html">수동 06:26</a> &nbsp;·&nbsp; <a href="reports/2026-04-17_0753.html">수동 07:53</a> &nbsp;·&nbsp; <a href="reports/2026-04-17_1901.html">수동 19:01</a> &nbsp;·&nbsp; <a href="reports/2026-04-17_2039.html">수동 20:39</a></td></tr></tbody>
@@ -515,7 +556,7 @@ a:hover { text-decoration: underline; }
   </div>
 </div>
 <script>
-const DATE_MAP = {"2026-04-22": "reports/2026-04-22_1750.html", "2026-04-21": "reports/2026-04-21_1450.html", "2026-04-20": "reports/2026-04-20_2228.html", "2026-04-19": "reports/2026-04-19_0640.html", "2026-04-17": "reports/2026-04-17_2039.html"};
+const DATE_MAP = {"2026-04-22": "reports/2026-04-22_1450.html", "2026-04-21": "reports/2026-04-21_1450.html", "2026-04-20": "reports/2026-04-20_2228.html", "2026-04-19": "reports/2026-04-19_0640.html", "2026-04-17": "reports/2026-04-17_2039.html"};
 const picker = document.getElementById('date-picker');
 const msg    = document.getElementById('date-msg');
 document.getElementById('date-go').addEventListener('click', () => {

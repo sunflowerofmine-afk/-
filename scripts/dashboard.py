@@ -2,11 +2,16 @@
 """HTML 대시보드 생성 모듈 (GitHub Pages 배포용)"""
 
 import logging
+import re as _re
 from html import escape
+from itertools import groupby
 from pathlib import Path
 from typing import Optional
 
 logger = logging.getLogger(__name__)
+
+_REPORT_PAT = _re.compile(r"^(\d{4}-\d{2}-\d{2})_(\d{4})\.html$")
+_LABEL_MAP  = {"1450": "1차 (14:50)", "1750": "2차 (17:50)"}
 
 
 # ─── Public API ──────────────────────────────────────────────────────────────
@@ -21,9 +26,12 @@ def generate_dashboard_html(
     Returns True on success, False on failure.
     """
     try:
-        html = _build_html(report_data)
-        Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-        Path(output_path).write_text(html, encoding="utf-8")
+        output_path = Path(output_path)
+        current_filename = output_path.name
+        nav_entries = _scan_report_entries(output_path.parent, current_filename)
+        html = _build_html(report_data, nav_entries, current_filename)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(html, encoding="utf-8")
         logger.info(f"대시보드 생성: {output_path}")
         if latest_output_path:
             Path(latest_output_path).write_text(html, encoding="utf-8")
@@ -165,6 +173,80 @@ def build_dashboard_links(report_date: str, snapshot_time: str, base_url: str, l
         "dated_url":  f"{base}/reports/{report_date}_{snapshot_time}.html",
         "latest_url": f"{base}/reports/{latest_name}",
     }
+
+
+def _scan_report_entries(reports_dir: Path, current_filename: str) -> list:
+    """reports/ 내 YYYY-MM-DD_HHMM.html 목록 (현재 파일 포함) 최신순."""
+    seen: set = set()
+    entries: list = []
+
+    if Path(reports_dir).exists():
+        for f in Path(reports_dir).glob("*.html"):
+            m = _REPORT_PAT.match(f.name)
+            if m and f.name not in seen:
+                seen.add(f.name)
+                label = _LABEL_MAP.get(m.group(2), f"수동 {m.group(2)[:2]}:{m.group(2)[2:]}")
+                entries.append((m.group(1), m.group(2), label, f.name))
+
+    m = _REPORT_PAT.match(current_filename)
+    if m and current_filename not in seen:
+        label = _LABEL_MAP.get(m.group(2), f"수동 {m.group(2)[:2]}:{m.group(2)[2:]}")
+        entries.append((m.group(1), m.group(2), label, current_filename))
+
+    entries.sort(key=lambda x: (x[0], x[1]), reverse=True)
+    return entries
+
+
+def _date_map_from_entries(entries: list) -> dict:
+    """nav_entries → {date_str: best_filename} (1750 > 1450 > 수동 최신 우선)."""
+    by_date: dict = {}
+    for d, snap, label, fname in entries:
+        by_date.setdefault(d, []).append((snap, fname))
+    result = {}
+    for d, snaps in by_date.items():
+        best = None
+        for snap, fname in sorted(snaps, reverse=True):
+            if snap == "1750":
+                best = fname; break
+            if best is None or snap == "1450":
+                best = fname
+        result[d] = best or snaps[-1][1]
+    return result
+
+
+def _nav_bar(entries: list, current_filename: str) -> str:
+    """날짜 히스토리 드롭다운 네비게이션 바."""
+    if not entries:
+        return ""
+
+    filenames = [e[3] for e in entries]
+    try:
+        cur_idx = filenames.index(current_filename)
+    except ValueError:
+        cur_idx = -1
+
+    prev_file = filenames[cur_idx + 1] if cur_idx >= 0 and cur_idx + 1 < len(filenames) else None
+    next_file = filenames[cur_idx - 1] if cur_idx > 0 else None
+
+    prev_btn = f'<a href="{prev_file}" class="nav-btn">&#9664; 이전</a>' if prev_file else '<span class="nav-btn disabled">&#9664; 이전</span>'
+    next_btn = f'<a href="{next_file}" class="nav-btn">다음 &#9654;</a>' if next_file else '<span class="nav-btn disabled">다음 &#9654;</span>'
+
+    opts = []
+    for date_str, group in groupby(entries, key=lambda x: x[0]):
+        opts.append(f'<optgroup label="{date_str}">')
+        for (d, snap, label, fname) in group:
+            sel = " selected" if fname == current_filename else ""
+            opts.append(f'<option value="{fname}"{sel}>{d} {label}</option>')
+        opts.append("</optgroup>")
+    opts_html = "".join(opts)
+
+    return f"""<div class="hist-nav">
+  {prev_btn}
+  <select class="hist-select" onchange="if(this.value) location.href=this.value">{opts_html}</select>
+  {next_btn}
+  <a href="../index.html" class="nav-btn">&#8801; 목록</a>
+</div>
+"""
 
 
 # ─── 포맷 헬퍼 ────────────────────────────────────────────────────────────────
@@ -576,6 +658,9 @@ tbody tr:hover td { background: var(--bg3); }
     min-width: 0;
 }
 .cal-cell.cal-today { background: var(--bg3); border-color: var(--blue); }
+.cal-cell.has-report { cursor: pointer; }
+.cal-cell.has-report:hover { background: var(--bg3); border-color: var(--blue); }
+.cal-cell.has-report .cal-day { color: var(--blue); font-weight: 700; }
 .cal-day { font-size: 11px; color: var(--muted); margin-bottom: 3px; }
 .cal-sector {
     display: block;
@@ -702,6 +787,44 @@ tbody tr:hover td { background: var(--bg3); }
     .summary-grid   { grid-template-columns: repeat(3, 1fr); }
     thead th, tbody td { padding: 6px 8px; }
 }
+
+/* ── 히스토리 네비게이션 바 ── */
+.hist-nav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    margin: -12px -12px 16px;
+}
+.hist-select {
+    background: var(--bg2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 13px;
+    cursor: pointer;
+    flex: 1;
+    max-width: 300px;
+}
+.nav-btn {
+    color: var(--blue);
+    text-decoration: none;
+    font-size: 12px;
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg2);
+    white-space: nowrap;
+    display: inline-block;
+}
+.nav-btn:hover { background: var(--bg3); }
+.nav-btn.disabled { color: var(--muted); pointer-events: none; cursor: default; border-color: var(--bg3); }
 """
 
 
@@ -794,7 +917,7 @@ def _section_env_and_signals(data: dict) -> str:
     return f'<div class="top-boxes">{env_box}{signal_box}</div>\n'
 
 
-def _section_sector_calendar(calendar: dict, today_str: str) -> str:
+def _section_sector_calendar(calendar: dict, today_str: str, date_map: dict | None = None) -> str:
     if not calendar:
         return ""
     from datetime import date, timedelta
@@ -802,6 +925,8 @@ def _section_sector_calendar(calendar: dict, today_str: str) -> str:
         today = date.fromisoformat(today_str)
     except ValueError:
         today = date.today()
+
+    date_map = date_map or {}
 
     # 이번주 월요일 기준으로 4주 전 월요일부터 표시
     this_monday = today - timedelta(days=today.weekday())
@@ -816,10 +941,14 @@ def _section_sector_calendar(calendar: dict, today_str: str) -> str:
             d_str = d.isoformat()
             sectors = calendar.get(d_str, [])
             is_today = d_str == today_str
+            report_file = date_map.get(d_str)
             cell_cls = "cal-cell cal-today" if is_today else "cal-cell"
+            if report_file:
+                cell_cls += " has-report"
+            onclick = f' onclick="location.href=\'{report_file}\'"' if report_file else ""
             tags = "".join(f'<span class="cal-sector">{_e(s)}</span>' for s in sectors[:4])
             cells.append(
-                f'<td class="{cell_cls}">'
+                f'<td class="{cell_cls}"{onclick}>'
                 f'<div class="cal-day">{d.day}</div>'
                 f"{tags}"
                 f"</td>"
@@ -1423,7 +1552,7 @@ def _section_rejected(rejected: list) -> str:
 
 # ─── 메인 HTML 조립 ──────────────────────────────────────────────────────────
 
-def _build_html(data: dict) -> str:
+def _build_html(data: dict, nav_entries: list | None = None, current_filename: str = "") -> str:
     meta = data.get("metadata", {})
     date     = _e(meta.get("date", "-"))
     snap     = _e(meta.get("snapshot_time", "-"))
@@ -1432,19 +1561,21 @@ def _build_html(data: dict) -> str:
     core     = data.get("core_candidates", [])
     rejected = data.get("rejected_candidates", [])
     today_str = meta.get("date", "")
+    date_map = _date_map_from_entries(nav_entries) if nav_entries else {}
     body_parts = [
         _section_header(data),
         _section_env_and_signals(data),
         _section_stock_panel(core, rejected),
         _section_watch_candidates(rejected),
         _section_leading_sectors(data.get("leading_sectors", [])),
-        _section_sector_calendar(data.get("sector_calendar", {}), today_str),
+        _section_sector_calendar(data.get("sector_calendar", {}), today_str, date_map),
         _section_table_intersection(data.get("intersection_candidates", [])),
         _section_rejected_summary(rejected),
         _section_table_gainers(data.get("gainers_top20", [])),
         _section_table_tv(data.get("trading_value_top20", [])),
     ]
     body = "\n".join(body_parts)
+    nav_html = _nav_bar(nav_entries, current_filename) if nav_entries else ""
 
     return f"""<!DOCTYPE html>
 <html lang="ko">
@@ -1456,6 +1587,7 @@ def _build_html(data: dict) -> str:
 </head>
 <body>
 <div class="wrap">
+{nav_html}
 {body}
 <div style="text-align:center;color:var(--muted);font-size:11px;margin-top:24px;padding:16px 0;">
   korea-close-betting-bot &middot; {date} {snap}
