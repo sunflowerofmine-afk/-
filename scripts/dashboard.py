@@ -843,11 +843,7 @@ def _section_header(data: dict) -> str:
     kospi_tv  = _tv_eok(market.get("kospi_tv_eok",  0) * 1e8)
     kosdaq_tv = _tv_eok(market.get("kosdaq_tv_eok", 0) * 1e8)
     regime = market.get("market_regime", "")
-    _regime_cfg = {
-        "강세": ("regime-bull", "🟢 강세"),
-        "약세": ("regime-bear", "🔴 약세"),
-        "중립": ("regime-neutral", "⚪ 중립"),
-    }
+    _regime_cfg = {"강세": ("regime-bull", "🟢 강세"), "약세": ("regime-bear", "🔴 약세"), "중립": ("regime-neutral", "⚪ 중립")}
     rcls, rlabel = _regime_cfg.get(regime, ("regime-neutral", "⚪ 중립"))
     regime_badge = f'<span class="{rcls}" style="font-size:14px;padding:3px 12px;margin-left:10px;">{rlabel}</span>' if regime else ""
 
@@ -880,7 +876,7 @@ def _section_env_and_signals(data: dict) -> str:
     core_n       = len(core)
     watch_n      = len([r for r in rejected if "패턴 없음" in r.get("reason", "")])
 
-    _regime_cfg = {"강세": ("regime-bull", "🟢 강세"), "약세": ("regime-bear", "🔴 약세"), "중립": ("regime-neutral", "⚪ 중립")}
+    _regime_cfg  = {"강세": ("regime-bull", "🟢 강세"), "약세": ("regime-bear", "🔴 약세"), "중립": ("regime-neutral", "⚪ 중립")}
     rcls, rlabel = _regime_cfg.get(regime, ("regime-neutral", "⚪ 중립"))
     regime_html  = f'<span class="{rcls}" style="font-size:13px;padding:2px 10px">{rlabel}</span>'
 
@@ -1093,7 +1089,7 @@ def _compute_weaknesses(c: dict) -> list:
     tv_ratio = pat.get("tv_ratio")
     if tv_ratio is not None and tv_ratio < 0.4:
         weaknesses.append(f"거래대금 감소 ratio {tv_ratio:.1f}")
-    if pat.get("overheated_3d_flag"):              weaknesses.append("3일 연속 과열")
+    if pat.get("overheated_3d_flag"):              weaknesses.append("기준봉고가 위 과확장")
     if pat.get("post_base_volume_decline_flag"):   weaknesses.append("기준봉 후 대금 감소")
     chg = float(c.get("change_pct", 0))
     if chg > 20:                                   weaknesses.append(f"당일 급등 과열 ({chg:.1f}%)")

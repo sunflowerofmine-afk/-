@@ -15,9 +15,10 @@ from config.settings import (
     ENABLE_NEWS_FETCH, ENABLE_SUPPLY_FETCH, USE_LLM_NEWS,
     REQUEST_DELAY,
     REPORTS_DIR, ENABLE_DASHBOARD, ENABLE_GITHUB_PAGES_LINK, GITHUB_PAGES_BASE_URL,
-    TV_RATIO_WATCH_MIN,
+    TV_RATIO_WATCH_MIN, TV_RATIO_P2P3_MIN,
     ENABLE_SECTOR_FETCH, SECTOR_TOP_N,
     ENABLE_NXT_FETCH,
+    MARKET_REGIME_BULL_ADL, MARKET_REGIME_BEAR_ADL, MARKET_REGIME_BULL_TV1500,
 )
 from scripts.market_calendar import get_now_kst, is_trading_day, get_run_type
 from scripts.storage import save_raw, save_processed, save_signals
@@ -50,24 +51,23 @@ def _setup_logging(timestamp_str: str):
     )
 
 
-def _get_market_regime() -> str:
-    """KODEX 200 일봉 기반 시장 상태: 강세 / 약세 / 중립
-    강세: 현재가 > MA120 AND MA20 > MA60
-    약세: 현재가 < MA20 OR MA20 < MA60
+
+def _calc_market_regime(all_df: pd.DataFrame, tv_1500_count: int) -> str:
+    """전종목 데이터 기반 시장 수용성 판단 (ADL + 1500억 종목 수).
+    추가 API 호출 없이 이미 수집한 전종목 데이터만 활용.
+    강세: ADL > 0.55 AND 1500억↑ >= 3
+    약세: ADL < 0.40
     중립: 그 외
     """
     try:
-        df = fetch_chart_data("069500")
-        if df.empty or len(df) < 120:
+        chg = all_df["등락률"].dropna()
+        total = int((chg != 0).sum())
+        if total == 0:
             return "중립"
-        close = df["close"].astype(float)
-        price = close.iloc[0]
-        ma20  = close.iloc[:20].mean()
-        ma60  = close.iloc[:60].mean()
-        ma120 = close.iloc[:120].mean()
-        if price > ma120 and ma20 > ma60:
+        adl = float((chg > 0).sum()) / float(total)
+        if adl > MARKET_REGIME_BULL_ADL and tv_1500_count >= MARKET_REGIME_BULL_TV1500:
             return "강세"
-        if price < ma20 or ma20 < ma60:
+        if adl < MARKET_REGIME_BEAR_ADL:
             return "약세"
         return "중립"
     except Exception as e:
@@ -265,11 +265,7 @@ def run():
         f"거래대금Top{len(top_tv)} / 교집합{len(intersection)}"
     )
 
-    # ── 4. 시장 상태 판단 (KODEX 200 기반) ──────────────────────────
-    market_regime = _get_market_regime()
-    logger.info(f"시장 상태: {market_regime}")
-
-    # ── 5. 섹터 데이터 수집 ──────────────────────────────────────
+    # ── 4. 섹터 데이터 수집 ──────────────────────────────────────
     sector_result: dict = {"overview": pd.DataFrame(), "top_sectors": [], "code_to_sector": {}}
     if ENABLE_SECTOR_FETCH:
         try:
@@ -316,6 +312,9 @@ def run():
     _min_tv_won = MIN_TRADING_VALUE_EOK * 100_000_000
     tv_1500_count = int((filtered_df["거래대금"] >= _min_tv_won).sum()) if not filtered_df.empty else 0
     gainers_tv_1500_count = int((gainers["거래대금"] >= _min_tv_won).sum()) if not gainers.empty else 0
+
+    market_regime = _calc_market_regime(all_df, tv_1500_count)
+    logger.info(f"시장 상태: {market_regime}")
 
     report_data = {
         "metadata": {
@@ -419,8 +418,12 @@ def run():
                                    "trading_value": tv, "change_pct": float(row.get("등락률", 0))})
             continue
 
-        # 거래대금 급감 제외 (ratio < 0.2)
-        if tv_ratio is not None and tv_ratio < TV_RATIO_WATCH_MIN:
+        # 거래대금 급감 제외 (패턴 타입별 임계값 분리)
+        # 당일돌파형: 강한 거래대금 지속 필요 → 0.2 유지
+        # 고가횡보형/눌림관찰형: 적은 거래대금 = 건강한 물량 소화 → 0.05로 완화
+        _pattern_label = pat.get("pattern_type_label", "없음")
+        _tv_min = TV_RATIO_WATCH_MIN if _pattern_label == "당일돌파형" else TV_RATIO_P2P3_MIN
+        if tv_ratio is not None and tv_ratio < _tv_min:
             rejected_list.append({"code": code, "name": name,
                                    "reason": f"거래대금 급감 (ratio {tv_ratio:.2f})",
                                    "trading_value": tv, "change_pct": float(row.get("등락률", 0))})

@@ -11,6 +11,7 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from config.settings import (
     BIG_CANDLE_MIN_PCT, LOOSE_BIG_CANDLE_MIN_PCT,
+    BIG_CANDLE_UPPER_TAIL_MAX, LOOSE_BIG_CANDLE_UPPER_TAIL_MAX,
     MIN_TRADING_VALUE_EOK,
     MA_CLUSTER_5_10_20_MAX_GAP_PCT, MA_CLUSTER_5_10_20_60_MAX_GAP_PCT,
     FIRST_BIG_CANDLE_LOOKBACK_DAYS,
@@ -76,27 +77,27 @@ def is_big_candle(
     장대양봉/준장대양봉 판단.
     trading_value: 원 단위
     """
-    is_bullish = close > open_
+    # 전일 대비 상승 여부 (양봉/음봉 무관 — 상승 음봉도 기준봉으로 인정)
+    is_bullish = change_pct > 0
     tv_ok = trading_value >= MIN_TRADING_VALUE_WON
 
     candle_range = high - low if (high - low) > 0 else 1
     upper_tail   = (high - close) / candle_range if candle_range else 0
     body         = (close - open_) / candle_range if candle_range else 0
 
-    close_near_high_3 = ((high - close) / high * 100) <= 3.0 if high > 0 else False
     close_near_high_2 = ((high - close) / high * 100) <= 2.0 if high > 0 else False
 
     big_candle = (
         is_bullish and
         change_pct >= BIG_CANDLE_MIN_PCT and
         tv_ok and
-        close_near_high_3
+        upper_tail <= BIG_CANDLE_UPPER_TAIL_MAX
     )
     loose_big_candle = (
         is_bullish and
         change_pct >= LOOSE_BIG_CANDLE_MIN_PCT and
         tv_ok and
-        close_near_high_3
+        upper_tail <= LOOSE_BIG_CANDLE_UPPER_TAIL_MAX
     )
 
     return {
@@ -124,18 +125,20 @@ def is_first_big_candle(daily_df: pd.DataFrame, today_idx: int = 0) -> dict:
 
     for _, row in lookback.iterrows():
         try:
-            open_  = float(row.get("open",  0) or 0)
-            close_ = float(row.get("close", 0) or 0)
-            # change 컬럼이 없으면 직접 계산
-            change = float(row.get("change", 0) or 0)
+            close_  = float(row.get("close",  0) or 0)
+            change  = float(row.get("change", 0) or 0)   # 전일비(원)
+            tv      = float(row.get("trading_value", 0) or 0)
             prev_close = close_ - change
             if prev_close > 0:
                 pct = (close_ - prev_close) / prev_close * 100
             else:
                 pct = 0.0
-            if close_ > open_ and pct >= 15.0:
+            # is_big_candle과 동일 기준: 전일 대비 상승 + 거래대금 충족
+            rising = pct > 0
+            tv_ok  = tv >= MIN_TRADING_VALUE_WON
+            if rising and tv_ok and pct >= 15.0:
                 has_big_15 = True
-            if close_ > open_ and pct >= 10.0:
+            if rising and tv_ok and pct >= 10.0:
                 has_big_10 = True
         except Exception:
             continue

@@ -58,7 +58,7 @@ def fetch_supply(code: str) -> SupplyData:
             result.foreign_net     = _parse_shares(cols[6].text)
             result.supply_date     = cols[0].text.strip()
             result.status = "ok"
-            logger.debug(f"[{code}] 수급 날짜: {result.supply_date} 기관={result.institution_net} 외국인={result.foreign_net}")
+            logger.info(f"[{code}] 수급 날짜: {result.supply_date} 기관={result.institution_net} 외국인={result.foreign_net}")
             break
 
     except Exception as e:

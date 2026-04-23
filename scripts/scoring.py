@@ -43,13 +43,11 @@ def calc_score(
     elif processed.loose_big_candle_flag:
         s.candle_score = 2
 
-    # 수급 점수 (가점)
+    # 수급 점수 (가점): 기관 순매수 +1, 외국인 순매수 +1
     if supply.status == "ok":
-        inst = supply.institution_net or 0
-        prog = supply.program_net or 0
-        if inst > 0:
+        if (supply.institution_net or 0) > 0:
             s.supply_score += 1
-        if prog > 0:
+        if (supply.foreign_net or 0) > 0:
             s.supply_score += 1
 
     # 보너스 점수
@@ -75,7 +73,7 @@ def build_checklist(
 
     supply_ok = (
         supply.status == "ok" and
-        ((supply.institution_net or 0) > 0 or (supply.program_net or 0) > 0)
+        ((supply.institution_net or 0) > 0 or (supply.foreign_net or 0) > 0)
     )
 
     return ChecklistDetail(

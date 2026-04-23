@@ -16,8 +16,7 @@ from config.settings import (
     STRUCTURE_BREAK_MAX_GAP_PCT,
     TV_RATIO_OK_MIN,
     TV_RATIO_WATCH_MIN,
-    SUSTAINED_TV_EOK_MIN,
-    SUSTAINED_CHANGE_MIN,
+    BASE_TV_EXPLOSION_MULT,
 )
 from scripts.indicators import is_big_candle, is_first_big_candle, is_ma_cluster, calc_all_ma
 
@@ -33,20 +32,26 @@ def detect_weak_candle(open_: float, close: float, change_pct: float) -> bool:
 
 
 def _find_recent_big_candle(daily_df: pd.DataFrame, start_idx: int, lookback: int) -> int | None:
-    """start_idx 이후 lookback 범위 내 장대양봉 행 인덱스 반환 (없으면 None)"""
+    """start_idx 이후 lookback 범위 내 기준봉 행 인덱스 반환 (없으면 None).
+    기준봉 조건: 장대양봉(or 준장대양봉) AND 이전 20일 평균 거래대금 대비 BASE_TV_EXPLOSION_MULT배 이상.
+    """
     for i in range(start_idx, min(start_idx + lookback, len(daily_df))):
         row = daily_df.iloc[i]
         try:
+            base_tv = float(row.get("trading_value", 0) or 0)
             bc = is_big_candle(
                 open_=float(row.get("open", 0) or 0),
                 high=float(row.get("high", 0) or 0),
                 low=float(row.get("low", 0) or 0),
                 close=float(row.get("close", 0) or 0),
                 change_pct=float(row.get("change", 0) or 0),
-                trading_value=float(row.get("trading_value", 0) or MIN_TV_WON),
+                trading_value=base_tv if base_tv > 0 else MIN_TV_WON,
             )
             if bc["big_candle"] or bc["loose_big_candle"]:
-                return i
+                past = daily_df.iloc[i + 1 : i + 21]["trading_value"].replace(0, float("nan"))
+                avg_tv = past.mean()
+                if pd.isna(avg_tv) or avg_tv <= 0 or base_tv >= avg_tv * BASE_TV_EXPLOSION_MULT:
+                    return i
         except Exception:
             continue
     return None
@@ -94,7 +99,6 @@ def detect_patterns(
         "high_range_hold_flag": False,
         "tv_ratio": None,
         "tv_3d_flow": [],
-        "sustained_popular_flag": False,
         "status_summary": "약화",
         "post_base_volume_decline_flag": False,
         "pullback_watch_flag": False,
@@ -122,21 +126,11 @@ def detect_patterns(
     # ── 최근 1~3일 내 기준봉 탐지 ──────────────────────────
     base_idx = _find_recent_big_candle(daily_df, start_idx=1, lookback=3)
 
-    # ── 최근 3일 거래대금 흐름 (1일전 ~ 3일전) ─────────────
-    SUSTAINED_TV_WON = SUSTAINED_TV_EOK_MIN * 100_000_000
+    # ── 최근 3일 거래대금 흐름 (1일전 ~ 3일전) — 대시보드 표시용 ─
     tv_3d_flow = [
         float(daily_df.iloc[i].get("trading_value", 0) or 0)
         for i in range(1, min(4, len(daily_df)))
     ]
-
-    # ── 지속 인기 필터: 최근 3일 중 2일 이상 강했는지 ────────
-    # (거래대금 300억 이상 OR 상승률 5% 이상)
-    strong_days = sum(
-        1 for i in range(1, min(4, len(daily_df)))
-        if (float(daily_df.iloc[i].get("trading_value", 0) or 0) >= SUSTAINED_TV_WON
-            or float(daily_df.iloc[i].get("change", 0) or 0) >= SUSTAINED_CHANGE_MIN)
-    )
-    sustained_popular_flag = strong_days >= 2
 
     # ── 기준봉 파생 지표 계산 ───────────────────────────────
     base_high_gap_pct: float | None = None
@@ -208,9 +202,13 @@ def detect_patterns(
     new_high_60d  = high_60d > 0 and today_high >= high_60d
     near_high_60d = high_60d > 0 and today_close >= high_60d * 0.97
 
-    # ── 과열 판정 (윗꼬리 과다만 체크, 누적 상승률 기준 제거) ─
-    today_upper_tail_pct = (today_high - today_close) / today_close * 100 if today_close > 0 else 0
-    overheated_3d_flag = today_upper_tail_pct > 3.0
+    # ── 과확장 판정: 오늘 종가가 기준봉 고가 위 5% 초과 → 진입 위험 ─
+    # today_high = today_close로 설정되어 윗꼬리 계산 불가 → 기준봉 고가 대비 이격으로 대체
+    overheated_3d_flag = (
+        base_idx is not None and
+        base_high_gap_pct is not None and
+        base_high_gap_pct > HIGH_RANGE_HOLD_MAX_GAP_FROM_BASE_HIGH_PCT
+    )
 
     # ── 패턴3: 고가횡보형 ─────────────────────────────────
     p3 = (
@@ -284,7 +282,6 @@ def detect_patterns(
         "tv_ratio": tv_ratio,
         "tv_3d_flow": tv_3d_flow,
         "post_base_days": post_base_days,
-        "sustained_popular_flag": sustained_popular_flag,
         "status_summary": status_summary,
         "post_base_volume_decline_flag": post_base_volume_decline_flag,
         "pullback_watch_flag": pullback_watch_flag,
