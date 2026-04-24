@@ -33,7 +33,7 @@ def fetch_supply(code: str) -> SupplyData:
     """
     네이버 외국인/기관 매매 페이지에서 최신 1거래일 수급 데이터 반환.
     - table[1]: 일별 외국인/기관 매매동향
-    - col[0]: 날짜, col[5]: 외국인 순매수(주), col[6]: 기관 순매수(주)
+    - col[0]: 날짜, col[5]: 기관 순매수(주), col[6]: 외국인 순매수(주), col[7]: 외국인 보유주수, col[8]: 외국인 보유율
     실패해도 예외 발생 금지 — status="failed" SupplyData 반환.
     """
     result = SupplyData(code=code)

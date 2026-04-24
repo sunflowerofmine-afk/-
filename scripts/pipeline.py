@@ -160,11 +160,16 @@ def _enrich_candidates(codes: list[str], all_df: pd.DataFrame) -> dict:
             )
             enr["patterns"] = pat
 
-        # 수급 (주수 × 현재가 → 원화 변환)
+        # 수급 (주수 × KRX 종가 → 원화 변환)
+        # daily_df 종가 우선 사용 — NXT merge로 현재가가 덮어써진 경우 오차 방지
         if ENABLE_SUPPLY_FETCH:
             try:
                 sup = fetch_supply(code)
-                _price = float(row.get("현재가", 0))
+                _price = (
+                    float(daily_df.iloc[0]["close"])
+                    if not daily_df.empty
+                    else float(row.get("현재가", 0))
+                )
                 if sup.status == "ok" and _price > 0:
                     if sup.institution_net is not None:
                         sup.institution_net = sup.institution_net * _price
