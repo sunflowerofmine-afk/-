@@ -293,7 +293,6 @@ def detect_patterns(
             "today_big_candle": today_bc.get("big_candle", False),
             "today_loose_bc":   today_bc.get("loose_big_candle", False),
             "base_idx":         base_idx,
-            "strong_days":      strong_days,
         },
     })
     return result
