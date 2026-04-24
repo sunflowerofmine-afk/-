@@ -141,7 +141,7 @@ def format_market_summary(market_totals: dict, run_time: str, run_type: str,
     core_n   = ex.get("core_count", 0)
     regime   = ex.get("market_regime", "")
     _regime_map = {"강세": "🟢 강세", "약세": "🔴 약세", "중립": "⚪ 중립"}
-    regime_line = f"[시장] {_regime_map.get(regime, '')}  ADL기반\n" if regime else ""
+    regime_line = f"[시장] {_regime_map.get(regime, '')}\n" if regime else ""
 
     return (
         f"{regime_line}"
