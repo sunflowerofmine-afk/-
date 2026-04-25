@@ -2,6 +2,11 @@ name: Korea Close Betting Bot
 
 on:
   workflow_dispatch:           # cron-job.org → POST /dispatches 로 트리거
+    inputs:
+      force_run:
+        description: '비거래일에도 강제 실행 (true/false)'
+        required: false
+        default: 'false'
 
 jobs:
   run-bot:
@@ -33,6 +38,7 @@ jobs:
           TELEGRAM_CHAT_ID:      ${{ secrets.TELEGRAM_CHAT_ID }}
           PAGES_BASE_URL:        ${{ secrets.PAGES_BASE_URL }}
           GEMINI_API_KEY:        ${{ secrets.GEMINI_API_KEY }}
+          FORCE_RUN:             ${{ github.event.inputs.force_run }}
           TZ: Asia/Seoul
         run: python -m scripts.pipeline
 
