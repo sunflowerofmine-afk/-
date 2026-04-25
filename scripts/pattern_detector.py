@@ -17,6 +17,11 @@ from config.settings import (
     TV_RATIO_OK_MIN,
     TV_RATIO_WATCH_MIN,
     BASE_TV_EXPLOSION_MULT,
+    CONSOLIDATION_LOOKBACK_DAYS,
+    CONSOLIDATION_MAX_RANGE_PCT,
+    PULLBACK_RESISTANCE_LOOKBACK_DAYS,
+    PULLBACK_RESISTANCE_RECENT_DAYS,
+    PULLBACK_RETEST_MARGIN_PCT,
 )
 from scripts.indicators import is_big_candle, is_first_big_candle, is_ma_cluster, calc_all_ma
 
@@ -55,6 +60,86 @@ def _find_recent_big_candle(daily_df: pd.DataFrame, start_idx: int, lookback: in
         except Exception:
             continue
     return None
+
+
+def detect_consolidation_breakout(
+    daily_df: pd.DataFrame,
+    today_close: float,
+    today_high: float,
+) -> dict:
+    """
+    #14 기간조정 패턴: 최근 CONSOLIDATION_LOOKBACK_DAYS일 횡보 후 고가 돌파.
+    조건: 과거 N일 변동폭(최고가 기준) ≤ CONSOLIDATION_MAX_RANGE_PCT AND 오늘 고가가 N일 고가 돌파.
+    """
+    n = CONSOLIDATION_LOOKBACK_DAYS
+    if len(daily_df) < n + 1:
+        return {"consolidation_flag": False}
+    past = daily_df.iloc[1 : n + 1]
+    highs  = past["high"].replace(0, float("nan")).dropna()
+    lows   = past["low"].replace(0, float("nan")).dropna()
+    if highs.empty or lows.empty:
+        return {"consolidation_flag": False}
+    max_high = float(highs.max())
+    min_low  = float(lows.min())
+    if max_high <= 0:
+        return {"consolidation_flag": False}
+    range_pct = (max_high - min_low) / max_high * 100
+    breakout  = today_high >= max_high
+    return {
+        "consolidation_flag":       range_pct <= CONSOLIDATION_MAX_RANGE_PCT and breakout,
+        "consolidation_range_pct":  round(range_pct, 2),
+        "consolidation_high":       max_high,
+    }
+
+
+def detect_pullback_support(
+    daily_df: pd.DataFrame,
+    today_close: float,
+    today_low: float,
+) -> dict:
+    """
+    #15 되돌림 지지 패턴: 25일 저항선 돌파 후 되돌림 → 저항선 위 마감.
+    저항선 R = days [RECENT+1 : LOOKBACK+1] 최고 종가.
+    조건: ①최근 RECENT일 내 R 돌파 이력 ②오늘 저가가 R±MARGIN% ③오늘 종가≥R.
+    """
+    lookback = PULLBACK_RESISTANCE_LOOKBACK_DAYS
+    recent   = PULLBACK_RESISTANCE_RECENT_DAYS
+    margin   = PULLBACK_RETEST_MARGIN_PCT / 100.0
+
+    if len(daily_df) < lookback + 1:
+        return {"pullback_support_flag": False}
+
+    # 저항선: recent+1~lookback일 전 최고 종가
+    pivot_range = daily_df.iloc[recent + 1 : lookback + 1]
+    if pivot_range.empty:
+        return {"pullback_support_flag": False}
+    closes = pivot_range["close"].replace(0, float("nan")).dropna()
+    if closes.empty:
+        return {"pullback_support_flag": False}
+    resistance = float(closes.max())
+    if resistance <= 0:
+        return {"pullback_support_flag": False}
+
+    # 조건①: 최근 recent일 내 종가가 저항선 위로 돌파한 적 있는가
+    broke_above = any(
+        float(daily_df.iloc[i].get("close", 0) or 0) >= resistance
+        for i in range(1, recent + 1)
+    )
+    if not broke_above:
+        return {"pullback_support_flag": False}
+
+    # 조건②: 오늘 저가가 저항선 ±margin 이내 (되돌림 확인)
+    retested = resistance * (1 - margin) <= today_low <= resistance * (1 + margin)
+
+    # 조건③: 오늘 종가가 저항선 이상
+    closed_above = today_close >= resistance
+
+    return {
+        "pullback_support_flag":    retested and closed_above,
+        "pullback_resistance":      round(resistance, 0),
+        "pullback_gap_pct":         round((today_close - resistance) / resistance * 100, 2)
+                                    if resistance > 0 else None,
+    }
 
 
 def detect_patterns(
@@ -106,6 +191,8 @@ def detect_patterns(
         "overheated_3d_flag": False,
         "new_high_60d": False,
         "near_high_60d": False,
+        "consolidation_flag": False,
+        "pullback_support_flag": False,
         "details": {},
     }
 
@@ -270,6 +357,10 @@ def detect_patterns(
         # 시간 순으로 정렬 (오래된 날 먼저)
         post_base_days.sort(key=lambda x: -x["offset"])
 
+    # ── #14 기간조정 패턴 / #15 되돌림 지지 패턴 ───────────────
+    consol = detect_consolidation_breakout(daily_df, today_close, today_high)
+    pbs    = detect_pullback_support(daily_df, today_close, today_low)
+
     result.update({
         "pattern1": p1,
         "pattern2": p2,
@@ -289,10 +380,15 @@ def detect_patterns(
         "overheated_3d_flag": overheated_3d_flag,
         "new_high_60d": new_high_60d,
         "near_high_60d": near_high_60d,
+        "consolidation_flag":    consol.get("consolidation_flag", False),
+        "pullback_support_flag": pbs.get("pullback_support_flag", False),
         "details": {
-            "today_big_candle": today_bc.get("big_candle", False),
-            "today_loose_bc":   today_bc.get("loose_big_candle", False),
-            "base_idx":         base_idx,
+            "today_big_candle":        today_bc.get("big_candle", False),
+            "today_loose_bc":          today_bc.get("loose_big_candle", False),
+            "base_idx":                base_idx,
+            "consolidation_range_pct": consol.get("consolidation_range_pct"),
+            "pullback_resistance":     pbs.get("pullback_resistance"),
+            "pullback_gap_pct":        pbs.get("pullback_gap_pct"),
         },
     })
     return result

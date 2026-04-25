@@ -76,25 +76,41 @@ def _yn(flag) -> str:
 
 
 def _supply_str(supply) -> str:
-    """SupplyData 객체 또는 dict 모두 처리"""
+    """SupplyData 객체 또는 dict 모두 처리. supply_label + 5일 누적 표시."""
     if supply is None:
         return "확인불가"
     if isinstance(supply, SupplyData):
         if supply.status == "failed":
             return "확인불가"
-        inst = supply.institution_net
-        frgn = supply.foreign_net
-        date = supply.supply_date or ""
+        label   = getattr(supply, "supply_label", "") or ""
+        inst    = supply.institution_net
+        frgn    = supply.foreign_net
+        inst_5d = supply.institution_net_5d
+        frgn_5d = supply.foreign_net_5d
+        date    = supply.supply_date or ""
     else:
         if supply.get("status") == "failed":
             return "확인불가"
-        inst = supply.get("institution_net")
-        frgn = supply.get("foreign_net")
-        date = supply.get("supply_date") or ""
-    inst_s = f"기관 {inst/100_000_000:+.0f}억" if inst is not None else "기관 -"
-    frgn_s = f"외국인 {frgn/100_000_000:+.0f}억" if frgn is not None else "외국인 -"
-    date_s = f" ({date})" if date else ""
-    return f"{inst_s} / {frgn_s}{date_s}"
+        label   = supply.get("supply_label", "") or ""
+        inst    = supply.get("institution_net")
+        frgn    = supply.get("foreign_net")
+        inst_5d = supply.get("institution_net_5d")
+        frgn_5d = supply.get("foreign_net_5d")
+        date    = supply.get("supply_date") or ""
+
+    def _fmt(v1d, v5d, label_name):
+        if v1d is None:
+            return f"{label_name} -"
+        s = f"{label_name} {v1d/100_000_000:+.0f}억"
+        if v5d is not None:
+            s += f"(5d{v5d/100_000_000:+.0f}억)"
+        return s
+
+    inst_s  = _fmt(inst, inst_5d, "기관")
+    frgn_s  = _fmt(frgn, frgn_5d, "외국인")
+    date_s  = f" ({date})" if date else ""
+    label_s = f"[{label}] " if label else ""
+    return f"{label_s}{inst_s} / {frgn_s}{date_s}"
 
 
 def _news_str(news) -> str:
@@ -135,13 +151,18 @@ def format_market_summary(market_totals: dict, run_time: str, run_type: str,
     kosdaq = market_totals.get("kosdaq_total_tv_eok", 0)
 
     ex = extra or {}
-    tv1500   = ex.get("tv_1500_count", 0)
-    g_tv1500 = ex.get("gainers_tv_1500_count", 0)
-    inter_n  = ex.get("intersection_count", 0)
-    core_n   = ex.get("core_count", 0)
-    regime   = ex.get("market_regime", "")
+    tv1500        = ex.get("tv_1500_count", 0)
+    g_tv1500      = ex.get("gainers_tv_1500_count", 0)
+    inter_n       = ex.get("intersection_count", 0)
+    core_n        = ex.get("core_count", 0)
+    regime        = ex.get("market_regime", "")
+    market_type   = ex.get("market_type", "")
+    limit_up_n    = ex.get("limit_up_count", 0)
     _regime_map = {"강세": "🟢 강세", "약세": "🔴 약세", "중립": "⚪ 중립"}
-    regime_line = f"[시장] {_regime_map.get(regime, '')}\n" if regime else ""
+    regime_str  = _regime_map.get(regime, regime)
+    type_str    = f" | {market_type}" if market_type else ""
+    regime_line = f"[시장] {regime_str}{type_str}\n" if regime else ""
+    limit_up_line = f"상한가 {limit_up_n}개\n" if limit_up_n > 0 else ""
 
     return (
         f"{regime_line}"
@@ -149,7 +170,44 @@ def format_market_summary(market_totals: dict, run_time: str, run_type: str,
         f"코스피 {kospi:,.0f}억 | 코스닥 {kosdaq:,.0f}억\n"
         f"1500억↑ {tv1500}개 | 상승Top 중 {g_tv1500}개\n"
         f"교집합 {inter_n}개 | 핵심후보 {core_n}개\n"
+        f"{limit_up_line}"
     )
+
+
+# ── 섹터 섹션 (#3) ───────────────────────────────────────
+
+def format_sector_section(leading_sectors: list) -> str:
+    """주도 섹터 거래대금 요약 (상위 5개)"""
+    if not leading_sectors:
+        return ""
+    lines = ["<b>[주도섹터]</b>"]
+    total_tv = sum(s.get("tv_eok", 0) for s in leading_sectors)
+    for s in leading_sectors:
+        name   = s.get("sector_name", "")
+        tv     = float(s.get("tv_eok", 0))
+        avg_chg = float(s.get("change_pct", 0))
+        ratio  = f"{tv/total_tv*100:.0f}%" if total_tv > 0 else "-"
+        chg_str = f"+{avg_chg:.1f}%" if avg_chg >= 0 else f"{avg_chg:.1f}%"
+        lines.append(f"  {name} {_tv_eok(tv*1e8)} ({ratio}) {chg_str}")
+    return "\n".join(lines) + "\n"
+
+
+# ── 상한가 섹션 (#1) ─────────────────────────────────────
+
+def format_limit_up_section(extra: dict) -> str:
+    limit_up_list  = extra.get("limit_up_list", [])
+    limit_up_count = extra.get("limit_up_count", 0)
+    if not limit_up_list or limit_up_count == 0:
+        return ""
+    lines = [f"<b>[상한가 {limit_up_count}개]</b>"]
+    for r in limit_up_list:
+        name   = r.get("종목명", "")
+        code   = str(r.get("종목코드", ""))
+        market = r.get("시장", "")
+        chg    = float(r.get("등락률", 0))
+        tv     = float(r.get("거래대금", 0))
+        lines.append(f"  {name}({code}) [{market}] {_sign(chg)} {_tv_eok(tv)}")
+    return "\n".join(lines) + "\n"
 
 
 # ── 상승률 Top20 ──────────────────────────────────────────
@@ -228,10 +286,16 @@ def _format_candidate_card(seq: int, c: dict) -> str:
     in_inter  = c.get("in_inter", False)
     new_high  = pat.get("new_high_60d", False)
     near_high = pat.get("near_high_60d", False)
+    near_h52w = c.get("near_high_52w", False)
+    consol_flag = pat.get("consolidation_flag", False)
+    pbs_flag    = pat.get("pullback_support_flag", False)
     tags = []
     if in_inter:    tags.append("★교집합")
     if new_high:    tags.append("🔺신고가")
     elif near_high: tags.append("📍고점권")
+    if near_h52w:   tags.append("📈52w")
+    if consol_flag: tags.append("📊기간조정")
+    if pbs_flag:    tags.append("↩되돌림지지")
     tag_str = "  " + "  ".join(tags) if tags else ""
 
     # ── Line 2: 등락률 / 거래대금 / 패턴 ───────────────────
@@ -327,9 +391,13 @@ def build_first_alert(
     enriched: dict = {},
     dashboard_links: dict = {},
     market_summary_extra: dict | None = None,
+    leading_sectors: list | None = None,
 ) -> str:
+    ex = market_summary_extra or {}
     parts = [
-        format_market_summary(market_totals, run_time, "1차", extra=market_summary_extra),
+        format_market_summary(market_totals, run_time, "1차", extra=ex),
+        format_sector_section(leading_sectors or []),
+        format_limit_up_section(ex),
         format_intersection(intersection, enriched),
         format_key_candidates(key_candidates),
     ]
@@ -349,9 +417,13 @@ def build_second_alert(
     enriched: dict = {},
     dashboard_links: dict = {},
     market_summary_extra: dict | None = None,
+    leading_sectors: list | None = None,
 ) -> str:
+    ex = market_summary_extra or {}
     parts = [
-        format_market_summary(market_totals, run_time, "2차", extra=market_summary_extra),
+        format_market_summary(market_totals, run_time, "2차", extra=ex),
+        format_sector_section(leading_sectors or []),
+        format_limit_up_section(ex),
         format_intersection(intersection, enriched),
         format_key_candidates(key_candidates),
     ]

@@ -29,6 +29,7 @@ from scripts.fetch_news import fetch_news
 from scripts.indicators import (
     is_big_candle, is_first_big_candle, is_ma_cluster,
     is_volume_peak, is_trading_value_peak, calc_all_ma,
+    calc_52w_high,
 )
 from scripts.pattern_detector import detect_patterns
 from scripts import ranking as rnk
@@ -50,6 +51,32 @@ def _setup_logging(timestamp_str: str):
         ],
     )
 
+
+
+def _calc_market_type(gainers_records: list, market_regime: str) -> str:
+    """
+    상승 Top20 섹터 분포 기반 장세 유형 텍스트.
+    정보 출력 목적 — 자동 판단 아님.
+    """
+    from collections import Counter
+    sectors = [r.get("sector", "") for r in gainers_records if r.get("sector")]
+    if not sectors:
+        return ""
+    total = len(gainers_records)
+    counter = Counter(sectors)
+    top_items = counter.most_common(3)
+    top_sector, top_count = top_items[0]
+    top_ratio = top_count / total
+    if top_ratio >= 0.30:
+        if len(top_items) >= 2 and top_items[1][1] >= 3:
+            s2, n2 = top_items[1]
+            return f"테마주 장세 [{top_sector}({top_count}) · {s2}({n2})]"
+        return f"테마주 장세 [{top_sector}({top_count})]"
+    if top_ratio >= 0.20:
+        return f"약테마 [{top_sector}({top_count})] · 분산"
+    if market_regime == "강세":
+        return "수급주 장세 (섹터 분산)"
+    return "혼조 (섹터 분산)"
 
 
 def _calc_market_regime(all_df: pd.DataFrame, tv_1500_count: int) -> str:
@@ -105,10 +132,18 @@ def _enrich_candidates(codes: list[str], all_df: pd.DataFrame) -> dict:
             _close = float(row.get("현재가", 0))
             _open  = _close / (1 + _chg / 100) if _chg != -100 else _close
 
+            # daily_df.iloc[0]에 실제 OHLCV가 있으면 사용 (2차/수동: 종가 확정)
+            _d0_high = float(row0.get("high", 0) or 0)
+            _d0_low  = float(row0.get("low",  0) or 0)
+            _d0_open = float(row0.get("open", 0) or 0)
+            today_high = _d0_high if _d0_high > 0 else _close
+            today_low  = _d0_low  if _d0_low  > 0 else _close
+            today_open = _d0_open if _d0_open > 0 else _open
+
             bc = is_big_candle(
-                open_=_open,
-                high=_close,   # 장중 고가 불명 → 현재가로 보수 추정
-                low=_close,
+                open_=today_open,
+                high=today_high,
+                low=today_low,
                 close=_close,
                 change_pct=_chg,
                 trading_value=tv,
@@ -120,6 +155,9 @@ def _enrich_candidates(codes: list[str], all_df: pd.DataFrame) -> dict:
             )
             vpk  = is_volume_peak(daily_df, today_idx=0)
             tvpk = is_trading_value_peak(daily_df, today_idx=0, today_tv=tv)
+
+            # 52주 신고가 (#11)
+            _52w = calc_52w_high(daily_df, today_close=_close, today_idx=0)
 
             # 오늘 장대양봉(big_candle=True) AND 최근 60일 내 장대양봉 없음(first_big_candle=True)
             first_bc_flag = bc.get("big_candle", False) and fbc.get("first_big_candle", False)
@@ -138,21 +176,25 @@ def _enrich_candidates(codes: list[str], all_df: pd.DataFrame) -> dict:
                 loose_big_candle_flag= bc.get("loose_big_candle", False),
                 first_big_candle_flag= first_bc_flag,
                 data_ok=               fbc.get("data_ok", False),
+                high_52w=              _52w.get("high_52w", 0.0),
+                near_high_52w=         _52w.get("near_high_52w", False),
             )
             enr["indicators"] = {
                 **bc, **fbc,
-                "ma_cluster": mac["cluster"],
-                "ma_details": mac,
-                "vol_peak":   vpk,
-                "tv_peak":    tvpk,
+                "ma_cluster":    mac["cluster"],
+                "ma_details":    mac,
+                "vol_peak":      vpk,
+                "tv_peak":       tvpk,
+                "high_52w":      _52w.get("high_52w", 0.0),
+                "near_high_52w": _52w.get("near_high_52w", False),
             }
             enr["processed"] = processed
 
             pat = detect_patterns(
                 code=code,
-                today_open=_open,
-                today_high=_close,
-                today_low=_close,
+                today_open=today_open,
+                today_high=today_high,
+                today_low=today_low,
                 today_close=_close,
                 today_change_pct=_chg,
                 today_tv=tv,
@@ -175,6 +217,10 @@ def _enrich_candidates(codes: list[str], all_df: pd.DataFrame) -> dict:
                         sup.institution_net = sup.institution_net * _price
                     if sup.foreign_net is not None:
                         sup.foreign_net = sup.foreign_net * _price
+                    if sup.institution_net_5d is not None:
+                        sup.institution_net_5d = sup.institution_net_5d * _price
+                    if sup.foreign_net_5d is not None:
+                        sup.foreign_net_5d = sup.foreign_net_5d * _price
                 enr["supply"] = sup
                 time.sleep(REQUEST_DELAY)
             except Exception as e:
@@ -310,6 +356,9 @@ def run():
             r["sector"] = code_to_sector.get(str(r.get("종목코드", "")), "")
         return records
 
+    gainers_top20_records = _add_sector(gainers.to_dict("records") if not gainers.empty else [])
+    tv_top20_records      = _add_sector(top_tv.to_dict("records")  if not top_tv.empty  else [])
+
     # ── 6. report_data 기본 구조 (1차/2차 공통) ──────────────
     report_date   = now.strftime("%Y-%m-%d")
     snapshot_time = {"1차": "1450", "2차": "1750"}.get(run_type, timestamp_str.split("_")[1])
@@ -318,8 +367,19 @@ def run():
     tv_1500_count = int((filtered_df["거래대금"] >= _min_tv_won).sum()) if not filtered_df.empty else 0
     gainers_tv_1500_count = int((gainers["거래대금"] >= _min_tv_won).sum()) if not gainers.empty else 0
 
+    # 상한가 집계 (#1/#18): 등락률 29.5% 이상
+    _limit_up_df = filtered_df[filtered_df["등락률"] >= 29.5] if not filtered_df.empty else pd.DataFrame()
+    limit_up_count = len(_limit_up_df)
+    _limit_up_top = _limit_up_df.nlargest(10, "거래대금") if not _limit_up_df.empty else pd.DataFrame()
+    limit_up_list = (
+        _limit_up_top[["종목명", "종목코드", "시장", "등락률", "거래대금"]].to_dict("records")
+        if not _limit_up_top.empty else []
+    )
+    limit_up_names = [r["종목명"] for r in limit_up_list[:5]]
+
     market_regime = _calc_market_regime(all_df, tv_1500_count)
-    logger.info(f"시장 상태: {market_regime}")
+    market_type   = _calc_market_type(gainers_top20_records, market_regime)
+    logger.info(f"시장 상태: {market_regime} | 장세: {market_type}")
 
     report_data = {
         "metadata": {
@@ -338,9 +398,10 @@ def run():
             "intersection_count":     len(intersection) if not intersection.empty else 0,
             "core_count":             0,
             "market_regime":          market_regime,
+            "market_type":            market_type,
         },
-        "gainers_top20":          _add_sector(gainers.to_dict("records") if not gainers.empty else []),
-        "trading_value_top20":    _add_sector(top_tv.to_dict("records")  if not top_tv.empty  else []),
+        "gainers_top20":          gainers_top20_records,
+        "trading_value_top20":    tv_top20_records,
         "intersection_candidates": intersection.to_dict("records") if not intersection.empty else [],
         "core_candidates":        [],
         "rejected_candidates":    [],
@@ -442,24 +503,26 @@ def run():
 
         checklist = build_checklist(code, tv, processed, supply)
         score     = calc_score(code=code, trading_value=tv, processed=processed,
-                               supply=supply, news=news, in_intersection=in_inter)
+                               supply=supply, news=news, in_intersection=in_inter,
+                               patterns=pat)
         supply_ok = checklist.supply_ok
 
         key_candidates.append({
-            "name":          name,
-            "code":          code,
-            "market":        row.get("시장", ""),
-            "change_pct":    float(row.get("등락률", 0)),
-            "trading_value": tv,
-            "indicators":    enr.get("indicators", {}),
-            "patterns":      pat,
-            "supply":        supply,
-            "news":          news,
-            "score":         score,
-            "checklist":     checklist,
-            "in_inter":      in_inter,
-            "has_pattern":   has_pattern,
-            "supply_ok":     supply_ok,
+            "name":           name,
+            "code":           code,
+            "market":         row.get("시장", ""),
+            "change_pct":     float(row.get("등락률", 0)),
+            "trading_value":  tv,
+            "indicators":     enr.get("indicators", {}),
+            "patterns":       pat,
+            "supply":         supply,
+            "news":           news,
+            "score":          score,
+            "checklist":      checklist,
+            "in_inter":       in_inter,
+            "has_pattern":    has_pattern,
+            "supply_ok":      supply_ok,
+            "near_high_52w":  processed.near_high_52w,
         })
 
     # 정렬: 교집합 > 패턴타입 > score > supply_ok > 거래대금 > 상승률
@@ -545,6 +608,10 @@ def run():
         "intersection_count":    len(intersection) if not intersection.empty else 0,
         "core_count":            len(key_candidates),
         "market_regime":         market_regime,
+        "market_type":           market_type,
+        "limit_up_count":        limit_up_count,
+        "limit_up_names":        limit_up_names,
+        "limit_up_list":         limit_up_list,
     }
     if run_type == "1차":
         msg = ntf.build_first_alert(
@@ -552,6 +619,7 @@ def run():
             key_candidates, run_time, enriched,
             dashboard_links=dashboard_links,
             market_summary_extra=_ms_extra,
+            leading_sectors=leading_sectors,
         )
         ntf.send_message(msg)
         logger.info(f"1차 알림 전송 완료 (핵심 후보 {len(key_candidates)}개)")
@@ -561,6 +629,7 @@ def run():
             key_candidates, run_time, enriched,
             dashboard_links=dashboard_links,
             market_summary_extra=_ms_extra,
+            leading_sectors=leading_sectors,
         )
         ntf.send_message(msg)
         logger.info(f"2차 알림 전송 완료 (핵심 후보 {len(key_candidates)}개)")

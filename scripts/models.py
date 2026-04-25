@@ -26,12 +26,15 @@ class StockData:
 @dataclass
 class SupplyData:
     """수급 데이터"""
-    code:            str
-    institution_net: Optional[float] = None   # 원 단위
-    foreign_net:     Optional[float] = None
-    program_net:     Optional[float] = None
-    status:          str = "failed"           # "ok" / "failed"
-    supply_date:     Optional[str]  = None    # 수급 기준 날짜 (YYYY.MM.DD)
+    code:               str
+    institution_net:    Optional[float] = None   # 당일, 원 단위
+    foreign_net:        Optional[float] = None
+    program_net:        Optional[float] = None
+    institution_net_5d: Optional[float] = None   # 5거래일 누적, 원 단위
+    foreign_net_5d:     Optional[float] = None
+    supply_label:       str = ""                 # 쌍매수/기관매수/외인매수/혼조/확인불가
+    status:             str = "failed"           # "ok" / "failed"
+    supply_date:        Optional[str]  = None    # 수급 기준 날짜 (YYYY.MM.DD)
 
 
 @dataclass
@@ -64,6 +67,8 @@ class ProcessedData:
     first_big_candle_flag:   bool  = False
     pattern_type:            str   = "없음"   # 패턴 요약 문자열
     data_ok:                 bool  = False    # 히스토리 데이터 충분 여부
+    high_52w:                float = 0.0     # 52주 고가 (전일 기준)
+    near_high_52w:           bool  = False   # 오늘 종가가 52주 고가 2% 이내
 
 
 @dataclass

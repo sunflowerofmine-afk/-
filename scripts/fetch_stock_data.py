@@ -21,11 +21,10 @@ SISE_DAY_URL = "https://finance.naver.com/item/sise_day.naver"
 
 def fetch_chart_data(code: str) -> pd.DataFrame:
     """
-    최소 100일 일봉 데이터 확보용 함수.
-    GitHub Actions는 매번 초기화되므로 네이버에서 직접 수집.
-    11페이지 × 10행 ≒ 110행 → MA60, 60일 최고값 계산 충분.
+    최소 250일 일봉 데이터 확보용 함수.
+    26페이지 × 10행 ≒ 260행 → MA60 + 52주 신고가 + 60일 최고값 계산 충분.
     """
-    return fetch_daily_history(code, pages=11)
+    return fetch_daily_history(code, pages=26)
 
 
 def fetch_daily_history(code: str, pages: int = 7) -> pd.DataFrame:

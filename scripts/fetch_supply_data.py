@@ -29,11 +29,14 @@ def _parse_shares(text: str) -> float | None:
         return None
 
 
+_SUPPLY_LOOKBACK = 5  # 누적 집계 거래일 수
+
+
 def fetch_supply(code: str) -> SupplyData:
     """
-    네이버 외국인/기관 매매 페이지에서 최신 1거래일 수급 데이터 반환.
-    - table[1]: 일별 외국인/기관 매매동향
-    - col[0]: 날짜, col[5]: 기관 순매수(주), col[6]: 외국인 순매수(주), col[7]: 외국인 보유주수, col[8]: 외국인 보유율
+    네이버 외국인/기관 매매 페이지에서 최근 5거래일 수급 데이터 반환.
+    - institution_net / foreign_net : 최신 1거래일 (주 단위 — pipeline에서 종가 곱해 원 변환)
+    - institution_net_5d / foreign_net_5d : 5거래일 누적 (동일 단위)
     실패해도 예외 발생 금지 — status="failed" SupplyData 반환.
     """
     result = SupplyData(code=code)
@@ -48,18 +51,41 @@ def fetch_supply(code: str) -> SupplyData:
             logger.debug(f"[{code}] 수급 테이블 없음 (tables={len(tables)})")
             return result
 
+        inst_acc = 0.0
+        frgn_acc = 0.0
+        rows_ok  = 0
+
         for tr in tables[1].select("tr"):
             cols = tr.select("td")
             if len(cols) < 7:
                 continue
             if not re.match(r"\d{4}\.\d{2}\.\d{2}", cols[0].text.strip()):
                 continue
-            result.institution_net = _parse_shares(cols[5].text)
-            result.foreign_net     = _parse_shares(cols[6].text)
-            result.supply_date     = cols[0].text.strip()
-            result.status = "ok"
-            logger.info(f"[{code}] 수급 날짜: {result.supply_date} 기관={result.institution_net} 외국인={result.foreign_net}")
-            break
+
+            inst = _parse_shares(cols[5].text)
+            frgn = _parse_shares(cols[6].text)
+
+            if rows_ok == 0:
+                result.institution_net = inst
+                result.foreign_net     = frgn
+                result.supply_date     = cols[0].text.strip()
+                result.status          = "ok"
+
+            inst_acc += (inst or 0.0)
+            frgn_acc += (frgn or 0.0)
+            rows_ok  += 1
+
+            if rows_ok >= _SUPPLY_LOOKBACK:
+                break
+
+        if result.status == "ok":
+            result.institution_net_5d = inst_acc
+            result.foreign_net_5d     = frgn_acc
+            logger.info(
+                f"[{code}] 수급({rows_ok}d) 날짜={result.supply_date} "
+                f"기관1d={result.institution_net} 5d={inst_acc:.0f} "
+                f"외국인1d={result.foreign_net} 5d={frgn_acc:.0f}"
+            )
 
     except Exception as e:
         logger.warning(f"[{code}] 수급 수집 실패: {e}")

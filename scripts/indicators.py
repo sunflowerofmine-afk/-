@@ -175,3 +175,24 @@ def is_trading_value_peak(
     if "trading_value" not in lookback.columns or lookback.empty:
         return False
     return today_tv >= float(lookback["trading_value"].max())
+
+
+def calc_52w_high(daily_df: pd.DataFrame, today_close: float, today_idx: int = 0) -> dict:
+    """52주 신고가 계산. daily_df 내 최대 250행 이전 데이터 활용.
+    today_close: 비교 기준 종가 (원 단위)
+    """
+    lookback = daily_df.iloc[today_idx : today_idx + 251]
+    if lookback.empty or "high" not in lookback.columns:
+        return {"high_52w": 0.0, "near_high_52w": False, "data_ok": False}
+    highs = pd.to_numeric(lookback["high"], errors="coerce").dropna()
+    high_52w = float(highs.max()) if not highs.empty else 0.0
+    if high_52w <= 0:
+        return {"high_52w": 0.0, "near_high_52w": False, "data_ok": False}
+    near_high_52w = today_close >= high_52w * 0.98
+    return {
+        "high_52w":      high_52w,
+        "near_high_52w": near_high_52w,
+        "data_ok":       len(lookback) >= 200,
+    }
+
+
