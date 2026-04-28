@@ -267,6 +267,8 @@ def run():
     # ── 1. 전 종목 수집 ──────────────────────────────────────
     logger.info("전 종목 데이터 수집 시작...")
     raw_data = fetch_market_data.run()
+    index_levels = fetch_market_data.fetch_index_levels()
+    logger.info(f"지수 수준: KOSPI={index_levels.get('kospi_level')} KOSDAQ={index_levels.get('kosdaq_level')}")
 
     if not raw_data:
         ntf.send_message(f"<b>[오류]</b> {run_time} KST\n데이터 수집 실패")
@@ -399,6 +401,10 @@ def run():
             "core_count":             0,
             "market_regime":          market_regime,
             "market_type":            market_type,
+            "kospi_level":            index_levels.get("kospi_level"),
+            "kosdaq_level":           index_levels.get("kosdaq_level"),
+            "limit_up_count":         limit_up_count,
+            "limit_up_list":          limit_up_list,
         },
         "gainers_top20":          gainers_top20_records,
         "trading_value_top20":    tv_top20_records,
@@ -563,6 +569,33 @@ def run():
         except Exception as e:
             logger.warning(f"LLM 분석 전체 실패 (무시): {e}")
 
+    # ── daily_summary.json 저장 (복기 대시보드 크로스레퍼런스용) ────────────
+    import json as _json_daily
+    _summary_path = Path("data") / "signals" / f"daily_summary_{report_date}.json"
+    _summary_path.parent.mkdir(parents=True, exist_ok=True)
+    _summary_data = {
+        "date":                 report_date,
+        "run_time":             run_time,
+        "run_type":             run_type,
+        "kospi_level":          index_levels.get("kospi_level"),
+        "kosdaq_level":         index_levels.get("kosdaq_level"),
+        "kospi_tv_eok":         market_totals.get("kospi_total_tv_eok", 0),
+        "kosdaq_tv_eok":        market_totals.get("kosdaq_total_tv_eok", 0),
+        "market_regime":        market_regime,
+        "market_type":          market_type,
+        "leading_sector_names": [s["sector_name"] for s in leading_sectors[:4]],
+        "limit_up_count":       limit_up_count,
+        "code_to_sector":       code_to_sector,
+    }
+    try:
+        _summary_path.write_text(
+            _json_daily.dumps(_summary_data, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+        logger.info(f"daily_summary.json 저장: {_summary_path}")
+    except Exception as e:
+        logger.warning(f"daily_summary.json 저장 실패: {e}")
+
     # 시그널 저장
     if key_candidates:
         sig_df = pd.DataFrame([{
@@ -579,6 +612,8 @@ def run():
             "status_summary":     c["patterns"].get("status_summary", ""),
             "total_score":        c["score"].total_score if c.get("score") else 0,
             "checklist_pass":     c["checklist"].required_pass_count if c.get("checklist") else 0,
+            "in_inter":           c["in_inter"],
+            "supply_label":       getattr(c.get("supply"), "supply_label", ""),
             "run_time":           run_time,
             "run_type":           run_type,
         } for c in key_candidates])
@@ -609,6 +644,8 @@ def run():
         "core_count":            len(key_candidates),
         "market_regime":         market_regime,
         "market_type":           market_type,
+        "kospi_level":           index_levels.get("kospi_level"),
+        "kosdaq_level":          index_levels.get("kosdaq_level"),
         "limit_up_count":        limit_up_count,
         "limit_up_names":        limit_up_names,
         "limit_up_list":         limit_up_list,

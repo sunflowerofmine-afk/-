@@ -282,15 +282,22 @@ def _net_str(won) -> str:
 
 def _supply_info(supply) -> dict:
     """SupplyData 객체 or dict → plain dict"""
-    empty = {"status": "failed", "institution_net": None, "foreign_net": None, "program_net": None}
+    empty = {
+        "status": "failed",
+        "institution_net": None, "foreign_net": None, "program_net": None,
+        "institution_net_5d": None, "foreign_net_5d": None, "supply_label": "",
+    }
     if supply is None:
         return empty
     if hasattr(supply, "status"):       # SupplyData dataclass
         return {
-            "status":          supply.status,
-            "institution_net": supply.institution_net,
-            "foreign_net":     supply.foreign_net,
-            "program_net":     supply.program_net,
+            "status":             supply.status,
+            "institution_net":    supply.institution_net,
+            "foreign_net":        supply.foreign_net,
+            "program_net":        supply.program_net,
+            "institution_net_5d": supply.institution_net_5d,
+            "foreign_net_5d":     supply.foreign_net_5d,
+            "supply_label":       getattr(supply, "supply_label", "") or "",
         }
     if isinstance(supply, dict):
         return {**empty, **supply}
@@ -842,6 +849,10 @@ def _section_header(data: dict) -> str:
     base_time    = base_map.get(meta.get("run_type", ""), run_time_hm)
     kospi_tv  = _tv_eok(market.get("kospi_tv_eok",  0) * 1e8)
     kosdaq_tv = _tv_eok(market.get("kosdaq_tv_eok", 0) * 1e8)
+    kospi_level  = market.get("kospi_level")
+    kosdaq_level = market.get("kosdaq_level")
+    kospi_lv_str  = f" <span style='color:var(--muted);font-size:12px'>({kospi_level:,.0f}pt)</span>"  if kospi_level else ""
+    kosdaq_lv_str = f" <span style='color:var(--muted);font-size:12px'>({kosdaq_level:,.0f}pt)</span>" if kosdaq_level else ""
     regime = market.get("market_regime", "")
     _regime_cfg = {"강세": ("regime-bull", "🟢 강세"), "약세": ("regime-bear", "🔴 약세"), "중립": ("regime-neutral", "⚪ 중립")}
     rcls, rlabel = _regime_cfg.get(regime, ("regime-neutral", "⚪ 중립"))
@@ -857,8 +868,8 @@ def _section_header(data: dict) -> str:
     <span>분류 {run_type}</span>
   </div>
   <div class="meta" style="margin-top:4px;">
-    <span>코스피 {kospi_tv}</span>
-    <span>코스닥 {kosdaq_tv}</span>
+    <span>코스피 {kospi_tv}{kospi_lv_str}</span>
+    <span>코스닥 {kosdaq_tv}{kosdaq_lv_str}</span>
   </div>
 </div>
 """
@@ -870,9 +881,11 @@ def _section_env_and_signals(data: dict) -> str:
     rejected = data.get("rejected_candidates", [])
 
     regime       = m.get("market_regime", "")
+    market_type  = m.get("market_type", "")
     tv_1500      = m.get("tv_1500_count", 0)
     g_tv_1500    = m.get("gainers_tv_1500_count", 0)
     inter_n      = m.get("intersection_count", 0)
+    limit_up_n   = m.get("limit_up_count", 0)
     core_n       = len(core)
     watch_n      = len([r for r in rejected if "패턴 없음" in r.get("reason", "")])
 
@@ -884,9 +897,20 @@ def _section_env_and_signals(data: dict) -> str:
     tv1500_interp = "자금 집중" if tv_1500 >= 5 else ("보통" if tv_1500 >= 3 else "자금 분산")
     g1500_interp  = "방향성 강함" if g_tv_1500 >= 3 else ("보통" if g_tv_1500 >= 1 else "방향성 약함")
 
+    market_type_row = (
+        f'<div class="env-row"><span class="env-label">장세 유형</span>'
+        f'<span class="env-val" style="color:var(--blue);font-size:12px">{_e(market_type)}</span></div>'
+    ) if market_type else ""
+    limit_up_row = (
+        f'<div class="env-row"><span class="env-label">상한가</span>'
+        f'<span class="env-val" style="color:var(--yellow)">{limit_up_n}개</span></div>'
+    ) if limit_up_n > 0 else ""
+
     env_box = f"""<div class="info-box">
   <div class="info-box-title">오늘 환경</div>
   <div class="env-row"><span class="env-label">시장 상태</span><span class="env-val">{regime_html}</span></div>
+  {market_type_row}
+  {limit_up_row}
   <div class="env-row"><span class="env-label">우선 확인</span><span class="env-val" style="color:var(--yellow)">{core_n}종목</span></div>
   <div class="env-row"><span class="env-label">관찰</span><span class="env-val" style="color:var(--muted)">{watch_n}종목</span></div>
 </div>"""
@@ -991,6 +1015,32 @@ def _section_leading_sectors(sectors: list) -> str:
     return (
         '<div class="section-title">🏭 주도 섹터</div>'
         f'<div class="sector-grid">{"".join(cards)}</div>'
+    )
+
+
+def _section_limit_up(market_summary: dict) -> str:
+    limit_up_list  = market_summary.get("limit_up_list", [])
+    limit_up_count = market_summary.get("limit_up_count", 0)
+    if not limit_up_list or limit_up_count == 0:
+        return ""
+    rows_html = ""
+    for r in limit_up_list:
+        chg = float(r.get("등락률", 0))
+        rows_html += (
+            f"<tr>"
+            f'<td class="td-name">{_e(r.get("종목명",""))}</td>'
+            f'<td class="td-code">{_e(str(r.get("종목코드","")))}</td>'
+            f'<td>{_e(r.get("시장",""))}</td>'
+            f'<td class="td-pos">{_sign(chg)}</td>'
+            f'<td>{_tv_eok(r.get("거래대금",0))}</td>'
+            f"</tr>"
+        )
+    return (
+        f'<div class="section-title">🚀 상한가 {limit_up_count}개</div>'
+        '<div class="tbl-wrap"><table>'
+        '<thead><tr><th>종목명</th><th>코드</th><th>시장</th><th>등락률</th><th>거래대금</th></tr></thead>'
+        f'<tbody>{rows_html}</tbody>'
+        '</table></div>'
     )
 
 
@@ -1144,13 +1194,19 @@ def _section_stock_panel(candidates: list, rejected: list) -> str:
         chg_cls  = "pos" if chg >= 0 else "neg"
         tv_str   = _tv_eok(tv)
         in_inter = c.get("in_inter", False)
-        new_high = pat.get("new_high_60d", False)
-        near_hi  = pat.get("near_high_60d", False)
+        new_high    = pat.get("new_high_60d", False)
+        near_hi     = pat.get("near_high_60d", False)
+        near_h52w   = c.get("near_high_52w", False)
+        consol_flag = pat.get("consolidation_flag", False)
+        pbs_flag    = pat.get("pullback_support_flag", False)
 
         tags = []
-        if in_inter:  tags.append("★교집합")
-        if new_high:  tags.append("🔺신고가")
-        elif near_hi: tags.append("📍고점권")
+        if in_inter:    tags.append("★교집합")
+        if new_high:    tags.append("🔺신고가")
+        elif near_hi:   tags.append("📍고점권")
+        if near_h52w:   tags.append("📈52w")
+        if consol_flag: tags.append("📊기간조정")
+        if pbs_flag:    tags.append("↩되돌림지지")
         tags_str = "  ".join(tags)
 
         pri_html  = (
@@ -1178,27 +1234,35 @@ def _section_stock_panel(candidates: list, rejected: list) -> str:
         sup_inst = sup.get("institution_net")
         sup_frgn = sup.get("foreign_net")
 
+        sup_inst_5d = sup.get("institution_net_5d")
+        sup_frgn_5d = sup.get("foreign_net_5d")
         js_data.append({
-            "idx":         idx,
-            "name":        c.get("name", ""),
-            "code":        c.get("code", ""),
-            "market":      c.get("market", ""),
-            "chg_str":     chg_str,
-            "chg_pos":     chg >= 0,
-            "tv_str":      tv_str,
-            "pat_str":     pat_str,
-            "in_inter":    in_inter,
-            "high_tag":    high_tag,
-            "priority":    priority,
-            "llm_summary": llm_summary,
-            "score":       _score_val(c.get("score")),
-            "tv_ratio":    f"{pat.get('tv_ratio'):.2f}" if pat.get("tv_ratio") is not None else "-",
-            "inst_str":    f"{sup_inst/1e8:+.0f}억" if sup_inst is not None else "-",
-            "frgn_str":    f"{sup_frgn/1e8:+.0f}억" if sup_frgn is not None else "-",
-            "supply_ok":   sup.get("status") == "ok",
-            "strengths":   _compute_strengths(c),
-            "weaknesses":  _compute_weaknesses(c),
-            "checkpoints": _compute_checkpoints(c),
+            "idx":          idx,
+            "name":         c.get("name", ""),
+            "code":         c.get("code", ""),
+            "market":       c.get("market", ""),
+            "chg_str":      chg_str,
+            "chg_pos":      chg >= 0,
+            "tv_str":       tv_str,
+            "pat_str":      pat_str,
+            "in_inter":     in_inter,
+            "high_tag":     high_tag,
+            "near_h52w":    near_h52w,
+            "consol_flag":  consol_flag,
+            "pbs_flag":     pbs_flag,
+            "priority":     priority,
+            "llm_summary":  llm_summary,
+            "score":        _score_val(c.get("score")),
+            "tv_ratio":     f"{pat.get('tv_ratio'):.2f}" if pat.get("tv_ratio") is not None else "-",
+            "inst_str":     f"{sup_inst/1e8:+.0f}억" if sup_inst is not None else "-",
+            "frgn_str":     f"{sup_frgn/1e8:+.0f}억" if sup_frgn is not None else "-",
+            "inst_5d_str":  f"{sup_inst_5d/1e8:+.0f}억" if sup_inst_5d is not None else "-",
+            "frgn_5d_str":  f"{sup_frgn_5d/1e8:+.0f}억" if sup_frgn_5d is not None else "-",
+            "supply_label": sup.get("supply_label", ""),
+            "supply_ok":    sup.get("status") == "ok",
+            "strengths":    _compute_strengths(c),
+            "weaknesses":   _compute_weaknesses(c),
+            "checkpoints":  _compute_checkpoints(c),
         })
 
     cands_json = _json.dumps(js_data, ensure_ascii=False)
@@ -1214,8 +1278,12 @@ function renderDetail(idx) {{
   if (card) {{ card.classList.add('active'); card.scrollIntoView({{block:'nearest'}}); }}
 
   const chgCls  = c.chg_pos ? 'td-pos' : 'td-neg';
+  const extraTags = (c.near_h52w   ? ' <span style="color:var(--green)">📈52w</span>' : '') +
+                   (c.consol_flag ? ' <span style="color:var(--blue)">📊기간조정</span>' : '') +
+                   (c.pbs_flag    ? ' <span style="color:var(--purple)">↩되돌림지지</span>' : '');
   const tagsHtml = (c.in_inter ? '<span class="badge inter">★교집합</span> ' : '') +
-                   (c.high_tag ? '<span style="color:var(--yellow)">' + c.high_tag + '</span>' : '');
+                   (c.high_tag ? '<span style="color:var(--yellow)">' + c.high_tag + '</span>' : '') +
+                   extraTags;
   const priHtml  = c.priority === '우선확인'
     ? '<span class="priority-badge priority-first">우선확인</span>'
     : '<span class="priority-badge priority-watch">관찰우선</span>';
@@ -1227,8 +1295,9 @@ function renderDetail(idx) {{
     ? c.weaknesses.map(w => '<div class="weak-item">⚠️ ' + w + '</div>').join('')
     : '<div style="color:var(--muted);font-size:13px">해당 없음</div>';
   const ckHtml   = c.checkpoints.map(p => '<div class="chk-item">□ ' + p + '</div>').join('');
-  const supHtml  = c.supply_ok
-    ? '<div class="detail-section"><div class="detail-section-title">수급</div><div style="font-size:13px">기관 <strong>' + c.inst_str + '</strong> &nbsp;/&nbsp; 외국인 <strong>' + c.frgn_str + '</strong></div></div>'
+  const labelHtml = c.supply_label ? '<strong style="color:var(--blue)">[' + c.supply_label + ']</strong> ' : '';
+  const supHtml   = c.supply_ok
+    ? '<div class="detail-section"><div class="detail-section-title">수급</div><div style="font-size:13px">' + labelHtml + '기관 <strong>' + c.inst_str + '</strong><span style="color:var(--muted);font-size:11px">(5d:' + c.inst_5d_str + ')</span> &nbsp;/&nbsp; 외국인 <strong>' + c.frgn_str + '</strong><span style="color:var(--muted);font-size:11px">(5d:' + c.frgn_5d_str + ')</span></div></div>'
     : '';
 
   let h = '';
@@ -1561,6 +1630,7 @@ def _build_html(data: dict, nav_entries: list | None = None, current_filename: s
     body_parts = [
         _section_header(data),
         _section_env_and_signals(data),
+        _section_limit_up(data.get("market_summary", {})),
         _section_stock_panel(core, rejected),
         _section_watch_candidates(rejected),
         _section_leading_sectors(data.get("leading_sectors", [])),
