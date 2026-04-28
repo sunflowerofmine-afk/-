@@ -991,6 +991,8 @@ def _section_leading_sectors(sectors: list) -> str:
     for sec in sectors:
         chg = float(sec.get("change_pct", 0))
         chg_cls = "pos" if chg >= 0 else "neg"
+        mkt_r = sec.get("market_ratio_pct")
+        ratio_str = f'<span class="s-tv">시장{mkt_r:.1f}%</span>' if mkt_r is not None else ""
         stocks_html = ""
         for s in sec.get("top_stocks", [])[:4]:
             s_chg = float(s.get("등락률", 0))
@@ -1007,7 +1009,7 @@ def _section_leading_sectors(sectors: list) -> str:
             f'<div class="sector-head">'
             f'<span class="s-name">{_e(sec["sector_name"])}</span>'
             f'<span class="s-chg {chg_cls}">{_sign(chg)}</span>'
-            f'<span class="s-tv">{_tv_eok(sec.get("tv_eok",0)*1e8)}</span>'
+            f'{ratio_str}'
             f"</div>"
             f'<table class="sector-stocks">{stocks_html}</table>'
             f"</div>"

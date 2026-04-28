@@ -330,6 +330,9 @@ def run():
     code_to_sector: dict = sector_result.get("code_to_sector", {})
 
     # 주도섹터별 top stocks 구성 (filtered_df에서 구성종목 필터 + 거래대금 기준 정렬)
+    _total_market_tv_eok = (
+        market_totals.get("kospi_total_tv_eok", 0) + market_totals.get("kosdaq_total_tv_eok", 0)
+    )
     leading_sectors = []
     for sec in sector_result.get("top_sectors", []):
         sec_codes = set(sec.get("stock_codes", []))
@@ -345,11 +348,14 @@ def run():
         )
         pos_df = sec_df[sec_df["등락률"] > 0]
         avg_chg = float(pos_df["등락률"].mean()) if not pos_df.empty else 0.0
+        sec_tv_eok = round(float(sec_df["거래대금"].sum()) / 1e8, 0)
+        market_ratio_pct = round(sec_tv_eok / _total_market_tv_eok * 100, 1) if _total_market_tv_eok > 0 else None
         leading_sectors.append({
-            "sector_name": sec["sector_name"],
-            "change_pct":  avg_chg,
-            "tv_eok":      round(float(sec_df["거래대금"].sum()) / 1e8, 0),
-            "top_stocks":  top_stocks,
+            "sector_name":      sec["sector_name"],
+            "change_pct":       avg_chg,
+            "tv_eok":           sec_tv_eok,
+            "market_ratio_pct": market_ratio_pct,
+            "top_stocks":       top_stocks,
         })
 
     # gainers_top20, trading_value_top20에 sector 태그 추가

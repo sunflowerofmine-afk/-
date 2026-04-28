@@ -181,14 +181,14 @@ def format_sector_section(leading_sectors: list) -> str:
     if not leading_sectors:
         return ""
     lines = ["<b>[주도섹터]</b>"]
-    total_tv = sum(s.get("tv_eok", 0) for s in leading_sectors)
     for s in leading_sectors:
-        name   = s.get("sector_name", "")
-        tv     = float(s.get("tv_eok", 0))
+        name    = s.get("sector_name", "")
+        tv      = float(s.get("tv_eok", 0))
         avg_chg = float(s.get("change_pct", 0))
-        ratio  = f"{tv/total_tv*100:.0f}%" if total_tv > 0 else "-"
+        mkt_r   = s.get("market_ratio_pct")
+        ratio   = f"{mkt_r:.1f}%" if mkt_r is not None else "-"
         chg_str = f"+{avg_chg:.1f}%" if avg_chg >= 0 else f"{avg_chg:.1f}%"
-        lines.append(f"  {name} {_tv_eok(tv*1e8)} ({ratio}) {chg_str}")
+        lines.append(f"  {name} {_tv_eok(tv*1e8)} (시장{ratio}) {chg_str}")
     return "\n".join(lines) + "\n"
 
 
