@@ -121,6 +121,28 @@ def fetch_all_stocks(market_name: str, market_code: int) -> pd.DataFrame:
     return result
 
 
+def fetch_index_levels() -> dict:
+    """코스피/코스닥 현재 지수 레벨 수집. 실패 시 None 반환 (파이프라인 중단 금지)."""
+    result = {"kospi_level": None, "kosdaq_level": None}
+    for code, key in [("KOSPI", "kospi_level"), ("KOSDAQ", "kosdaq_level")]:
+        try:
+            url = f"https://finance.naver.com/sise/sise_index.naver?code={code}"
+            resp = requests.get(url, headers=HEADERS, timeout=REQUEST_TIMEOUT)
+            resp.encoding = "euc-kr"
+            soup = BeautifulSoup(resp.text, "lxml")
+            for selector in ["#nowVal", ".num_now em", "strong.num", "span.num"]:
+                el = soup.select_one(selector)
+                if el:
+                    val = _parse_number(el.text)
+                    if val:
+                        result[key] = float(val)
+                        break
+            logger.debug(f"지수 레벨 [{code}]: {result[key]}")
+        except Exception as e:
+            logger.debug(f"지수 레벨 수집 실패 [{code}]: {e}")
+    return result
+
+
 def run() -> dict[str, pd.DataFrame]:
     """KOSPI + KOSDAQ 전 종목 수집"""
     result = {}
