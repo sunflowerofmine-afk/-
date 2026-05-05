@@ -72,13 +72,13 @@ def _calc_market_type(gainers_records: list, market_regime: str) -> str:
     if top_ratio >= 0.30:
         if len(top_items) >= 2 and top_items[1][1] >= 3:
             s2, n2 = top_items[1]
-            return f"테마주 장세 [{top_sector} {top_count}/{total} · {s2} {n2}/{total}]"
-        return f"테마주 장세 [{top_sector} {top_count}/{total}]"
+            return f"테마주 장세 ({top_sector} {top_count}개·{s2} {n2}개 주도)"
+        return f"테마주 장세 ({top_sector} {top_count}개 주도)"
     if top_ratio >= 0.20:
-        return f"약테마 [{top_sector} {top_count}/{total}] · 분산"
+        return f"약테마 ({top_sector} {top_count}개 중심, 분산)"
     if market_regime == "강세":
-        return "수급주 장세 (섹터 분산)"
-    return "혼조 (섹터 분산)"
+        return "수급주 장세 (전 섹터 고른 상승)"
+    return "혼조 (특정 테마 없음)"
 
 
 def _calc_market_regime(all_df: pd.DataFrame, tv_1500_count: int) -> tuple[str, float]:
