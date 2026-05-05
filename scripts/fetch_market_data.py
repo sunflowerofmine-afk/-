@@ -121,9 +121,34 @@ def fetch_all_stocks(market_name: str, market_code: int) -> pd.DataFrame:
     return result
 
 
+_FCHART_INDEX_URL = "https://fchart.stock.naver.com/sise.nhn"
+
+
+def _fetch_index_chg(symbol: str, today8: str) -> float | None:
+    """KOSPI/KOSDAQ 당일 등락률 (fchart 일봉 기준). 장중이면 현재가 기준."""
+    try:
+        items = re.findall(
+            r'<item data="(\d{8})\|([0-9.]+)\|[^|]+\|[^|]+\|([0-9.]+)\|',
+            requests.get(
+                f"{_FCHART_INDEX_URL}?symbol={symbol}&timeframe=day&count=5&requestType=0",
+                headers=HEADERS, timeout=REQUEST_TIMEOUT,
+            ).text,
+        )
+        for i, (d, _, c) in enumerate(items):
+            if d == today8 and i > 0:
+                prev = float(items[i - 1][2])
+                if prev > 0:
+                    return round((float(c) - prev) / prev * 100, 2)
+    except Exception:
+        pass
+    return None
+
+
 def fetch_index_levels() -> dict:
-    """코스피/코스닥 현재 지수 레벨 수집. 실패 시 None 반환 (파이프라인 중단 금지)."""
-    result = {"kospi_level": None, "kosdaq_level": None}
+    """코스피/코스닥 현재 지수 레벨 + 등락률 수집. 실패 시 None 반환 (파이프라인 중단 금지)."""
+    from datetime import datetime, timezone, timedelta
+    today8 = datetime.now(tz=timezone(timedelta(hours=9))).strftime("%Y%m%d")
+    result = {"kospi_level": None, "kosdaq_level": None, "kospi_chg": None, "kosdaq_chg": None}
     for code, key in [("KOSPI", "kospi_level"), ("KOSDAQ", "kosdaq_level")]:
         try:
             url = f"https://finance.naver.com/sise/sise_index.naver?code={code}"
@@ -140,6 +165,8 @@ def fetch_index_levels() -> dict:
             logger.debug(f"지수 레벨 [{code}]: {result[key]}")
         except Exception as e:
             logger.debug(f"지수 레벨 수집 실패 [{code}]: {e}")
+    for symbol, key in [("KOSPI", "kospi_chg"), ("KOSDAQ", "kosdaq_chg")]:
+        result[key] = _fetch_index_chg(symbol, today8)
     return result
 
 

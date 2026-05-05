@@ -44,6 +44,22 @@ def is_trading_day(d: date | None = None) -> bool:
     return True
 
 
+def get_next_trading_day(date8: str) -> str | None:
+    """
+    YYYYMMDD 문자열 기준 다음 거래일을 YYYYMMDD 문자열로 반환.
+    최대 7일 탐색 후 없으면 None.
+    """
+    try:
+        d = date(int(date8[:4]), int(date8[4:6]), int(date8[6:]))
+    except ValueError:
+        return None
+    for _ in range(7):
+        d += timedelta(days=1)
+        if is_trading_day(d):
+            return d.strftime("%Y%m%d")
+    return None
+
+
 def get_run_type(now: datetime | None = None) -> str:
     """
     실행 시각 기준 run_type 반환.

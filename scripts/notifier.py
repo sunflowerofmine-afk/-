@@ -140,34 +140,51 @@ _BASE_TIME_MAP = {"1차": "14:50", "2차": "17:50"}
 
 def format_market_summary(market_totals: dict, run_time: str, run_type: str,
                           extra: dict | None = None) -> str:
-    """
-    extra: {tv_1500_count, gainers_tv_1500_count, intersection_count, core_count}
-    """
     parts = run_time.split(" ", 1)
     date_str = parts[0]
     time_str = parts[1] if len(parts) > 1 else run_time
     base_time = _BASE_TIME_MAP.get(run_type, time_str)
-    kospi  = market_totals.get("kospi_total_tv_eok", 0)
-    kosdaq = market_totals.get("kosdaq_total_tv_eok", 0)
+    kospi_tv  = market_totals.get("kospi_total_tv_eok", 0)
+    kosdaq_tv = market_totals.get("kosdaq_total_tv_eok", 0)
 
-    ex = extra or {}
-    tv1500        = ex.get("tv_1500_count", 0)
-    g_tv1500      = ex.get("gainers_tv_1500_count", 0)
-    inter_n       = ex.get("intersection_count", 0)
-    core_n        = ex.get("core_count", 0)
-    regime        = ex.get("market_regime", "")
-    market_type   = ex.get("market_type", "")
-    limit_up_n    = ex.get("limit_up_count", 0)
+    ex           = extra or {}
+    tv1500       = ex.get("tv_1500_count", 0)
+    g_tv1500     = ex.get("gainers_tv_1500_count", 0)
+    inter_n      = ex.get("intersection_count", 0)
+    core_n       = ex.get("core_count", 0)
+    regime       = ex.get("market_regime", "")
+    market_type  = ex.get("market_type", "")
+    limit_up_n   = ex.get("limit_up_count", 0)
+    market_adl   = ex.get("market_adl")
+    kospi_level  = ex.get("kospi_level")
+    kosdaq_level = ex.get("kosdaq_level")
+    kospi_chg    = ex.get("kospi_chg")
+    kosdaq_chg   = ex.get("kosdaq_chg")
+
     _regime_map = {"강세": "🟢 강세", "약세": "🔴 약세", "중립": "⚪ 중립"}
     regime_str  = _regime_map.get(regime, regime)
+    adl_str     = f" (ADL {market_adl*100:.0f}% · 1500억↑{tv1500}개)" if market_adl is not None else ""
     type_str    = f" | {market_type}" if market_type else ""
-    regime_line = f"[시장] {regime_str}{type_str}\n" if regime else ""
+    regime_line = f"[시장] {regime_str}{adl_str}{type_str}\n" if regime else ""
     limit_up_line = f"상한가 {limit_up_n}개\n" if limit_up_n > 0 else ""
+
+    def _idx(level, chg):
+        if level is None:
+            return "-"
+        s = f"{level:,.2f}"
+        if chg is not None:
+            arrow = "▲" if chg >= 0 else "▼"
+            s += f" {arrow}{abs(chg):.2f}%"
+        return s
+
+    idx_line = f"코스피 {_idx(kospi_level, kospi_chg)} | 코스닥 {_idx(kosdaq_level, kosdaq_chg)}\n"
+    tv_line  = f"거래대금 {kospi_tv:,.0f}억 | {kosdaq_tv:,.0f}억\n"
 
     return (
         f"{regime_line}"
         f"<b>[종가베팅 스캔] {date_str} · {base_time} KST</b>\n"
-        f"코스피 {kospi:,.0f}억 | 코스닥 {kosdaq:,.0f}억\n"
+        f"{idx_line}"
+        f"{tv_line}"
         f"1500억↑ {tv1500}개 | 상승Top 중 {g_tv1500}개\n"
         f"교집합 {inter_n}개 | 핵심후보 {core_n}개\n"
         f"{limit_up_line}"
@@ -194,7 +211,7 @@ def format_sector_section(leading_sectors: list) -> str:
 
 # ── 상한가 섹션 (#1) ─────────────────────────────────────
 
-def format_limit_up_section(extra: dict) -> str:
+def format_limit_up_section(extra: dict, code_to_sector: dict = {}) -> str:
     limit_up_list  = extra.get("limit_up_list", [])
     limit_up_count = extra.get("limit_up_count", 0)
     if not limit_up_list or limit_up_count == 0:
@@ -206,65 +223,62 @@ def format_limit_up_section(extra: dict) -> str:
         market = r.get("시장", "")
         chg    = float(r.get("등락률", 0))
         tv     = float(r.get("거래대금", 0))
-        lines.append(f"  {name}({code}) [{market}] {_sign(chg)} {_tv_eok(tv)}")
+        sector = code_to_sector.get(code, "")
+        sec_s  = f"[{sector}] " if sector else ""
+        lines.append(f"  {name}({code}) {sec_s}[{market}] {_sign(chg)} {_tv_eok(tv)}")
     return "\n".join(lines) + "\n"
 
 
 # ── 상승률 Top20 ──────────────────────────────────────────
 
-def format_top_gainers(df, enriched: dict = {}) -> str:
+def format_top_gainers(df, enriched: dict = {}, inter_codes: set = set()) -> str:
     if df is None or df.empty:
         return "<b>[상승률 Top20]</b>\n데이터 없음\n"
     lines = ["<b>[상승률 Top20]</b>"]
-    for i, row in df.iterrows():
+    for i, (_, row) in enumerate(df.iterrows()):
         code  = str(row.get("종목코드", ""))
-        enr   = enriched.get(code, {})
-        ind   = enr.get("indicators", {})
-        news  = enr.get("news", [])
         tv    = float(row.get("거래대금", 0))
+        star  = "★" if code in inter_codes else "  "
         lines.append(
-            f"{i+1}) {row['종목명']}({code}) [{row.get('시장','')}] "
-            f"{_sign(float(row.get('등락률',0)))} | {_tv_eok(tv)} | "
-            f"거래량60최고:{_yn(ind.get('vol_peak'))} | "
-            f"거래대금60최고:{_yn(ind.get('tv_peak'))} | "
-            f"뉴스:{'O' if _has_news(news) else 'X'}"
+            f"{star}{i+1}) {row['종목명']}({code}) [{row.get('시장','')}]"
+            f" {_sign(float(row.get('등락률',0)))} | {_tv_eok(tv)}"
         )
     return "\n".join(lines) + "\n"
 
 
 # ── 거래대금 Top20 ────────────────────────────────────────
 
-def format_top_tv(df, enriched: dict = {}) -> str:
+def format_top_tv(df, enriched: dict = {}, inter_codes: set = set(), code_to_sector: dict = {}) -> str:
     if df is None or df.empty:
         return "<b>[거래대금 Top20]</b>\n데이터 없음\n"
     lines = ["<b>[거래대금 Top20]</b>"]
-    for i, row in df.iterrows():
-        code  = str(row.get("종목코드", ""))
-        enr   = enriched.get(code, {})
-        ind   = enr.get("indicators", {})
-        news  = enr.get("news", [])
-        tv    = float(row.get("거래대금", 0))
+    for i, (_, row) in enumerate(df.iterrows()):
+        code   = str(row.get("종목코드", ""))
+        tv     = float(row.get("거래대금", 0))
+        star   = "★" if code in inter_codes else "  "
+        sector = code_to_sector.get(code, "")
+        sec_s  = f"[{sector}] " if sector else ""
         lines.append(
-            f"{i+1}) {row['종목명']}({code}) [{row.get('시장','')}] "
-            f"{_tv_eok(tv)} | {_sign(float(row.get('등락률',0)))} | "
-            f"거래량60최고:{_yn(ind.get('vol_peak'))} | "
-            f"거래대금60최고:{_yn(ind.get('tv_peak'))} | "
-            f"뉴스:{'O' if _has_news(news) else 'X'}"
+            f"{star}{i+1}) {row['종목명']}({code}) {sec_s}[{row.get('시장','')}]"
+            f" {_tv_eok(tv)} | {_sign(float(row.get('등락률',0)))}"
         )
     return "\n".join(lines) + "\n"
 
 
 # ── 교집합 후보 ───────────────────────────────────────────
 
-def format_intersection(df, enriched: dict = {}) -> str:
+def format_intersection(df, enriched: dict = {}, code_to_sector: dict = {}) -> str:
     if df is None or df.empty:
         return ""
-    lines = ["<b>[교집합]</b>"]
-    for i, row in df.iterrows():
-        tv  = float(row.get("거래대금", 0))
+    lines = ["<b>[★ 교집합]</b>"]
+    for i, (_, row) in enumerate(df.iterrows()):
+        code   = str(row.get("종목코드", ""))
+        tv     = float(row.get("거래대금", 0))
+        sector = code_to_sector.get(code, "")
+        sec_s  = f" [{sector}]" if sector else ""
         lines.append(
-            f"{i+1}) {row['종목명']} "
-            f"{_sign(float(row.get('등락률',0)))} {_tv_eok(tv)}"
+            f"  {i+1}) <b>{row['종목명']}</b>{sec_s}"
+            f" {_sign(float(row.get('등락률',0)))} {_tv_eok(tv)}"
         )
     return "\n".join(lines) + "\n"
 
@@ -276,44 +290,60 @@ _PATTERN_TYPE_ORDER = ["당일돌파형", "고가횡보형", "눌림관찰형", 
 
 
 def _format_candidate_card(seq: int, c: dict) -> str:
-    """단일 종목 카드 — 3~4줄 실전 매매용"""
+    """단일 종목 카드 — 실전 매매용"""
     pat  = c.get("patterns", {})
     sup  = c.get("supply", {})
     news = c.get("news", [])
+    cl   = c.get("checklist")
     tv   = float(c.get("trading_value", 0))
 
     # ── Line 1: 종목명 + 핵심 태그 ──────────────────────────
-    in_inter  = c.get("in_inter", False)
-    new_high  = pat.get("new_high_60d", False)
-    near_high = pat.get("near_high_60d", False)
-    near_h52w = c.get("near_high_52w", False)
+    in_inter    = c.get("in_inter", False)
+    new_high    = pat.get("new_high_60d", False)
+    near_high   = pat.get("near_high_60d", False)
+    near_h52w   = c.get("near_high_52w", False)
     consol_flag = pat.get("consolidation_flag", False)
     pbs_flag    = pat.get("pullback_support_flag", False)
+
+    # 단발성 감지: LLM이 (단순수급)으로 분류한 경우
+    llm_text    = getattr(news, "llm_summary", None) or ""
+    is_danbal   = "(단순수급)" in llm_text
+
     tags = []
     if in_inter:    tags.append("★교집합")
     if new_high:    tags.append("🔺신고가")
     elif near_high: tags.append("📍고점권")
     if near_h52w:   tags.append("📈52w")
     if consol_flag: tags.append("📊기간조정")
-    if pbs_flag:    tags.append("↩되돌림지지")
+    if pbs_flag:    tags.append("↩되돌림지지(±5%)")
+    if is_danbal:   tags.append("⚡단발")
     tag_str = "  " + "  ".join(tags) if tags else ""
 
     # ── Line 2: 등락률 / 거래대금 / 패턴 ───────────────────
     pattern_label = pat.get("pattern_type_label", "없음")
     offset_str    = _OFFSET_LABEL.get(pat.get("base_candle_day_offset"), "-")
-    if pattern_label != "없음":
-        pattern_str = f"{pattern_label}({offset_str})"
-    else:
-        pattern_str = "패턴없음"
+    pattern_str   = f"{pattern_label}({offset_str})" if pattern_label != "없음" else "패턴없음"
 
-    # ── Line 3: 재료 (LLM summary, 없으면 생략) ─────────────
-    llm_line = ""
-    if hasattr(news, "llm_summary") and news.llm_summary:
-        llm_line = f"\n  {news.llm_summary}"
+    # ── Line 3: 재료 (LLM summary) ─────────────────────────
+    llm_line = f"\n  {llm_text}" if llm_text else ""
 
-    # ── Line 4: 수급 (확인불가면 생략) ──────────────────────
+    # ── Line 4: 수급 ──────────────────────────────────────
     supply_str  = _supply_str(sup)
     supply_line = f"\n  수급: {supply_str}" if supply_str != "확인불가" else ""
+
+    # ── Line 5: 체크리스트 ────────────────────────────────
+    checklist_line = ""
+    if cl is not None:
+        def _c(flag, label): return f"{label}✓" if flag else f"{label}✗"
+        n = cl.required_pass_count
+        checklist_line = (
+            f"\n  체크({n}/4): "
+            f"{_c(cl.big_candle_ok,'大')} "
+            f"{_c(cl.first_big_candle_ok,'첫봉')} "
+            f"{_c(cl.ma_cluster_ok,'MA')} "
+            f"{_c(cl.trading_value_ok,'대금')}"
+            f" | {_c(cl.volume_peak_ok,'Peak')} {_c(cl.supply_ok,'수급')}"
+        )
 
     return (
         f"\n{seq}) <b>{c.get('name','')}({c.get('code','')})</b>"
@@ -321,6 +351,7 @@ def _format_candidate_card(seq: int, c: dict) -> str:
         f"  {_sign(float(c.get('change_pct', 0)))} | {_tv_eok(tv)} | {pattern_str}"
         f"{llm_line}"
         f"{supply_line}"
+        f"{checklist_line}"
     )
 
 
@@ -411,12 +442,16 @@ def build_first_alert(
     leading_sectors: list | None = None,
     watch_candidates: list = [],
 ) -> str:
-    ex = market_summary_extra or {}
+    ex             = market_summary_extra or {}
+    inter_codes    = ex.get("inter_codes", set())
+    code_to_sector = ex.get("code_to_sector", {})
     parts = [
         format_market_summary(market_totals, run_time, "1차", extra=ex),
         format_sector_section(leading_sectors or []),
-        format_limit_up_section(ex),
-        format_intersection(intersection, enriched),
+        format_limit_up_section(ex, code_to_sector),
+        format_intersection(intersection, enriched, code_to_sector),
+        format_top_gainers(gainers, enriched, inter_codes),
+        format_top_tv(top_tv, enriched, inter_codes, code_to_sector),
         format_key_candidates(key_candidates),
         format_watch_candidates(watch_candidates),
     ]
@@ -439,12 +474,16 @@ def build_second_alert(
     leading_sectors: list | None = None,
     watch_candidates: list = [],
 ) -> str:
-    ex = market_summary_extra or {}
+    ex             = market_summary_extra or {}
+    inter_codes    = ex.get("inter_codes", set())
+    code_to_sector = ex.get("code_to_sector", {})
     parts = [
         format_market_summary(market_totals, run_time, "2차", extra=ex),
         format_sector_section(leading_sectors or []),
-        format_limit_up_section(ex),
-        format_intersection(intersection, enriched),
+        format_limit_up_section(ex, code_to_sector),
+        format_intersection(intersection, enriched, code_to_sector),
+        format_top_gainers(gainers, enriched, inter_codes),
+        format_top_tv(top_tv, enriched, inter_codes, code_to_sector),
         format_key_candidates(key_candidates),
         format_watch_candidates(watch_candidates),
     ]

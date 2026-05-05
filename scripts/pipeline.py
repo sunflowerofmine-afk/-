@@ -57,6 +57,7 @@ def _setup_logging(timestamp_str: str):
 def _calc_market_type(gainers_records: list, market_regime: str) -> str:
     """
     상승 Top20 섹터 분포 기반 장세 유형 텍스트.
+    기준: 상위 섹터가 Top20의 30%↑ 차지 시 테마주 장세.
     정보 출력 목적 — 자동 판단 아님.
     """
     from collections import Counter
@@ -71,36 +72,36 @@ def _calc_market_type(gainers_records: list, market_regime: str) -> str:
     if top_ratio >= 0.30:
         if len(top_items) >= 2 and top_items[1][1] >= 3:
             s2, n2 = top_items[1]
-            return f"테마주 장세 [{top_sector}({top_count}) · {s2}({n2})]"
-        return f"테마주 장세 [{top_sector}({top_count})]"
+            return f"테마주 장세 [{top_sector} {top_count}/{total} · {s2} {n2}/{total}]"
+        return f"테마주 장세 [{top_sector} {top_count}/{total}]"
     if top_ratio >= 0.20:
-        return f"약테마 [{top_sector}({top_count})] · 분산"
+        return f"약테마 [{top_sector} {top_count}/{total}] · 분산"
     if market_regime == "강세":
         return "수급주 장세 (섹터 분산)"
     return "혼조 (섹터 분산)"
 
 
-def _calc_market_regime(all_df: pd.DataFrame, tv_1500_count: int) -> str:
+def _calc_market_regime(all_df: pd.DataFrame, tv_1500_count: int) -> tuple[str, float]:
     """전종목 데이터 기반 시장 수용성 판단 (ADL + 1500억 종목 수).
-    추가 API 호출 없이 이미 수집한 전종목 데이터만 활용.
     강세: ADL > 0.55 AND 1500억↑ >= 3
     약세: ADL < 0.40
     중립: 그 외
+    반환: (regime, adl) — adl은 상승종목 비율 0~1.
     """
     try:
         chg = all_df["등락률"].dropna()
         total = int((chg != 0).sum())
         if total == 0:
-            return "중립"
+            return "중립", 0.0
         adl = float((chg > 0).sum()) / float(total)
         if adl > MARKET_REGIME_BULL_ADL and tv_1500_count >= MARKET_REGIME_BULL_TV1500:
-            return "강세"
+            return "강세", adl
         if adl < MARKET_REGIME_BEAR_ADL:
-            return "약세"
-        return "중립"
+            return "약세", adl
+        return "중립", adl
     except Exception as e:
         logging.getLogger(__name__).warning(f"시장 상태 판단 실패: {e}")
-        return "중립"
+        return "중립", 0.0
 
 
 def _enrich_candidates(codes: list[str], all_df: pd.DataFrame) -> dict:
@@ -386,7 +387,7 @@ def run():
     )
     limit_up_names = [r["종목명"] for r in limit_up_list[:5]]
 
-    market_regime = _calc_market_regime(all_df, tv_1500_count)
+    market_regime, _market_adl = _calc_market_regime(all_df, tv_1500_count)
     market_type   = _calc_market_type(gainers_top20_records, market_regime)
     logger.info(f"시장 상태: {market_regime} | 장세: {market_type}")
 
@@ -662,11 +663,16 @@ def run():
         "core_count":            len(core_candidates),
         "market_regime":         market_regime,
         "market_type":           market_type,
+        "market_adl":            _market_adl,
         "kospi_level":           index_levels.get("kospi_level"),
         "kosdaq_level":          index_levels.get("kosdaq_level"),
+        "kospi_chg":             index_levels.get("kospi_chg"),
+        "kosdaq_chg":            index_levels.get("kosdaq_chg"),
         "limit_up_count":        limit_up_count,
         "limit_up_names":        limit_up_names,
         "limit_up_list":         limit_up_list,
+        "code_to_sector":        code_to_sector,
+        "inter_codes":           inter_codes,
     }
     if run_type == "1차":
         msg = ntf.build_first_alert(

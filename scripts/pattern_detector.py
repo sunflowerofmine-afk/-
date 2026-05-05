@@ -361,6 +361,14 @@ def detect_patterns(
     consol = detect_consolidation_breakout(daily_df, today_close, today_high)
     pbs    = detect_pullback_support(daily_df, today_close, today_low)
 
+    # B형 강화: 오늘이 장대양봉(돌파봉 자체)이면 제외
+    # + 오늘 종가가 캔들 상반부 이상이어야 (지지 후 회복 확인)
+    if pbs.get("pullback_support_flag"):
+        candle_range = today_high - today_low
+        closes_upper = candle_range <= 0 or today_close >= (today_low + today_high) / 2
+        if is_base_today or not closes_upper:
+            pbs["pullback_support_flag"] = False
+
     result.update({
         "pattern1": p1,
         "pattern2": p2,
