@@ -324,6 +324,23 @@ def _format_candidate_card(seq: int, c: dict) -> str:
     )
 
 
+def format_watch_candidates(candidates: list[dict]) -> str:
+    """관심 후보 — 1줄 요약 (장세 상한 초과 종목)."""
+    if not candidates:
+        return ""
+    lines = [f"<b>[관심 후보 {len(candidates)}개]</b>"]
+    for c in candidates:
+        tv  = c.get("trading_value", 0)
+        pat = c.get("patterns", {}).get("pattern_type_label", "없음")
+        pct = float(c.get("change_pct", 0))
+        sign = "+" if pct >= 0 else ""
+        lines.append(
+            f"  • {c['name']}({c['code']}) "
+            f"{sign}{pct:.1f}% | {tv/100_000_000:.0f}억 | {pat}"
+        )
+    return "\n".join(lines) + "\n"
+
+
 def format_key_candidates(candidates: list[dict]) -> str:
     """
     핵심 후보를 패턴 타입별로 그룹화하여 출력.
@@ -392,6 +409,7 @@ def build_first_alert(
     dashboard_links: dict = {},
     market_summary_extra: dict | None = None,
     leading_sectors: list | None = None,
+    watch_candidates: list = [],
 ) -> str:
     ex = market_summary_extra or {}
     parts = [
@@ -400,6 +418,7 @@ def build_first_alert(
         format_limit_up_section(ex),
         format_intersection(intersection, enriched),
         format_key_candidates(key_candidates),
+        format_watch_candidates(watch_candidates),
     ]
     link_str = _format_dashboard_links(dashboard_links)
     if link_str:
@@ -418,6 +437,7 @@ def build_second_alert(
     dashboard_links: dict = {},
     market_summary_extra: dict | None = None,
     leading_sectors: list | None = None,
+    watch_candidates: list = [],
 ) -> str:
     ex = market_summary_extra or {}
     parts = [
@@ -426,6 +446,7 @@ def build_second_alert(
         format_limit_up_section(ex),
         format_intersection(intersection, enriched),
         format_key_candidates(key_candidates),
+        format_watch_candidates(watch_candidates),
     ]
     link_str = _format_dashboard_links(dashboard_links)
     if link_str:

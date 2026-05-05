@@ -110,3 +110,8 @@ SECTOR_TOP_N                        = 5   # 거래대금 상위 N개 섹터
 
 # ── NXT 수집 (2차/수동 실행 시 KRX 데이터에 합산) ─────────────
 ENABLE_NXT_FETCH                    = True
+
+# ── 장세별 핵심 후보 상한선 ──────────────────────────────────
+CANDIDATES_MAX_BULL    = 5   # 강세
+CANDIDATES_MAX_NEUTRAL = 3   # 중립
+CANDIDATES_MAX_BEAR    = 2   # 약세

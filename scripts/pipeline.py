@@ -19,6 +19,7 @@ from config.settings import (
     ENABLE_SECTOR_FETCH, SECTOR_TOP_N,
     ENABLE_NXT_FETCH,
     MARKET_REGIME_BULL_ADL, MARKET_REGIME_BEAR_ADL, MARKET_REGIME_BULL_TV1500,
+    CANDIDATES_MAX_BULL, CANDIDATES_MAX_NEUTRAL, CANDIDATES_MAX_BEAR,
 )
 from scripts.market_calendar import get_now_kst, is_trading_day, get_run_type
 from scripts.storage import save_raw, save_processed, save_signals
@@ -556,11 +557,21 @@ def run():
 
     key_candidates.sort(key=_priority)
 
-    # ── LLM 뉴스 분석 (최종 후보에만, 파이프라인 중단 금지) ────
-    if USE_LLM_NEWS and key_candidates:
+    # ── 장세별 핵심/관심 분리 ────────────────────────────────
+    _max_n = {
+        "강세": CANDIDATES_MAX_BULL,
+        "중립": CANDIDATES_MAX_NEUTRAL,
+        "약세": CANDIDATES_MAX_BEAR,
+    }.get(market_regime, CANDIDATES_MAX_NEUTRAL)
+    core_candidates  = key_candidates[:_max_n]
+    watch_candidates = key_candidates[_max_n:]
+    logger.info(f"장세={market_regime} → 핵심 {len(core_candidates)}개 / 관심 {len(watch_candidates)}개")
+
+    # ── LLM 뉴스 분석 (핵심 후보에만, 파이프라인 중단 금지) ────
+    if USE_LLM_NEWS and core_candidates:
         try:
             from scripts import llm_analyzer
-            for c in key_candidates:
+            for c in core_candidates:
                 news = c.get("news")
                 if isinstance(news, NewsData) and news.titles:
                     result = llm_analyzer.analyze_news(
@@ -626,8 +637,9 @@ def run():
         save_signals(sig_df, timestamp_str)
 
     # 대시보드 생성
-    report_data["market_summary"]["core_count"] = len(key_candidates)
-    report_data["core_candidates"]    = key_candidates
+    report_data["market_summary"]["core_count"] = len(core_candidates)
+    report_data["core_candidates"]     = core_candidates
+    report_data["watch_candidates"]    = watch_candidates
     report_data["rejected_candidates"] = rejected_list
 
     dashboard_links = {}
@@ -647,7 +659,7 @@ def run():
         "tv_1500_count":         tv_1500_count,
         "gainers_tv_1500_count": gainers_tv_1500_count,
         "intersection_count":    len(intersection) if not intersection.empty else 0,
-        "core_count":            len(key_candidates),
+        "core_count":            len(core_candidates),
         "market_regime":         market_regime,
         "market_type":           market_type,
         "kospi_level":           index_levels.get("kospi_level"),
@@ -659,23 +671,25 @@ def run():
     if run_type == "1차":
         msg = ntf.build_first_alert(
             market_totals, gainers, top_tv, intersection,
-            key_candidates, run_time, enriched,
+            core_candidates, run_time, enriched,
             dashboard_links=dashboard_links,
             market_summary_extra=_ms_extra,
             leading_sectors=leading_sectors,
+            watch_candidates=watch_candidates,
         )
         ntf.send_message(msg)
-        logger.info(f"1차 알림 전송 완료 (핵심 후보 {len(key_candidates)}개)")
+        logger.info(f"1차 알림 전송 완료 (핵심 {len(core_candidates)}개 / 관심 {len(watch_candidates)}개)")
     else:
         msg = ntf.build_second_alert(
             market_totals, gainers, top_tv, intersection,
-            key_candidates, run_time, enriched,
+            core_candidates, run_time, enriched,
             dashboard_links=dashboard_links,
             market_summary_extra=_ms_extra,
             leading_sectors=leading_sectors,
+            watch_candidates=watch_candidates,
         )
         ntf.send_message(msg)
-        logger.info(f"2차 알림 전송 완료 (핵심 후보 {len(key_candidates)}개)")
+        logger.info(f"2차 알림 전송 완료 (핵심 {len(core_candidates)}개 / 관심 {len(watch_candidates)}개)")
 
     if ENABLE_DASHBOARD:
         try:
