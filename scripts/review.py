@@ -1,6 +1,7 @@
 # scripts/review.py
 """T+1 자동 복기 — 어제 신호 성과 측정 및 실패 원인 분류"""
 
+import json
 import logging
 import time
 from datetime import date, timedelta
@@ -21,21 +22,20 @@ _SIGNALS_DIR = Path("data/signals")
 _MAX_REVIEW   = 15  # 최대 복기 종목 수 (요청 시간 제한)
 
 
-def _find_yesterday_signals(today: date) -> pd.DataFrame | None:
-    """최근 거래일(최대 7일 이내) 2차(1750) → 1차(1450) 순으로 signals CSV 탐색."""
+def _find_yesterday_signals(today: date) -> tuple[pd.DataFrame | None, str | None]:
+    """최근 거래일(최대 7일 이내) signals CSV 탐색. 같은 날 여러 개면 타임스탬프 최신 우선."""
     for days_back in range(1, 8):
         d     = today - timedelta(days=days_back)
         d_str = d.isoformat()
-        for suffix in ("1750", "1450"):
-            path = _SIGNALS_DIR / f"{d_str}_{suffix}_signals.csv"
-            if path.exists():
-                try:
-                    df = pd.read_csv(path, dtype={"종목코드": str})
-                    logger.info(f"복기 시그널 로드: {path} ({len(df)}개)")
-                    return df
-                except Exception as e:
-                    logger.warning(f"시그널 로드 실패 {path}: {e}")
-    return None
+        matches = sorted(_SIGNALS_DIR.glob(f"{d_str}_*_signals.csv"), reverse=True)
+        for path in matches:
+            try:
+                df = pd.read_csv(path, dtype={"종목코드": str})
+                logger.info(f"복기 시그널 로드: {path} ({len(df)}개)")
+                return df, d_str
+            except Exception as e:
+                logger.warning(f"시그널 로드 실패 {path}: {e}")
+    return None, None
 
 
 def _classify_fail_reason(gap_pct: float, kospi_chg: float | None) -> str | None:
@@ -56,7 +56,7 @@ def run(today: date, kospi_chg_today: float | None) -> list[dict]:
     어제 신호 → 오늘 시가 갭 측정 → 실패 원인 분류.
     반환: list[dict] — 각 dict에 gap_pct, result, fail_reason 포함.
     """
-    signals_df = _find_yesterday_signals(today)
+    signals_df, yesterday_str = _find_yesterday_signals(today)
     if signals_df is None or signals_df.empty:
         logger.info("복기: 어제 시그널 없음")
         return []
@@ -81,6 +81,7 @@ def run(today: date, kospi_chg_today: float | None) -> list[dict]:
             "fail_reason":  None,
             "pattern_type": str(row.get("pattern_type_label", "")),
             "sector":       str(row.get("sector", "")),
+            "total_score":  int(row.get("total_score") or 0),
         }
 
         try:
@@ -133,4 +134,13 @@ def run(today: date, kospi_chg_today: float | None) -> list[dict]:
     success_n = sum(1 for r in results if r.get("result") == "성공")
     total_n   = sum(1 for r in results if r.get("result") in ("성공", "실패"))
     logger.info(f"복기 완료: {success_n}/{total_n} 성공")
+
+    if yesterday_str and results:
+        out_path = _SIGNALS_DIR / f"{yesterday_str}_review.json"
+        try:
+            out_path.write_text(json.dumps(results, ensure_ascii=False, indent=2), encoding="utf-8")
+            logger.info(f"복기 결과 저장: {out_path}")
+        except Exception as e:
+            logger.warning(f"복기 결과 저장 실패: {e}")
+
     return results

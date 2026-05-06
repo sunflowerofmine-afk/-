@@ -112,6 +112,7 @@ SECTOR_TOP_N                        = 5   # 거래대금 상위 N개 섹터
 ENABLE_NXT_FETCH                    = True
 
 # ── 장세별 핵심 후보 상한선 ──────────────────────────────────
-CANDIDATES_MAX_BULL    = 5   # 강세
-CANDIDATES_MAX_NEUTRAL = 3   # 중립
-CANDIDATES_MAX_BEAR    = 2   # 약세
+CANDIDATES_MAX_BULL               = 5   # 강세
+CANDIDATES_MAX_NEUTRAL            = 3   # 중립
+CANDIDATES_MAX_BEAR               = 2   # 약세 (전체하락형·혼조형)
+CANDIDATES_MAX_CONCENTRATED_BEAR  = 3   # 약세 + 자금집중형 (지수 강세 & ADL 약세)

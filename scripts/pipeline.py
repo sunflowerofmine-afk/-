@@ -19,7 +19,7 @@ from config.settings import (
     ENABLE_SECTOR_FETCH, SECTOR_TOP_N,
     ENABLE_NXT_FETCH,
     MARKET_REGIME_BULL_ADL, MARKET_REGIME_BEAR_ADL, MARKET_REGIME_BULL_TV1500,
-    CANDIDATES_MAX_BULL, CANDIDATES_MAX_NEUTRAL, CANDIDATES_MAX_BEAR,
+    CANDIDATES_MAX_BULL, CANDIDATES_MAX_NEUTRAL, CANDIDATES_MAX_BEAR, CANDIDATES_MAX_CONCENTRATED_BEAR,
 )
 from scripts.market_calendar import get_now_kst, is_trading_day, get_run_type
 from scripts.storage import save_raw, save_processed, save_signals
@@ -54,31 +54,52 @@ def _setup_logging(timestamp_str: str):
 
 
 
-def _calc_market_type(gainers_records: list, market_regime: str) -> str:
+def _short_sector(name: str) -> str:
+    return name.split("와")[0] if "와" in name else name
+
+
+def _calc_market_type(gainers_records: list, market_regime: str,
+                      leading_sectors: list | None = None) -> str:
     """
-    상승 Top20 섹터 분포 기반 장세 유형 텍스트.
-    기준: 상위 섹터가 Top20의 30%↑ 차지 시 테마주 장세.
+    장세 유형 텍스트.
+    판단 우선순위: 섹터 거래대금 비중(TV%) > 상승률 Top20 개수.
     정보 출력 목적 — 자동 판단 아님.
     """
+    # 1. 거래대금 비중 기반 (우선)
+    if leading_sectors:
+        top   = leading_sectors[0]
+        ratio = top.get("market_ratio_pct") or 0
+        short = _short_sector(top.get("sector_name", ""))
+        if ratio >= 25:
+            if len(leading_sectors) >= 2:
+                r2 = leading_sectors[1].get("market_ratio_pct") or 0
+                s2 = _short_sector(leading_sectors[1].get("sector_name", ""))
+                if r2 >= 10:
+                    return f"섹터집중 ({short} {ratio:.1f}% · {s2} {r2:.1f}%)"
+            return f"섹터집중 ({short} {ratio:.1f}%)"
+        if ratio >= 10:
+            return f"약섹터집중 ({short} {ratio:.1f}%)"
+
+    # 2. 상승률 Top20 개수 기반 (폴백)
     from collections import Counter
     sectors = [r.get("sector", "") for r in gainers_records if r.get("sector")]
     if not sectors:
         return ""
-    total = len(gainers_records)
-    counter = Counter(sectors)
+    total     = len(gainers_records)
+    counter   = Counter(sectors)
     top_items = counter.most_common(3)
     top_sector, top_count = top_items[0]
     top_ratio = top_count / total
     if top_ratio >= 0.30:
         if len(top_items) >= 2 and top_items[1][1] >= 3:
             s2, n2 = top_items[1]
-            return f"테마주 장세 ({top_sector} {top_count}개·{s2} {n2}개 주도)"
-        return f"테마주 장세 ({top_sector} {top_count}개 주도)"
+            return f"테마주 장세 ({top_sector} {top_count}개·{s2} {n2}개)"
+        return f"테마주 장세 ({top_sector} {top_count}개)"
     if top_ratio >= 0.20:
-        return f"약테마 ({top_sector} {top_count}개 중심, 분산)"
+        return f"약테마 ({top_sector} {top_count}개 중심)"
     if market_regime == "강세":
-        return "수급주 장세 (전 섹터 고른 상승)"
-    return "혼조 (특정 테마 없음)"
+        return "수급 장세 (전 섹터 분산)"
+    return "혼조 (특정 주도 없음)"
 
 
 def _calc_market_regime(all_df: pd.DataFrame, tv_1500_count: int) -> tuple[str, float]:
@@ -351,6 +372,9 @@ def run():
     _total_market_tv_eok = (
         market_totals.get("kospi_total_tv_eok", 0) + market_totals.get("kosdaq_total_tv_eok", 0)
     )
+    _min_tv_won_sec  = MIN_TRADING_VALUE_EOK * 100_000_000
+    _gainer_codes    = set(gainers["종목코드"].astype(str)) if not gainers.empty else set()
+    _tv20_codes      = set(top_tv["종목코드"].astype(str))  if not top_tv.empty  else set()
     leading_sectors = []
     for sec in sector_result.get("top_sectors", []):
         sec_codes = set(sec.get("stock_codes", []))
@@ -368,12 +392,16 @@ def run():
         avg_chg = float(pos_df["등락률"].mean()) if not pos_df.empty else 0.0
         sec_tv_eok = round(float(sec_df["거래대금"].sum()) / 1e8, 0)
         market_ratio_pct = round(sec_tv_eok / _total_market_tv_eok * 100, 1) if _total_market_tv_eok > 0 else None
+        sec_codes_str = set(sec_df["종목코드"].astype(str))
         leading_sectors.append({
-            "sector_name":      sec["sector_name"],
-            "change_pct":       avg_chg,
-            "tv_eok":           sec_tv_eok,
-            "market_ratio_pct": market_ratio_pct,
-            "top_stocks":       top_stocks,
+            "sector_name":        sec["sector_name"],
+            "change_pct":         avg_chg,
+            "tv_eok":             sec_tv_eok,
+            "market_ratio_pct":   market_ratio_pct,
+            "top_stocks":         top_stocks,
+            "tv1500_count":       int((sec_df["거래대금"] >= _min_tv_won_sec).sum()),
+            "gainer_top20_count": sum(1 for c in sec_codes_str if c in _gainer_codes),
+            "tv_top20_count":     sum(1 for c in sec_codes_str if c in _tv20_codes),
         })
 
     # gainers_top20, trading_value_top20에 sector 태그 추가
@@ -404,7 +432,7 @@ def run():
     limit_up_names = [r["종목명"] for r in limit_up_list[:5]]
 
     market_regime, _market_adl = _calc_market_regime(all_df, tv_1500_count)
-    market_type    = _calc_market_type(gainers_top20_records, market_regime)
+    market_type    = _calc_market_type(gainers_top20_records, market_regime, leading_sectors)
     _kospi_chg     = index_levels.get("kospi_chg")
     market_subtype = _calc_market_subtype(market_regime, _kospi_chg)
     logger.info(f"시장 상태: {market_regime}{' · ' + market_subtype if market_subtype else ''} | 장세: {market_type}")
@@ -416,6 +444,13 @@ def run():
         review_results = _review.run(now.date(), _kospi_chg)
     except Exception as e:
         logger.warning(f"복기 실패 (무시): {e}")
+
+    cumulative_stats = {}
+    try:
+        from scripts import stats as _stats
+        cumulative_stats = _stats.run()
+    except Exception as e:
+        logger.warning(f"누적 통계 실패 (무시): {e}")
 
     report_data = {
         "metadata": {
@@ -451,6 +486,7 @@ def run():
         "leading_sectors":        leading_sectors,
         "sector_calendar":        {},
         "review_results":         review_results,
+        "cumulative_stats":       cumulative_stats,
     }
 
     # 섹터 캘린더 업데이트 (2차/수동에서만 확정 데이터로 기록)
@@ -599,11 +635,14 @@ def run():
     key_candidates.sort(key=_priority)
 
     # ── 장세별 핵심/관심 분리 ────────────────────────────────
-    _max_n = {
-        "강세": CANDIDATES_MAX_BULL,
-        "중립": CANDIDATES_MAX_NEUTRAL,
-        "약세": CANDIDATES_MAX_BEAR,
-    }.get(market_regime, CANDIDATES_MAX_NEUTRAL)
+    if market_regime == "강세":
+        _max_n = CANDIDATES_MAX_BULL
+    elif market_regime == "중립":
+        _max_n = CANDIDATES_MAX_NEUTRAL
+    elif market_regime == "약세" and market_subtype == "자금집중형":
+        _max_n = CANDIDATES_MAX_CONCENTRATED_BEAR
+    else:
+        _max_n = CANDIDATES_MAX_BEAR
     core_candidates  = key_candidates[:_max_n]
     watch_candidates = key_candidates[_max_n:]
     logger.info(f"장세={market_regime} → 핵심 {len(core_candidates)}개 / 관심 {len(watch_candidates)}개")

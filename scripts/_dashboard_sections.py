@@ -240,9 +240,9 @@ def _section_env_and_signals(data: dict) -> str:
     subtype_str   = f" · {_subtype_icon.get(market_subtype,'')} {market_subtype}" if market_subtype else ""
     regime_html   = f'<span class="{rcls}" style="font-size:13px;padding:2px 10px">{rlabel}{adl_suffix}{subtype_str}</span>'
 
-    inter_interp  = "주도주 경쟁 있음" if inter_n > 0 else "주도주 부재"
-    tv1500_interp = "자금 집중" if tv_1500 >= 5 else ("보통" if tv_1500 >= 3 else "자금 분산")
-    g1500_interp  = "방향성 강함" if g_tv_1500 >= 3 else ("보통" if g_tv_1500 >= 1 else "방향성 약함")
+    inter_interp  = f"상승률·거래대금 Top20 동시 진입 {inter_n}개" if inter_n > 0 else "교집합 없음"
+    tv1500_interp = f"전체 {tv_1500}개"
+    g1500_interp  = f"상승Top20 중 {g_tv_1500}개 포함"
 
     market_type_row = (
         f'<div class="env-row"><span class="env-label">장세 유형</span>'
@@ -853,6 +853,48 @@ def _section_table_intersection(rows: list) -> str:
         '<div class="tbl-wrap"><table>'
         f'<thead>{header}</thead><tbody>{"".join(body_rows)}</tbody>'
         '</table></div>'
+    )
+
+
+def _section_cumulative_stats(stats: dict) -> str:
+    if not stats or not stats.get("total_measured"):
+        return ""
+
+    total = stats["total_measured"]
+
+    def _rows(data: dict) -> str:
+        html = ""
+        for key, v in data.items():
+            rate = v["rate"]
+            color = "var(--green)" if rate >= 60 else ("var(--yellow)" if rate >= 40 else "var(--red)")
+            html += (
+                f"<tr>"
+                f"<td>{_e(key)}</td>"
+                f'<td style="text-align:center">{v["total"]}</td>'
+                f'<td style="text-align:center">{v["success"]}</td>'
+                f'<td style="text-align:center;color:{color};font-weight:600">{rate}%</td>'
+                f"</tr>"
+            )
+        return html
+
+    def _tbl(title: str, data: dict) -> str:
+        if not data:
+            return ""
+        return (
+            f'<div style="flex:1;min-width:220px">'
+            f'<div style="font-size:12px;color:var(--muted);margin-bottom:6px">{title}</div>'
+            f'<div class="tbl-wrap"><table>'
+            f"<thead><tr><th>구분</th><th>횟수</th><th>성공</th><th>승률</th></tr></thead>"
+            f"<tbody>{_rows(data)}</tbody>"
+            f"</table></div></div>"
+        )
+
+    return (
+        f'<div class="section-title">📊 누적 승률 ({total}개 측정)</div>'
+        f'<div style="display:flex;gap:24px;flex-wrap:wrap;margin-bottom:16px">'
+        f'{_tbl("패턴별", stats.get("pattern", {}))}'
+        f'{_tbl("스코어 구간별", stats.get("score_band", {}))}'
+        f"</div>"
     )
 
 

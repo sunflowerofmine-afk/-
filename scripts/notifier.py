@@ -138,8 +138,14 @@ def _has_news(news) -> bool:
 _BASE_TIME_MAP = {"1차": "14:50", "2차": "17:50"}
 
 
+def _short_sector_name(name: str) -> str:
+    """섹터명 단축: '반도체와반도체장비' → '반도체'"""
+    return name.split("와")[0] if "와" in name else name
+
+
 def format_market_summary(market_totals: dict, run_time: str, run_type: str,
-                          extra: dict | None = None) -> str:
+                          extra: dict | None = None,
+                          leading_sectors: list | None = None) -> str:
     parts = run_time.split(" ", 1)
     date_str = parts[0]
     time_str = parts[1] if len(parts) > 1 else run_time
@@ -163,12 +169,32 @@ def format_market_summary(market_totals: dict, run_time: str, run_type: str,
     kosdaq_chg     = ex.get("kosdaq_chg")
 
     _subtype_icon = {"자금집중형": "💰", "전체하락형": "⬇", "혼조형": "↔"}
-    _regime_map = {"강세": "🟢 강세", "약세": "🔴 약세", "중립": "⚪ 중립"}
+    _regime_map   = {"강세": "🟢 강세", "약세": "🔴 약세", "중립": "⚪ 중립"}
     regime_str    = _regime_map.get(regime, regime)
-    adl_str       = f" (ADL {market_adl*100:.1f}% · 1500억↑{tv1500}개)" if market_adl is not None else ""
-    subtype_str   = f" | {_subtype_icon.get(market_subtype, '')} {market_subtype}" if market_subtype else ""
-    type_str      = f" | {market_type}" if market_type else ""
-    regime_line   = f"[시장] {regime_str}{adl_str}{subtype_str}{type_str}\n" if regime else ""
+
+    is_concentrated = (market_subtype == "자금집중형")
+
+    if is_concentrated:
+        adl_pct     = f"{market_adl*100:.0f}%" if market_adl is not None else "?"
+        regime_line = f"[시장] 🔴 ADL 약세 {adl_pct} | 💰 자금집중형\n" if regime else ""
+
+        sector_parts = []
+        for s in (leading_sectors or [])[:3]:
+            short = _short_sector_name(s.get("sector_name", ""))
+            ratio = s.get("market_ratio_pct")
+            if short and ratio is not None:
+                sector_parts.append(f"{short} {ratio:.1f}%")
+        concentration_line = f"자금 집중: {' / '.join(sector_parts)}\n" if sector_parts else ""
+        interpretation_line = "해석: 전체 확산은 약함. 후보는 주도섹터·교집합 중심 확인.\n"
+        type_str = ""
+    else:
+        adl_str     = f" (ADL {market_adl*100:.1f}% · 1500억↑{tv1500}개)" if market_adl is not None else ""
+        subtype_str = f" | {_subtype_icon.get(market_subtype, '')} {market_subtype}" if market_subtype else ""
+        type_str    = f" | {market_type}" if market_type else ""
+        regime_line = f"[시장] {regime_str}{adl_str}{subtype_str}{type_str}\n" if regime else ""
+        concentration_line  = ""
+        interpretation_line = ""
+
     limit_up_line = f"상한가 {limit_up_n}개\n" if limit_up_n > 0 else ""
 
     def _idx(level, chg):
@@ -185,30 +211,43 @@ def format_market_summary(market_totals: dict, run_time: str, run_type: str,
 
     return (
         f"{regime_line}"
+        f"{concentration_line}"
         f"<b>[종가베팅 스캔] {date_str} · {base_time} KST</b>\n"
         f"{idx_line}"
         f"{tv_line}"
         f"1500억↑ {tv1500}개 | 상승Top 중 {g_tv1500}개\n"
         f"교집합 {inter_n}개 | 핵심후보 {core_n}개\n"
         f"{limit_up_line}"
+        f"{interpretation_line}"
     )
 
 
 # ── 섹터 섹션 (#3) ───────────────────────────────────────
 
 def format_sector_section(leading_sectors: list) -> str:
-    """주도 섹터 거래대금 요약 (상위 5개)"""
+    """주도 섹터 거래대금 요약"""
     if not leading_sectors:
         return ""
     lines = ["<b>[주도섹터]</b>"]
     for s in leading_sectors:
-        name    = s.get("sector_name", "")
-        tv      = float(s.get("tv_eok", 0))
-        avg_chg = float(s.get("change_pct", 0))
-        mkt_r   = s.get("market_ratio_pct")
-        ratio   = f"{mkt_r:.1f}%" if mkt_r is not None else "-"
-        chg_str = f"+{avg_chg:.1f}%" if avg_chg >= 0 else f"{avg_chg:.1f}%"
-        lines.append(f"  {name} {_tv_eok(tv*1e8)} (시장{ratio}) {chg_str}")
+        name       = _short_sector_name(s.get("sector_name", ""))
+        tv         = float(s.get("tv_eok", 0))
+        avg_chg    = float(s.get("change_pct", 0))
+        mkt_r      = s.get("market_ratio_pct")
+        tv1500     = s.get("tv1500_count")
+        gainer_n   = s.get("gainer_top20_count")
+        tv20_n     = s.get("tv_top20_count")
+        ratio      = f"{mkt_r:.1f}%" if mkt_r is not None else "-"
+        chg_str    = f"+{avg_chg:.1f}%" if avg_chg >= 0 else f"{avg_chg:.1f}%"
+        detail_parts = []
+        if tv1500 is not None:
+            detail_parts.append(f"1500억↑{tv1500}개")
+        if gainer_n is not None:
+            detail_parts.append(f"상승Top{gainer_n}개")
+        if tv20_n is not None:
+            detail_parts.append(f"대금Top{tv20_n}개")
+        detail = f" [{' · '.join(detail_parts)}]" if detail_parts else ""
+        lines.append(f"  {name} {_tv_eok(tv*1e8)} (시장{ratio}) {chg_str}{detail}")
     return "\n".join(lines) + "\n"
 
 
@@ -455,7 +494,7 @@ def build_first_alert(
     inter_codes    = ex.get("inter_codes", set())
     code_to_sector = ex.get("code_to_sector", {})
     parts = [
-        format_market_summary(market_totals, run_time, "1차", extra=ex),
+        format_market_summary(market_totals, run_time, "1차", extra=ex, leading_sectors=leading_sectors),
         format_sector_section(leading_sectors or []),
         format_limit_up_section(ex, code_to_sector),
         format_intersection(intersection, enriched, code_to_sector),
@@ -487,7 +526,7 @@ def build_second_alert(
     inter_codes    = ex.get("inter_codes", set())
     code_to_sector = ex.get("code_to_sector", {})
     parts = [
-        format_market_summary(market_totals, run_time, "2차", extra=ex),
+        format_market_summary(market_totals, run_time, "2차", extra=ex, leading_sectors=leading_sectors),
         format_sector_section(leading_sectors or []),
         format_limit_up_section(ex, code_to_sector),
         format_intersection(intersection, enriched, code_to_sector),
