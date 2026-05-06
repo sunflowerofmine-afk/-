@@ -116,3 +116,17 @@ CANDIDATES_MAX_BULL               = 5   # 강세
 CANDIDATES_MAX_NEUTRAL            = 3   # 중립
 CANDIDATES_MAX_BEAR               = 2   # 약세 (전체하락형·혼조형)
 CANDIDATES_MAX_CONCENTRATED_BEAR  = 3   # 약세 + 자금집중형 (지수 강세 & ADL 약세)
+
+# ── 고가수축형(HTC) 패턴 파라미터 ─────────────────────────────
+HTC_BASE_LOOKBACK_DAYS                   = 3      # 기준봉 탐색 범위 (일)
+HTC_POST_AVG_TV_RATIO_MAX                = 0.5    # 기준봉 이후 평균 거래대금 ≤ 기준봉 × 0.5
+HTC_TODAY_TV_RATIO_MAX                   = 0.4    # 오늘 거래대금 ≤ 기준봉 × 0.4
+HTC_MIN_TODAY_TV_EOK                     = 300    # 오늘 거래대금 최소값 (억)
+HTC_CLOSE_FROM_BASE_HIGH_MIN_PCT         = -5.0   # 오늘 종가 ≥ 기준봉 고가 × (1 - 5%)
+HTC_CLOSE_FROM_BASE_CLOSE_MIN_PCT        = -3.0   # 오늘 종가 ≥ 기준봉 종가 × (1 - 3%)
+HTC_LOWEST_CLOSE_FROM_BASE_CLOSE_MIN_PCT = -5.0   # 기준봉 이후 최저 종가 ≥ 기준봉 종가 × (1 - 5%)
+HTC_RANGE_MAX_PCT                        = 8.0    # 기준봉 이후 고가~저가 변동폭 ≤ 8%
+HTC_CLOSE_RANGE_MAX_PCT                  = 5.0    # 기준봉 이후 종가 변동폭 ≤ 5%
+HTC_STRUCTURE_BREAK_FROM_BASE_HIGH_PCT   = -8.0   # 중간 거래일 종가 기준봉 고가 대비 -8% 초과 시 구조 붕괴
+HTC_BREAKDOWN_CANDLE_CHANGE_MIN_PCT      = -5.0   # 구조붕괴 장대음봉 등락률 기준
+HTC_BREAKDOWN_CANDLE_TV_RATIO_MIN        = 0.3    # 구조붕괴 장대음봉 거래대금 기준 (기준봉 대비)

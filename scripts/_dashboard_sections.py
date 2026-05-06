@@ -482,6 +482,7 @@ def _section_stock_panel(candidates: list, rejected: list) -> str:
         if near_h52w:   tags.append("📈52w")
         if consol_flag: tags.append("📊기간조정")
         if pbs_flag:    tags.append("↩되돌림지지")
+        if pat.get("high_tight_consolidation_flag"): tags.append("🔶고가수축")
         tags_str = "  ".join(tags)
 
         pri_html  = (
@@ -535,6 +536,10 @@ def _section_stock_panel(candidates: list, rejected: list) -> str:
             "supply_label":  sup.get("supply_label", ""),
             "supply_ok":     sup.get("status") == "ok",
             "prog_net_str":  (f"{c['prog_net_eok']:+.0f}억" if c.get("prog_net_eok") is not None else None),
+            "htc_flag":      pat.get("high_tight_consolidation_flag", False),
+            "htc_reignite":  pat.get("high_tight_reignite_flag", False),
+            "htc_avg_str":   (f"{pat['high_tight_tv_ratio_avg']*100:.0f}%" if pat.get("high_tight_tv_ratio_avg") is not None else ""),
+            "htc_chg_str":   (f"{pat['high_tight_close_from_base_high_pct']:+.1f}%" if pat.get("high_tight_close_from_base_high_pct") is not None else ""),
             "strengths":    _compute_strengths(c),
             "weaknesses":   _compute_weaknesses(c),
             "checkpoints":  _compute_checkpoints(c),
@@ -555,7 +560,8 @@ function renderDetail(idx) {{
   const chgCls  = c.chg_pos ? 'td-pos' : 'td-neg';
   const extraTags = (c.near_h52w   ? ' <span style="color:var(--green)">📈52w</span>' : '') +
                    (c.consol_flag ? ' <span style="color:var(--blue)">📊기간조정</span>' : '') +
-                   (c.pbs_flag    ? ' <span style="color:var(--purple)">↩되돌림지지</span>' : '');
+                   (c.pbs_flag    ? ' <span style="color:var(--purple)">↩되돌림지지</span>' : '') +
+                   (c.htc_flag    ? ' <span style="color:var(--yellow)">🔶고가수축' + (c.htc_reignite ? '⚡' : '') + (c.htc_avg_str ? ' ' + c.htc_avg_str : '') + (c.htc_chg_str ? ' ' + c.htc_chg_str : '') + '</span>' : '');
   const tagsHtml = (c.in_inter ? '<span class="badge inter">★교집합</span> ' : '') +
                    (c.high_tag ? '<span style="color:var(--yellow)">' + c.high_tag + '</span>' : '') +
                    extraTags;

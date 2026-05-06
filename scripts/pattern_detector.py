@@ -22,6 +22,17 @@ from config.settings import (
     PULLBACK_RESISTANCE_LOOKBACK_DAYS,
     PULLBACK_RESISTANCE_RECENT_DAYS,
     PULLBACK_RETEST_MARGIN_PCT,
+    HTC_POST_AVG_TV_RATIO_MAX,
+    HTC_TODAY_TV_RATIO_MAX,
+    HTC_MIN_TODAY_TV_EOK,
+    HTC_CLOSE_FROM_BASE_HIGH_MIN_PCT,
+    HTC_CLOSE_FROM_BASE_CLOSE_MIN_PCT,
+    HTC_LOWEST_CLOSE_FROM_BASE_CLOSE_MIN_PCT,
+    HTC_RANGE_MAX_PCT,
+    HTC_CLOSE_RANGE_MAX_PCT,
+    HTC_STRUCTURE_BREAK_FROM_BASE_HIGH_PCT,
+    HTC_BREAKDOWN_CANDLE_CHANGE_MIN_PCT,
+    HTC_BREAKDOWN_CANDLE_TV_RATIO_MIN,
 )
 from scripts.indicators import is_big_candle, is_first_big_candle, is_ma_cluster, calc_all_ma
 
@@ -60,6 +71,126 @@ def _find_recent_big_candle(daily_df: pd.DataFrame, start_idx: int, lookback: in
         except Exception:
             continue
     return None
+
+
+def detect_high_tight_consolidation(
+    daily_df: pd.DataFrame,
+    base_idx: int | None,
+    today_close: float,
+    today_high: float,
+    today_tv: float,
+    structure_broken_flag: bool,
+) -> dict:
+    """
+    고가수축형: 강한 기준봉 이후 1~3일 거래대금 수축 + 고가권 유지.
+    기준봉은 _find_recent_big_candle()로 이미 탐지된 base_idx를 재사용.
+    """
+    _default = {
+        "high_tight_consolidation_flag":      False,
+        "high_tight_reignite_flag":           False,
+        "high_tight_base_offset":             None,
+        "high_tight_tv_ratio_avg":            None,
+        "high_tight_today_tv_ratio":          None,
+        "high_tight_close_from_base_high_pct": None,
+        "high_tight_status":                  "",
+    }
+
+    if base_idx is None or base_idx < 1 or structure_broken_flag:
+        return _default
+    if len(daily_df) <= base_idx:
+        return _default
+
+    base_row   = daily_df.iloc[base_idx]
+    base_high  = float(base_row.get("high",          0) or 0)
+    base_close = float(base_row.get("close",         0) or 0)
+    base_open  = float(base_row.get("open",          0) or 0)
+    base_tv    = float(base_row.get("trading_value", 0) or 0)
+
+    if base_high <= 0 or base_close <= 0 or base_tv <= 0:
+        return _default
+
+    # 기준봉 이후 구간 (오늘 포함): 인덱스 0 ~ base_idx-1
+    post_idx    = list(range(0, base_idx))
+    post_tvs    = [float(daily_df.iloc[i].get("trading_value", 0) or 0) for i in post_idx]
+    post_closes = [float(daily_df.iloc[i].get("close",         0) or 0) for i in post_idx]
+    post_highs  = [float(daily_df.iloc[i].get("high",          0) or 0) for i in post_idx]
+    post_lows   = [float(daily_df.iloc[i].get("low",           0) or 0) for i in post_idx]
+
+    avg_tv    = sum(post_tvs) / len(post_tvs) if post_tvs else 0
+    max_h     = max(post_highs) if post_highs else 0
+    min_l     = min(post_lows)  if post_lows  else 0
+    max_close = max(post_closes) if post_closes else 0
+    min_close = min(post_closes) if post_closes else 0
+
+    close_from_base_high = round((today_close - base_high) / base_high * 100, 2)
+
+    # ── 1. 가격 유지 조건 ─────────────────────────────────────
+    if close_from_base_high < HTC_CLOSE_FROM_BASE_HIGH_MIN_PCT:
+        return {**_default, "high_tight_close_from_base_high_pct": close_from_base_high}
+    if (today_close - base_close) / base_close * 100 < HTC_CLOSE_FROM_BASE_CLOSE_MIN_PCT:
+        return {**_default, "high_tight_close_from_base_high_pct": close_from_base_high}
+    if min_close > 0 and (min_close - base_close) / base_close * 100 < HTC_LOWEST_CLOSE_FROM_BASE_CLOSE_MIN_PCT:
+        return {**_default, "high_tight_close_from_base_high_pct": close_from_base_high}
+
+    # ── 2. 거래대금 수축 ──────────────────────────────────────
+    tv_ratio_avg   = avg_tv   / base_tv
+    tv_ratio_today = today_tv / base_tv
+
+    if tv_ratio_avg > HTC_POST_AVG_TV_RATIO_MAX:
+        return {**_default, "high_tight_close_from_base_high_pct": close_from_base_high}
+    if tv_ratio_today > HTC_TODAY_TV_RATIO_MAX:
+        return {**_default, "high_tight_close_from_base_high_pct": close_from_base_high}
+    if today_tv < HTC_MIN_TODAY_TV_EOK * 100_000_000:
+        return {**_default, "high_tight_close_from_base_high_pct": close_from_base_high}
+
+    # ── 3. 변동폭 축소 ────────────────────────────────────────
+    range_pct       = (max_h - min_l)         / max_h     * 100 if max_h     > 0 else 0
+    close_range_pct = (max_close - min_close) / max_close * 100 if max_close > 0 else 0
+
+    if range_pct > HTC_RANGE_MAX_PCT or close_range_pct > HTC_CLOSE_RANGE_MAX_PCT:
+        return {**_default, "high_tight_close_from_base_high_pct": close_from_base_high}
+
+    # ── 4. 중간 거래일 구조 붕괴 추가 검사 ───────────────────
+    base_body_mid = (base_open + base_close) / 2
+    for i in post_idx[1:]:   # 오늘(0) 제외, 중간 거래일만
+        d = daily_df.iloc[i]
+        d_close  = float(d.get("close",         0) or 0)
+        d_open   = float(d.get("open",          0) or 0)
+        d_change = float(d.get("change",        0) or 0)
+        d_tv     = float(d.get("trading_value", 0) or 0)
+
+        if base_high > 0 and d_close > 0:
+            if (d_close - base_high) / base_high * 100 < HTC_STRUCTURE_BREAK_FROM_BASE_HIGH_PCT:
+                return {**_default, "high_tight_close_from_base_high_pct": close_from_base_high}
+        if d_close > 0 and base_body_mid > 0 and d_close < base_body_mid:
+            return {**_default, "high_tight_close_from_base_high_pct": close_from_base_high}
+        is_breakdown_candle = (
+            d_close < d_open and
+            d_change <= HTC_BREAKDOWN_CANDLE_CHANGE_MIN_PCT and
+            d_tv >= base_tv * HTC_BREAKDOWN_CANDLE_TV_RATIO_MIN
+        )
+        if is_breakdown_candle:
+            return {**_default, "high_tight_close_from_base_high_pct": close_from_base_high}
+
+    # ── 5. 재점화 조짐 플래그 ──────────────────────────────────
+    reignite = False
+    if len(post_tvs) >= 2 and post_tvs[0] > post_tvs[1]:
+        reignite = True
+    recent_high_excl_today = max(post_highs[1:]) if len(post_highs) > 1 else 0
+    if recent_high_excl_today > 0 and today_close > recent_high_excl_today:
+        reignite = True
+    if today_high > 0 and (today_high - today_close) / today_high * 100 <= 2.0:
+        reignite = True
+
+    return {
+        "high_tight_consolidation_flag":       True,
+        "high_tight_reignite_flag":            reignite,
+        "high_tight_base_offset":              base_idx,
+        "high_tight_tv_ratio_avg":             round(tv_ratio_avg,   3),
+        "high_tight_today_tv_ratio":           round(tv_ratio_today, 3),
+        "high_tight_close_from_base_high_pct": close_from_base_high,
+        "high_tight_status":                   "고가권 물량소화",
+    }
 
 
 def detect_consolidation_breakout(
@@ -193,6 +324,13 @@ def detect_patterns(
         "near_high_60d": False,
         "consolidation_flag": False,
         "pullback_support_flag": False,
+        "high_tight_consolidation_flag":       False,
+        "high_tight_reignite_flag":            False,
+        "high_tight_base_offset":              None,
+        "high_tight_tv_ratio_avg":             None,
+        "high_tight_today_tv_ratio":           None,
+        "high_tight_close_from_base_high_pct": None,
+        "high_tight_status":                   "",
         "details": {},
     }
 
@@ -313,27 +451,6 @@ def detect_patterns(
         and (tv_ratio is None or tv_ratio >= TV_RATIO_WATCH_MIN)
     )
 
-    # ── 대표 타입 ─────────────────────────────────────────
-    if p1:
-        pattern_type_label = "당일돌파형"
-        base_candle_day_offset = 0
-    elif p3:
-        pattern_type_label = "고가횡보형"
-        base_candle_day_offset = base_idx
-    elif p2:
-        pattern_type_label = "눌림관찰형"
-        base_candle_day_offset = base_idx
-    else:
-        pattern_type_label = "없음"
-        base_candle_day_offset = base_idx
-
-    active_labels = (
-        (["당일돌파형"] if p1 else [])
-        + (["고가횡보형"] if p3 else [])
-        + (["눌림관찰형"] if p2 else [])
-    )
-    pattern_summary = "+".join(active_labels) if active_labels else "없음"
-
     # ── 기준봉 이후 1~3일 상세 (base_idx > 1인 경우만) ──────────
     post_base_days: list[dict] = []
     if base_idx is not None and base_idx > 1:
@@ -369,6 +486,42 @@ def detect_patterns(
         if is_base_today or not closes_upper:
             pbs["pullback_support_flag"] = False
 
+    # ── 고가수축형 ─────────────────────────────────────────────
+    htc = detect_high_tight_consolidation(
+        daily_df=daily_df,
+        base_idx=base_idx,
+        today_close=today_close,
+        today_high=today_high,
+        today_tv=today_tv,
+        structure_broken_flag=structure_broken_flag,
+    )
+    p_htc = htc["high_tight_consolidation_flag"]
+
+    # ── 대표 타입 (우선순위: 당일돌파형 > 고가수축형 > 고가횡보형 > 눌림관찰형) ──
+    if p1:
+        pattern_type_label    = "당일돌파형"
+        base_candle_day_offset = 0
+    elif p_htc:
+        pattern_type_label    = "고가수축형"
+        base_candle_day_offset = htc["high_tight_base_offset"]
+    elif p3:
+        pattern_type_label    = "고가횡보형"
+        base_candle_day_offset = base_idx
+    elif p2:
+        pattern_type_label    = "눌림관찰형"
+        base_candle_day_offset = base_idx
+    else:
+        pattern_type_label    = "없음"
+        base_candle_day_offset = base_idx
+
+    active_labels = (
+        (["당일돌파형"] if p1    else [])
+        + (["고가수축형"] if p_htc else [])
+        + (["고가횡보형"] if p3   else [])
+        + (["눌림관찰형"] if p2   else [])
+    )
+    pattern_summary = "+".join(active_labels) if active_labels else "없음"
+
     result.update({
         "pattern1": p1,
         "pattern2": p2,
@@ -390,6 +543,7 @@ def detect_patterns(
         "near_high_60d": near_high_60d,
         "consolidation_flag":    consol.get("consolidation_flag", False),
         "pullback_support_flag": pbs.get("pullback_support_flag", False),
+        **htc,
         "details": {
             "today_big_candle":        today_bc.get("big_candle", False),
             "today_loose_bc":          today_bc.get("loose_big_candle", False),

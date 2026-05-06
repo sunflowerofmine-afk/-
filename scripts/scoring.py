@@ -96,6 +96,10 @@ def calc_score(
             s.bonus_score += 1
         if patterns.get("pullback_support_flag"):
             s.bonus_score += 1
+        if patterns.get("high_tight_consolidation_flag"):
+            s.bonus_score += 1
+        if patterns.get("high_tight_reignite_flag"):
+            s.bonus_score += 1
 
     s.calc_total()
     return s

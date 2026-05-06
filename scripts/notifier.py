@@ -351,6 +351,9 @@ def _format_candidate_card(seq: int, c: dict) -> str:
     llm_text    = getattr(news, "llm_summary", None) or ""
     is_danbal   = "(단순수급)" in llm_text
 
+    htc_flag    = pat.get("high_tight_consolidation_flag", False)
+    htc_reignite = pat.get("high_tight_reignite_flag", False)
+
     tags = []
     if in_inter:    tags.append("★교집합")
     if new_high:    tags.append("🔺신고가")
@@ -358,6 +361,7 @@ def _format_candidate_card(seq: int, c: dict) -> str:
     if near_h52w:   tags.append("📈52w")
     if consol_flag: tags.append("📊기간조정")
     if pbs_flag:    tags.append("↩되돌림지지(±5%)")
+    if htc_flag:    tags.append("🔶고가수축" + ("⚡" if htc_reignite else ""))
     if is_danbal:   tags.append("⚡단발")
     tag_str = "  " + "  ".join(tags) if tags else ""
 
@@ -371,6 +375,17 @@ def _format_candidate_card(seq: int, c: dict) -> str:
 
     # ── Line 3: 재료 (LLM summary) ─────────────────────────
     llm_line = f"\n  {llm_text}" if llm_text else ""
+
+    # ── Line 3-1: 고가수축형 상세 ────────────────────────────
+    htc_line = ""
+    if htc_flag:
+        avg_r  = pat.get("high_tight_tv_ratio_avg")
+        chg_h  = pat.get("high_tight_close_from_base_high_pct")
+        parts  = []
+        if avg_r  is not None: parts.append(f"대금수축 {avg_r*100:.0f}%")
+        if chg_h  is not None: parts.append(f"고가대비 {chg_h:+.1f}%")
+        if htc_reignite:       parts.append("재점화 조짐")
+        if parts: htc_line = f"\n  고가수축: {' | '.join(parts)}"
 
     # ── Line 4: 수급 ──────────────────────────────────────
     supply_str  = _supply_str(sup)
@@ -402,6 +417,7 @@ def _format_candidate_card(seq: int, c: dict) -> str:
         f" [{c.get('market','')}]{tag_str}\n"
         f"  {_sign(float(c.get('change_pct', 0)))} | {_tv_eok(tv)} | {sector_str}{pattern_str}"
         f"{llm_line}"
+        f"{htc_line}"
         f"{supply_line}"
         f"{prog_line}"
         f"{checklist_line}"
