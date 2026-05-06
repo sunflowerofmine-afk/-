@@ -409,6 +409,14 @@ def run():
     market_subtype = _calc_market_subtype(market_regime, _kospi_chg)
     logger.info(f"시장 상태: {market_regime}{' · ' + market_subtype if market_subtype else ''} | 장세: {market_type}")
 
+    # ── 전일 복기 ───────────────────────────────────────────────────────────
+    review_results = []
+    try:
+        from scripts import review as _review
+        review_results = _review.run(now.date(), _kospi_chg)
+    except Exception as e:
+        logger.warning(f"복기 실패 (무시): {e}")
+
     report_data = {
         "metadata": {
             "date":          report_date,
@@ -442,6 +450,7 @@ def run():
         "rejected_candidates":    [],
         "leading_sectors":        leading_sectors,
         "sector_calendar":        {},
+        "review_results":         review_results,
     }
 
     # 섹터 캘린더 업데이트 (2차/수동에서만 확정 데이터로 기록)
@@ -555,6 +564,7 @@ def run():
             "market":           row.get("시장", ""),
             "change_pct":       float(row.get("등락률", 0)),
             "trading_value":    tv,
+            "signal_price":     float(row.get("현재가", 0)),
             "indicators":       enr.get("indicators", {}),
             "patterns":         pat,
             "supply":           supply,
@@ -652,6 +662,8 @@ def run():
             "시장":               c["market"],
             "등락률":             c["change_pct"],
             "거래대금":           c["trading_value"],
+            "signal_price":       c.get("signal_price", 0),
+            "sector":             c.get("sector", ""),
             "패턴":               c["patterns"].get("pattern_summary", ""),
             "pattern_type_label": c["patterns"].get("pattern_type_label", "없음"),
             "base_candle_offset": c["patterns"].get("base_candle_day_offset"),

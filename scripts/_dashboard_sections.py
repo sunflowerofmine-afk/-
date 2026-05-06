@@ -856,6 +856,64 @@ def _section_table_intersection(rows: list) -> str:
     )
 
 
+def _section_review(results: list) -> str:
+    measured = [r for r in results if r.get("result") in ("성공", "실패")]
+    if not measured:
+        return ""
+
+    success_n = sum(1 for r in measured if r["result"] == "성공")
+    total_n   = len(measured)
+    rate_pct  = success_n / total_n * 100
+
+    fail_counts: dict[str, int] = {}
+    for r in measured:
+        if r["result"] == "실패":
+            reason = r.get("fail_reason") or "혼조"
+            fail_counts[reason] = fail_counts.get(reason, 0) + 1
+
+    reason_parts = " · ".join(f"{k} {v}개" for k, v in fail_counts.items())
+    rate_color   = "var(--green)" if rate_pct >= 60 else ("var(--yellow)" if rate_pct >= 40 else "var(--red)")
+
+    rows_html = ""
+    for r in measured:
+        gap  = r.get("gap_pct")
+        hold = r.get("hold_pct")
+        sp   = r.get("signal_price")
+        gap_str  = f"{gap:+.1f}%"  if gap  is not None else "-"
+        hold_str = f"{hold:+.1f}%" if hold is not None else "-"
+        sp_str   = f"{float(sp):,.0f}" if sp and float(sp) > 0 else "-"
+        gap_cls  = "td-pos" if gap  is not None and gap  >= 0 else "td-neg"
+        hold_cls = "td-pos" if hold is not None and hold >= 0 else "td-neg"
+        reason_str = _e(r.get("fail_reason") or "") if r["result"] == "실패" else "—"
+        rows_html += (
+            f"<tr>"
+            f'<td class="td-name">{_e(r.get("name",""))}</td>'
+            f'<td style="font-size:11px;color:var(--blue)">{_e(r.get("pattern_type",""))}</td>'
+            f'<td style="font-size:12px">{sp_str}</td>'
+            f'<td class="{gap_cls}">{gap_str}</td>'
+            f'<td class="{hold_cls}">{hold_str}</td>'
+            f'<td style="font-size:11px;color:var(--muted)">{reason_str}</td>'
+            f"</tr>"
+        )
+
+    summary = (
+        f'<div style="margin-bottom:8px;font-size:13px">'
+        f'총 <strong>{total_n}</strong>개 · '
+        f'성공 <strong style="color:{rate_color}">{success_n}개 ({rate_pct:.0f}%)</strong>'
+        f'{(" · " + reason_parts) if reason_parts else ""}'
+        f'</div>'
+    )
+
+    return (
+        '<div class="section-title">📋 전일 복기</div>'
+        f'{summary}'
+        '<div class="tbl-wrap"><table>'
+        '<thead><tr><th>종목명</th><th>패턴</th><th>진입가</th><th>시가갭</th><th>종가수익</th><th>실패원인</th></tr></thead>'
+        f'<tbody>{rows_html}</tbody>'
+        '</table></div>'
+    )
+
+
 def _section_rejected(rejected: list) -> str:
     if not rejected:
         return ""

@@ -30,6 +30,7 @@ from scripts._dashboard_sections import (
     _section_watch_candidates,
     _section_leading_sectors,
     _section_sector_calendar,
+    _section_review,
     _section_table_intersection,
     _section_rejected_summary,
     _section_table_gainers,
@@ -212,6 +213,7 @@ def _build_html(data: dict, nav_entries: list | None = None, current_filename: s
     body_parts = [
         _section_header(data),
         _section_env_and_signals(data),
+        _section_review(data.get("review_results", [])),
         _section_limit_up(data.get("market_summary", {})),
         _section_stock_panel(core, rejected),
         _section_watch_candidates(rejected),
