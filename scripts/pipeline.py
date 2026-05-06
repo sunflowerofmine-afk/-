@@ -545,6 +545,15 @@ def run():
     logger.info(f"후보 종목 {len(crawl_codes)}개 지표 수집 시작 (TV필터 후, 원본 {len(candidate_codes)}개) [{run_type}]...")
     enriched = _enrich_candidates(crawl_codes, filtered_df)
 
+    # ── 프로그램 수급 (2차/수동: 장후 확정치) ───────────────────────
+    prog_data: dict = {}
+    if run_type != "1차":
+        try:
+            from scripts.fetch_program_data import fetch_program_data
+            prog_data = fetch_program_data(report_date.replace("-", ""))
+        except Exception as e:
+            logger.warning(f"프로그램 수급 수집 실패 (무시): {e}")
+
     for code in crawl_codes:
         row = filtered_df[filtered_df["종목코드"] == code]
         if row.empty:
@@ -613,6 +622,7 @@ def run():
             "near_high_52w":    processed.near_high_52w,
             "sector":           _sector,
             "is_leading_sector": bool(_sector) and _sector in leading_sector_names,
+            "prog_net_eok":     prog_data.get(code),
         })
 
     # 정렬: 교집합 > 패턴타입 > score > supply_ok > 거래대금 > 상승률

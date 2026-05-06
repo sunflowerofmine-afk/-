@@ -532,8 +532,9 @@ def _section_stock_panel(candidates: list, rejected: list) -> str:
             "frgn_str":     f"{sup_frgn/1e8:+.0f}억" if sup_frgn is not None else "-",
             "inst_5d_str":  f"{sup_inst_5d/1e8:+.0f}억" if sup_inst_5d is not None else "-",
             "frgn_5d_str":  f"{sup_frgn_5d/1e8:+.0f}억" if sup_frgn_5d is not None else "-",
-            "supply_label": sup.get("supply_label", ""),
-            "supply_ok":    sup.get("status") == "ok",
+            "supply_label":  sup.get("supply_label", ""),
+            "supply_ok":     sup.get("status") == "ok",
+            "prog_net_str":  (f"{c['prog_net_eok']:+.0f}억" if c.get("prog_net_eok") is not None else None),
             "strengths":    _compute_strengths(c),
             "weaknesses":   _compute_weaknesses(c),
             "checkpoints":  _compute_checkpoints(c),
@@ -570,9 +571,10 @@ function renderDetail(idx) {{
     : '<div style="color:var(--muted);font-size:13px">해당 없음</div>';
   const ckHtml   = c.checkpoints.map(p => '<div class="chk-item">□ ' + p + '</div>').join('');
   const labelHtml = c.supply_label ? '<strong style="color:var(--blue)">[' + c.supply_label + ']</strong> ' : '';
+  const progHtml  = c.prog_net_str ? ' &nbsp;<span style="color:var(--muted);font-size:11px">프로그램 <strong style="color:' + (c.prog_net_str.startsWith('+') ? 'var(--green)' : 'var(--red)') + '">' + c.prog_net_str + '</strong></span>' : '';
   const supHtml   = c.supply_ok
-    ? '<div class="detail-section"><div class="detail-section-title">수급</div><div style="font-size:13px">' + labelHtml + '기관 <strong>' + c.inst_str + '</strong><span style="color:var(--muted);font-size:11px">(5d:' + c.inst_5d_str + ')</span> &nbsp;/&nbsp; 외국인 <strong>' + c.frgn_str + '</strong><span style="color:var(--muted);font-size:11px">(5d:' + c.frgn_5d_str + ')</span></div></div>'
-    : '';
+    ? '<div class="detail-section"><div class="detail-section-title">수급</div><div style="font-size:13px">' + labelHtml + '기관 <strong>' + c.inst_str + '</strong><span style="color:var(--muted);font-size:11px">(5d:' + c.inst_5d_str + ')</span> &nbsp;/&nbsp; 외국인 <strong>' + c.frgn_str + '</strong><span style="color:var(--muted);font-size:11px">(5d:' + c.frgn_5d_str + ')</span>' + progHtml + '</div></div>'
+    : (c.prog_net_str ? '<div class="detail-section"><div class="detail-section-title">수급</div><div style="font-size:13px">' + progHtml.trim() + '</div></div>' : '');
 
   let h = '';
   h += '<div class="detail-name">' + c.name + ' <span style="color:var(--muted);font-size:13px;font-weight:400">(' + c.code + ') ' + c.market + '</span> ' + priHtml + '</div>';
