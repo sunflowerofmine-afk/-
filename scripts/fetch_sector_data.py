@@ -46,12 +46,12 @@ def _parse_float(text: str) -> float:
         return 0.0
 
 
-def fetch_sector_overview() -> pd.DataFrame:
+def fetch_sector_overview(group_type: str = "upjong") -> pd.DataFrame:
     """
-    네이버 업종 현황 → 섹터명, sector_no, 등락률 DataFrame 반환.
-    컬럼 순서: 업종명 | 전일대비% | 상승수 | 보합수 | 하락수 | 미등록 | 비율
+    네이버 업종/테마 현황 → 섹터명, sector_no, 등락률 DataFrame 반환.
+    group_type: "upjong" (업종) 또는 "theme" (테마)
     """
-    soup = _get(f"{_BASE}/sise_group.naver?type=upjong")
+    soup = _get(f"{_BASE}/sise_group.naver?type={group_type}")
     if not soup:
         return pd.DataFrame()
 
@@ -91,9 +91,9 @@ def fetch_sector_overview() -> pd.DataFrame:
     return df
 
 
-def fetch_sector_stock_codes(sector_no: int) -> list:
-    """업종 상세 페이지에서 구성 종목 코드 목록 추출"""
-    url = f"{_BASE}/sise_group_detail.naver?type=upjong&no={sector_no}"
+def fetch_sector_stock_codes(sector_no: int, group_type: str = "upjong") -> list:
+    """업종/테마 상세 페이지에서 구성 종목 코드 목록 추출"""
+    url = f"{_BASE}/sise_group_detail.naver?type={group_type}&no={sector_no}"
     soup = _get(url)
     if not soup:
         return []
@@ -151,6 +151,26 @@ def run(top_n: int = 5) -> dict:
                 "tv_eok":      0.0,  # pipeline에서 filtered_df 기반 재계산
                 "stock_codes": codes,
             })
+
+    # 테마 데이터로 code_to_sector 덮어쓰기 (업종보다 구체적인 이름 우선)
+    # 상승률 상위 테마부터 순회 → 핫한 테마가 최종 라벨로 남음
+    try:
+        theme_overview = fetch_sector_overview("theme")
+        if not theme_overview.empty:
+            top_themes = theme_overview.nlargest(top_n * 2, "change_pct")
+            for _, trow in top_themes.iterrows():
+                tno   = int(trow["sector_no"])
+                tname = str(trow["sector_name"])
+                try:
+                    tcodes = fetch_sector_stock_codes(tno, "theme")
+                    for c in tcodes:
+                        code_to_sector[c] = tname
+                    time.sleep(REQUEST_DELAY)
+                except Exception as e:
+                    logger.warning(f"[테마 {tname}] 구성종목 수집 실패: {e}")
+            logger.info(f"테마 override 완료: 상위 {len(top_themes)}개 테마 적용")
+    except Exception as e:
+        logger.warning(f"테마 수집 실패 (무시, 업종명 유지): {e}")
 
     result["code_to_sector"] = code_to_sector
     logger.info(f"섹터 수집 완료: {len(result['top_sectors'])}섹터, {len(code_to_sector)}종목 매핑")

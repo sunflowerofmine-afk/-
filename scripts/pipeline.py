@@ -408,6 +408,7 @@ def run():
             "intersection_count":     len(intersection) if not intersection.empty else 0,
             "core_count":             0,
             "market_regime":          market_regime,
+            "market_adl":             _market_adl,
             "market_type":            market_type,
             "kospi_level":            index_levels.get("kospi_level"),
             "kosdaq_level":           index_levels.get("kosdaq_level"),
@@ -452,18 +453,24 @@ def run():
 
     key_candidates = []
     rejected_list  = []
-    MIN_TV_WON     = MIN_TRADING_VALUE_EOK * 100_000_000
-    inter_codes    = set(intersection["종목코드"].dropna() if not intersection.empty else [])
+    MIN_TV_WON            = MIN_TRADING_VALUE_EOK * 100_000_000
+    inter_codes           = set(intersection["종목코드"].dropna() if not intersection.empty else [])
+    leading_sector_names  = {s["sector_name"] for s in leading_sectors}
 
-    # ── TV 1차 필터: 크롤링 전에 적용해 불필요한 수집 방지 ─────
-    tv_map = filtered_df.set_index("종목코드")["거래대금"].to_dict()
+    # ── TV / 상한가 1차 필터: 크롤링 전에 적용해 불필요한 수집 방지 ─────
+    tv_map  = filtered_df.set_index("종목코드")["거래대금"].to_dict()
+    chg_map = filtered_df.set_index("종목코드")["등락률"].to_dict()
     crawl_codes = []
     for code in candidate_codes:
-        tv = float(tv_map.get(code, 0))
-        if tv < MIN_TV_WON:
-            row = filtered_df[filtered_df["종목코드"] == code]
-            name = row.iloc[0].get("종목명", "") if not row.empty else ""
-            chg  = float(row.iloc[0].get("등락률", 0)) if not row.empty else 0.0
+        tv  = float(tv_map.get(code, 0))
+        chg = float(chg_map.get(code, 0))
+        row = filtered_df[filtered_df["종목코드"] == code]
+        name = row.iloc[0].get("종목명", "") if not row.empty else ""
+        if chg >= 29.5:
+            rejected_list.append({"code": code, "name": name,
+                                   "reason": "상한가 (진입 불가)",
+                                   "trading_value": tv, "change_pct": chg})
+        elif tv < MIN_TV_WON:
             rejected_list.append({"code": code, "name": name,
                                    "reason": f"거래대금 부족 ({tv/1e8:.0f}억)",
                                    "trading_value": tv, "change_pct": chg})
@@ -521,22 +528,25 @@ def run():
                                patterns=pat)
         supply_ok = checklist.supply_ok
 
+        _sector = code_to_sector.get(code, "")
         key_candidates.append({
-            "name":           name,
-            "code":           code,
-            "market":         row.get("시장", ""),
-            "change_pct":     float(row.get("등락률", 0)),
-            "trading_value":  tv,
-            "indicators":     enr.get("indicators", {}),
-            "patterns":       pat,
-            "supply":         supply,
-            "news":           news,
-            "score":          score,
-            "checklist":      checklist,
-            "in_inter":       in_inter,
-            "has_pattern":    has_pattern,
-            "supply_ok":      supply_ok,
-            "near_high_52w":  processed.near_high_52w,
+            "name":             name,
+            "code":             code,
+            "market":           row.get("시장", ""),
+            "change_pct":       float(row.get("등락률", 0)),
+            "trading_value":    tv,
+            "indicators":       enr.get("indicators", {}),
+            "patterns":         pat,
+            "supply":           supply,
+            "news":             news,
+            "score":            score,
+            "checklist":        checklist,
+            "in_inter":         in_inter,
+            "has_pattern":      has_pattern,
+            "supply_ok":        supply_ok,
+            "near_high_52w":    processed.near_high_52w,
+            "sector":           _sector,
+            "is_leading_sector": bool(_sector) and _sector in leading_sector_names,
         })
 
     # 정렬: 교집합 > 패턴타입 > score > supply_ok > 거래대금 > 상승률

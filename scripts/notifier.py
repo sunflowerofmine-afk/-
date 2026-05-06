@@ -163,7 +163,7 @@ def format_market_summary(market_totals: dict, run_time: str, run_type: str,
 
     _regime_map = {"강세": "🟢 강세", "약세": "🔴 약세", "중립": "⚪ 중립"}
     regime_str  = _regime_map.get(regime, regime)
-    adl_str     = f" (ADL {market_adl*100:.0f}% · 1500억↑{tv1500}개)" if market_adl is not None else ""
+    adl_str     = f" (ADL {market_adl*100:.1f}% · 1500억↑{tv1500}개)" if market_adl is not None else ""
     type_str    = f" | {market_type}" if market_type else ""
     regime_line = f"[시장] {regime_str}{adl_str}{type_str}\n" if regime else ""
     limit_up_line = f"상한가 {limit_up_n}개\n" if limit_up_n > 0 else ""
@@ -319,10 +319,13 @@ def _format_candidate_card(seq: int, c: dict) -> str:
     if is_danbal:   tags.append("⚡단발")
     tag_str = "  " + "  ".join(tags) if tags else ""
 
-    # ── Line 2: 등락률 / 거래대금 / 패턴 ───────────────────
-    pattern_label = pat.get("pattern_type_label", "없음")
-    offset_str    = _OFFSET_LABEL.get(pat.get("base_candle_day_offset"), "-")
-    pattern_str   = f"{pattern_label}({offset_str})" if pattern_label != "없음" else "패턴없음"
+    # ── Line 2: 등락률 / 거래대금 / 섹터 / 패턴 ──────────────
+    pattern_label  = pat.get("pattern_type_label", "없음")
+    offset_str     = _OFFSET_LABEL.get(pat.get("base_candle_day_offset"), "-")
+    pattern_str    = f"{pattern_label}({offset_str})" if pattern_label != "없음" else "패턴없음"
+    sector         = c.get("sector", "")
+    is_leading     = c.get("is_leading_sector", False)
+    sector_str     = f"[{sector}✓] | " if (sector and is_leading) else (f"[{sector}] | " if sector else "")
 
     # ── Line 3: 재료 (LLM summary) ─────────────────────────
     llm_line = f"\n  {llm_text}" if llm_text else ""
@@ -348,7 +351,7 @@ def _format_candidate_card(seq: int, c: dict) -> str:
     return (
         f"\n{seq}) <b>{c.get('name','')}({c.get('code','')})</b>"
         f" [{c.get('market','')}]{tag_str}\n"
-        f"  {_sign(float(c.get('change_pct', 0)))} | {_tv_eok(tv)} | {pattern_str}"
+        f"  {_sign(float(c.get('change_pct', 0)))} | {_tv_eok(tv)} | {sector_str}{pattern_str}"
         f"{llm_line}"
         f"{supply_line}"
         f"{checklist_line}"
@@ -361,13 +364,16 @@ def format_watch_candidates(candidates: list[dict]) -> str:
         return ""
     lines = [f"<b>[관심 후보 {len(candidates)}개]</b>"]
     for c in candidates:
-        tv  = c.get("trading_value", 0)
-        pat = c.get("patterns", {}).get("pattern_type_label", "없음")
-        pct = float(c.get("change_pct", 0))
-        sign = "+" if pct >= 0 else ""
+        tv      = c.get("trading_value", 0)
+        pat     = c.get("patterns", {}).get("pattern_type_label", "없음")
+        pct     = float(c.get("change_pct", 0))
+        sign    = "+" if pct >= 0 else ""
+        sector  = c.get("sector", "")
+        is_lead = c.get("is_leading_sector", False)
+        sec_s   = f"[{sector}✓] " if (sector and is_lead) else (f"[{sector}] " if sector else "")
         lines.append(
             f"  • {c['name']}({c['code']}) "
-            f"{sign}{pct:.1f}% | {tv/100_000_000:.0f}억 | {pat}"
+            f"{sign}{pct:.1f}% | {tv/100_000_000:.0f}억 | {sec_s}{pat}"
         )
     return "\n".join(lines) + "\n"
 

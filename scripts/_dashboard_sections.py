@@ -188,10 +188,12 @@ def _section_header(data: dict) -> str:
     kosdaq_level = market.get("kosdaq_level")
     kospi_lv_str  = f" <span style='color:var(--muted);font-size:12px'>({kospi_level:,.0f}pt)</span>"  if kospi_level else ""
     kosdaq_lv_str = f" <span style='color:var(--muted);font-size:12px'>({kosdaq_level:,.0f}pt)</span>" if kosdaq_level else ""
-    regime = market.get("market_regime", "")
+    regime     = market.get("market_regime", "")
+    market_adl = market.get("market_adl")
     _regime_cfg = {"강세": ("regime-bull", "🟢 강세"), "약세": ("regime-bear", "🔴 약세"), "중립": ("regime-neutral", "⚪ 중립")}
     rcls, rlabel = _regime_cfg.get(regime, ("regime-neutral", "⚪ 중립"))
-    regime_badge = f'<span class="{rcls}" style="font-size:14px;padding:3px 12px;margin-left:10px;">{rlabel}</span>' if regime else ""
+    adl_suffix  = f" <span style='font-size:11px;opacity:0.8'>(ADL {market_adl*100:.1f}%)</span>" if market_adl is not None else ""
+    regime_badge = f'<span class="{rcls}" style="font-size:14px;padding:3px 12px;margin-left:10px;">{rlabel}{adl_suffix}</span>' if regime else ""
 
     return f"""
 <div class="page-header">
@@ -216,6 +218,7 @@ def _section_env_and_signals(data: dict) -> str:
     rejected = data.get("rejected_candidates", [])
 
     regime       = m.get("market_regime", "")
+    market_adl   = m.get("market_adl")
     market_type  = m.get("market_type", "")
     tv_1500      = m.get("tv_1500_count", 0)
     g_tv_1500    = m.get("gainers_tv_1500_count", 0)
@@ -226,7 +229,8 @@ def _section_env_and_signals(data: dict) -> str:
 
     _regime_cfg  = {"강세": ("regime-bull", "🟢 강세"), "약세": ("regime-bear", "🔴 약세"), "중립": ("regime-neutral", "⚪ 중립")}
     rcls, rlabel = _regime_cfg.get(regime, ("regime-neutral", "⚪ 중립"))
-    regime_html  = f'<span class="{rcls}" style="font-size:13px;padding:2px 10px">{rlabel}</span>'
+    adl_suffix   = f" <span style='font-size:11px;opacity:0.75'>(ADL {market_adl*100:.1f}%)</span>" if market_adl is not None else ""
+    regime_html  = f'<span class="{rcls}" style="font-size:13px;padding:2px 10px">{rlabel}{adl_suffix}</span>'
 
     inter_interp  = "주도주 경쟁 있음" if inter_n > 0 else "주도주 부재"
     tv1500_interp = "자금 집중" if tv_1500 >= 5 else ("보통" if tv_1500 >= 3 else "자금 분산")
