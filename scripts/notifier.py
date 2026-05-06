@@ -328,7 +328,7 @@ def format_intersection(df, enriched: dict = {}, code_to_sector: dict = {}) -> s
 # ── 핵심 후보 상세 ────────────────────────────────────────
 
 _OFFSET_LABEL = {0: "당일", 1: "1일전", 2: "2일전", 3: "3일전"}
-_PATTERN_TYPE_ORDER = ["당일돌파형", "고가횡보형", "눌림관찰형", "없음"]
+_PATTERN_TYPE_ORDER = ["당일돌파형", "고가수축형", "고가횡보형", "눌림관찰형", "없음"]
 
 
 def _format_candidate_card(seq: int, c: dict) -> str:
@@ -466,6 +466,7 @@ def format_key_candidates(candidates: list[dict]) -> str:
 
     section_titles = {
         "당일돌파형": "▶ 당일 돌파형",
+        "고가수축형": "▶ 고가수축형 (거래대금 수축 대기)",
         "고가횡보형": "▶ 1~3일전 기준봉 후 고가횡보형",
         "눌림관찰형": "▶ 눌림 관찰형",
         "없음":       "▶ 기타 (교집합)",

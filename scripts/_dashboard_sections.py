@@ -84,15 +84,17 @@ def _score_val(score) -> str:
 # ─── 상수 ─────────────────────────────────────────────────────────────────────
 
 _OFFSET_LABEL = {0: "당일", 1: "1일전", 2: "2일전", 3: "3일전"}
-_PATTERN_TYPE_ORDER = ["당일돌파형", "고가횡보형", "눌림관찰형", "없음"]
+_PATTERN_TYPE_ORDER = ["당일돌파형", "고가수축형", "고가횡보형", "눌림관찰형", "없음"]
 _PATTERN_SECTION_TITLE = {
     "당일돌파형": "🚀 당일 돌파형",
+    "고가수축형": "🔶 고가수축형 (거래대금 수축 대기)",
     "고가횡보형": "📊 1~3일전 기준봉 후 고가횡보형",
     "눌림관찰형": "📉 눌림 관찰형",
     "없음":       "📌 기타 (교집합)",
 }
 _PATTERN_CARD_COLOR = {
     "당일돌파형": "#3fb950",
+    "고가수축형": "#e3b341",
     "고가횡보형": "#58a6ff",
     "눌림관찰형": "#d29922",
     "없음":       "#8b949e",
@@ -103,7 +105,7 @@ _PATTERN_CARD_COLOR = {
 
 def _compute_priority(c: dict) -> str:
     pat_label = c.get("patterns", {}).get("pattern_type_label", "없음")
-    if c.get("in_inter") or pat_label in ("당일돌파형", "고가횡보형"):
+    if c.get("in_inter") or pat_label in ("당일돌파형", "고가수축형", "고가횡보형"):
         return "우선확인"
     return "관찰우선"
 
@@ -163,6 +165,8 @@ def _compute_checkpoints(c: dict) -> list:
     pl = c.get("patterns", {}).get("pattern_type_label", "없음")
     if pl == "당일돌파형":
         return ["내일 거래대금 1500억 유지 여부", "시가 갭업 시 추격 주의", "재료 지속성 확인"]
+    if pl == "고가수축형":
+        return ["거래대금 재폭발 동반 돌파 확인", "재점화 조짐(⚡) 여부 확인", "구조붕괴(-8%) 없이 고가권 유지 확인"]
     if pl == "고가횡보형":
         return ["기준봉 고가 돌파 여부", "거래대금 증가 동반 확인", "눌림 없이 횡보 유지"]
     if pl == "눌림관찰형":
