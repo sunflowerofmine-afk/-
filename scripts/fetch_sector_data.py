@@ -152,23 +152,33 @@ def run(top_n: int = 5) -> dict:
                 "stock_codes": codes,
             })
 
-    # 테마 데이터로 code_to_sector 덮어쓰기 (업종보다 구체적인 이름 우선)
-    # 상승률 상위 테마부터 순회 → 핫한 테마가 최종 라벨로 남음
+    # 테마 데이터: code_to_sector override + top_sectors 교체
+    # 상승률 상위 테마부터 순회 → 핫한 테마명이 개별 종목 라벨 및 주도섹터에 반영
     try:
         theme_overview = fetch_sector_overview("theme")
         if not theme_overview.empty:
-            top_themes = theme_overview.nlargest(top_n * 2, "change_pct")
+            top_themes    = theme_overview.nlargest(top_n * 2, "change_pct")
+            theme_sectors = []
             for _, trow in top_themes.iterrows():
                 tno   = int(trow["sector_no"])
                 tname = str(trow["sector_name"])
+                tchg  = float(trow["change_pct"])
                 try:
                     tcodes = fetch_sector_stock_codes(tno, "theme")
                     for c in tcodes:
                         code_to_sector[c] = tname
+                    theme_sectors.append({
+                        "sector_name": tname,
+                        "change_pct":  tchg,
+                        "tv_eok":      0.0,
+                        "stock_codes": tcodes,
+                    })
                     time.sleep(REQUEST_DELAY)
                 except Exception as e:
                     logger.warning(f"[테마 {tname}] 구성종목 수집 실패: {e}")
-            logger.info(f"테마 override 완료: 상위 {len(top_themes)}개 테마 적용")
+            if theme_sectors:
+                result["top_sectors"] = theme_sectors[:top_n]
+            logger.info(f"테마 override 완료: 상위 {len(theme_sectors)}개 테마 → 주도섹터 교체")
     except Exception as e:
         logger.warning(f"테마 수집 실패 (무시, 업종명 유지): {e}")
 

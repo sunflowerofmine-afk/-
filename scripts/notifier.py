@@ -152,20 +152,23 @@ def format_market_summary(market_totals: dict, run_time: str, run_type: str,
     g_tv1500     = ex.get("gainers_tv_1500_count", 0)
     inter_n      = ex.get("intersection_count", 0)
     core_n       = ex.get("core_count", 0)
-    regime       = ex.get("market_regime", "")
-    market_type  = ex.get("market_type", "")
-    limit_up_n   = ex.get("limit_up_count", 0)
-    market_adl   = ex.get("market_adl")
-    kospi_level  = ex.get("kospi_level")
-    kosdaq_level = ex.get("kosdaq_level")
-    kospi_chg    = ex.get("kospi_chg")
-    kosdaq_chg   = ex.get("kosdaq_chg")
+    regime         = ex.get("market_regime", "")
+    market_subtype = ex.get("market_subtype", "")
+    market_type    = ex.get("market_type", "")
+    limit_up_n     = ex.get("limit_up_count", 0)
+    market_adl     = ex.get("market_adl")
+    kospi_level    = ex.get("kospi_level")
+    kosdaq_level   = ex.get("kosdaq_level")
+    kospi_chg      = ex.get("kospi_chg")
+    kosdaq_chg     = ex.get("kosdaq_chg")
 
+    _subtype_icon = {"자금집중형": "💰", "전체하락형": "⬇", "혼조형": "↔"}
     _regime_map = {"강세": "🟢 강세", "약세": "🔴 약세", "중립": "⚪ 중립"}
-    regime_str  = _regime_map.get(regime, regime)
-    adl_str     = f" (ADL {market_adl*100:.1f}% · 1500억↑{tv1500}개)" if market_adl is not None else ""
-    type_str    = f" | {market_type}" if market_type else ""
-    regime_line = f"[시장] {regime_str}{adl_str}{type_str}\n" if regime else ""
+    regime_str    = _regime_map.get(regime, regime)
+    adl_str       = f" (ADL {market_adl*100:.1f}% · 1500억↑{tv1500}개)" if market_adl is not None else ""
+    subtype_str   = f" | {_subtype_icon.get(market_subtype, '')} {market_subtype}" if market_subtype else ""
+    type_str      = f" | {market_type}" if market_type else ""
+    regime_line   = f"[시장] {regime_str}{adl_str}{subtype_str}{type_str}\n" if regime else ""
     limit_up_line = f"상한가 {limit_up_n}개\n" if limit_up_n > 0 else ""
 
     def _idx(level, chg):

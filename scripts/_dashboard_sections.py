@@ -188,12 +188,17 @@ def _section_header(data: dict) -> str:
     kosdaq_level = market.get("kosdaq_level")
     kospi_lv_str  = f" <span style='color:var(--muted);font-size:12px'>({kospi_level:,.0f}pt)</span>"  if kospi_level else ""
     kosdaq_lv_str = f" <span style='color:var(--muted);font-size:12px'>({kosdaq_level:,.0f}pt)</span>" if kosdaq_level else ""
-    regime     = market.get("market_regime", "")
-    market_adl = market.get("market_adl")
-    _regime_cfg = {"강세": ("regime-bull", "🟢 강세"), "약세": ("regime-bear", "🔴 약세"), "중립": ("regime-neutral", "⚪ 중립")}
+    regime         = market.get("market_regime", "")
+    market_adl     = market.get("market_adl")
+    market_subtype = market.get("market_subtype", "")
+    _regime_cfg  = {"강세": ("regime-bull", "🟢 강세"), "약세": ("regime-bear", "🔴 약세"), "중립": ("regime-neutral", "⚪ 중립")}
+    _subtype_icon = {"자금집중형": "💰", "전체하락형": "⬇", "혼조형": "↔"}
     rcls, rlabel = _regime_cfg.get(regime, ("regime-neutral", "⚪ 중립"))
-    adl_suffix  = f" <span style='font-size:11px;opacity:0.8'>(ADL {market_adl*100:.1f}%)</span>" if market_adl is not None else ""
-    regime_badge = f'<span class="{rcls}" style="font-size:14px;padding:3px 12px;margin-left:10px;">{rlabel}{adl_suffix}</span>' if regime else ""
+    adl_suffix     = f" <span style='font-size:11px;opacity:0.8'>(ADL {market_adl*100:.1f}%)</span>" if market_adl is not None else ""
+    subtype_badge  = (f" <span style='font-size:11px;background:rgba(255,255,255,0.15);"
+                      f"padding:1px 7px;border-radius:4px'>{_subtype_icon.get(market_subtype,'')} {market_subtype}</span>"
+                      if market_subtype else "")
+    regime_badge = f'<span class="{rcls}" style="font-size:14px;padding:3px 12px;margin-left:10px;">{rlabel}{adl_suffix}{subtype_badge}</span>' if regime else ""
 
     return f"""
 <div class="page-header">
@@ -217,20 +222,23 @@ def _section_env_and_signals(data: dict) -> str:
     core     = data.get("core_candidates", [])
     rejected = data.get("rejected_candidates", [])
 
-    regime       = m.get("market_regime", "")
-    market_adl   = m.get("market_adl")
-    market_type  = m.get("market_type", "")
-    tv_1500      = m.get("tv_1500_count", 0)
-    g_tv_1500    = m.get("gainers_tv_1500_count", 0)
-    inter_n      = m.get("intersection_count", 0)
-    limit_up_n   = m.get("limit_up_count", 0)
-    core_n       = len(core)
-    watch_n      = len([r for r in rejected if "패턴 없음" in r.get("reason", "")])
+    regime         = m.get("market_regime", "")
+    market_adl     = m.get("market_adl")
+    market_subtype = m.get("market_subtype", "")
+    market_type    = m.get("market_type", "")
+    tv_1500        = m.get("tv_1500_count", 0)
+    g_tv_1500      = m.get("gainers_tv_1500_count", 0)
+    inter_n        = m.get("intersection_count", 0)
+    limit_up_n     = m.get("limit_up_count", 0)
+    core_n         = len(core)
+    watch_n        = len([r for r in rejected if "패턴 없음" in r.get("reason", "")])
 
-    _regime_cfg  = {"강세": ("regime-bull", "🟢 강세"), "약세": ("regime-bear", "🔴 약세"), "중립": ("regime-neutral", "⚪ 중립")}
-    rcls, rlabel = _regime_cfg.get(regime, ("regime-neutral", "⚪ 중립"))
-    adl_suffix   = f" <span style='font-size:11px;opacity:0.75'>(ADL {market_adl*100:.1f}%)</span>" if market_adl is not None else ""
-    regime_html  = f'<span class="{rcls}" style="font-size:13px;padding:2px 10px">{rlabel}{adl_suffix}</span>'
+    _regime_cfg   = {"강세": ("regime-bull", "🟢 강세"), "약세": ("regime-bear", "🔴 약세"), "중립": ("regime-neutral", "⚪ 중립")}
+    _subtype_icon = {"자금집중형": "💰", "전체하락형": "⬇", "혼조형": "↔"}
+    rcls, rlabel  = _regime_cfg.get(regime, ("regime-neutral", "⚪ 중립"))
+    adl_suffix    = f" <span style='font-size:11px;opacity:0.75'>(ADL {market_adl*100:.1f}%)</span>" if market_adl is not None else ""
+    subtype_str   = f" · {_subtype_icon.get(market_subtype,'')} {market_subtype}" if market_subtype else ""
+    regime_html   = f'<span class="{rcls}" style="font-size:13px;padding:2px 10px">{rlabel}{adl_suffix}{subtype_str}</span>'
 
     inter_interp  = "주도주 경쟁 있음" if inter_n > 0 else "주도주 부재"
     tv1500_interp = "자금 집중" if tv_1500 >= 5 else ("보통" if tv_1500 >= 3 else "자금 분산")

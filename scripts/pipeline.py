@@ -104,6 +104,22 @@ def _calc_market_regime(all_df: pd.DataFrame, tv_1500_count: int) -> tuple[str, 
         return "중립", 0.0
 
 
+def _calc_market_subtype(market_regime: str, kospi_chg: float | None) -> str:
+    """약세 시 세부 장세 유형 판단.
+    자금집중형: 지수 강세지만 ADL 약세 → 대형주/주도섹터에 자금 쏠림
+    전체하락형: 지수도 하락, ADL도 약세 → 전반적 위험
+    혼조형: 그 외
+    강세/중립은 빈 문자열 반환.
+    """
+    if market_regime != "약세" or kospi_chg is None:
+        return ""
+    if kospi_chg >= 1.5:
+        return "자금집중형"
+    if kospi_chg <= -1.0:
+        return "전체하락형"
+    return "혼조형"
+
+
 def _enrich_candidates(codes: list[str], all_df: pd.DataFrame) -> dict:
     """
     상위 후보 종목에 대해 히스토리, 지표, 패턴, 수급, 뉴스 수집.
@@ -388,8 +404,10 @@ def run():
     limit_up_names = [r["종목명"] for r in limit_up_list[:5]]
 
     market_regime, _market_adl = _calc_market_regime(all_df, tv_1500_count)
-    market_type   = _calc_market_type(gainers_top20_records, market_regime)
-    logger.info(f"시장 상태: {market_regime} | 장세: {market_type}")
+    market_type    = _calc_market_type(gainers_top20_records, market_regime)
+    _kospi_chg     = index_levels.get("kospi_chg")
+    market_subtype = _calc_market_subtype(market_regime, _kospi_chg)
+    logger.info(f"시장 상태: {market_regime}{' · ' + market_subtype if market_subtype else ''} | 장세: {market_type}")
 
     report_data = {
         "metadata": {
@@ -409,9 +427,11 @@ def run():
             "core_count":             0,
             "market_regime":          market_regime,
             "market_adl":             _market_adl,
+            "market_subtype":         market_subtype,
             "market_type":            market_type,
             "kospi_level":            index_levels.get("kospi_level"),
             "kosdaq_level":           index_levels.get("kosdaq_level"),
+            "kospi_chg":              _kospi_chg,
             "limit_up_count":         limit_up_count,
             "limit_up_list":          limit_up_list,
         },
@@ -672,6 +692,7 @@ def run():
         "intersection_count":    len(intersection) if not intersection.empty else 0,
         "core_count":            len(core_candidates),
         "market_regime":         market_regime,
+        "market_subtype":        market_subtype,
         "market_type":           market_type,
         "market_adl":            _market_adl,
         "kospi_level":           index_levels.get("kospi_level"),
