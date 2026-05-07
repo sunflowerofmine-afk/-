@@ -21,6 +21,7 @@ for _d in [RAW_DIR, PROCESSED_DIR, SIGNALS_DIR, RESULTS_DIR, LOG_DIR, REPORTS_DI
 # ── 텔레그램 ───────────────────────────────────────────────
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID   = os.getenv("TELEGRAM_CHAT_ID", "")
+TELEGRAM_CHAT_ID_2 = os.getenv("TELEGRAM_CHAT_ID_2", "")
 
 # ── 수집 설정 ──────────────────────────────────────────────
 USER_AGENT = os.getenv(

@@ -8,7 +8,7 @@ from pathlib import Path
 import requests
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from config.settings import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
+from config.settings import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, TELEGRAM_CHAT_ID_2
 from scripts.models import SupplyData, NewsData
 
 logger = logging.getLogger(__name__)
@@ -31,7 +31,7 @@ def _chunks(text: str, size: int = MAX_MSG_LEN) -> list[str]:
 
 
 def send_message(text: str) -> bool:
-    """텔레그램으로 메시지 전송. 4096자 초과 시 자동 분할."""
+    """텔레그램으로 메시지 전송. 4096자 초과 시 자동 분할. TELEGRAM_CHAT_ID_2 설정 시 동시 발송."""
     if not TELEGRAM_BOT_TOKEN:
         logger.error("TELEGRAM_BOT_TOKEN 미설정")
         return False
@@ -39,21 +39,23 @@ def send_message(text: str) -> bool:
         logger.error("TELEGRAM_CHAT_ID 미설정")
         return False
 
+    chat_ids = [cid for cid in [TELEGRAM_CHAT_ID, TELEGRAM_CHAT_ID_2] if cid]
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     success = True
     for chunk in _chunks(text):
-        try:
-            resp = requests.post(
-                url,
-                json={"chat_id": TELEGRAM_CHAT_ID, "text": chunk, "parse_mode": "HTML"},
-                timeout=15,
-            )
-            if resp.status_code != 200:
-                logger.error(f"텔레그램 전송 실패: {resp.status_code} {resp.text[:200]}")
+        for chat_id in chat_ids:
+            try:
+                resp = requests.post(
+                    url,
+                    json={"chat_id": chat_id, "text": chunk, "parse_mode": "HTML"},
+                    timeout=15,
+                )
+                if resp.status_code != 200:
+                    logger.error(f"텔레그램 전송 실패 [{chat_id}]: {resp.status_code} {resp.text[:200]}")
+                    success = False
+            except Exception as e:
+                logger.error(f"텔레그램 전송 예외 [{chat_id}]: {e}")
                 success = False
-        except Exception as e:
-            logger.error(f"텔레그램 전송 예외: {e}")
-            success = False
     return success
 
 
