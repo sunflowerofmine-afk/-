@@ -874,10 +874,10 @@ def _section_cumulative_stats(stats: dict) -> str:
 
     total = stats["total_measured"]
 
-    def _rows(data: dict) -> str:
+    def _win_rows(data: dict) -> str:
         html = ""
         for key, v in data.items():
-            rate = v["rate"]
+            rate  = v["rate"]
             color = "var(--green)" if rate >= 60 else ("var(--yellow)" if rate >= 40 else "var(--red)")
             html += (
                 f"<tr>"
@@ -889,25 +889,158 @@ def _section_cumulative_stats(stats: dict) -> str:
             )
         return html
 
-    def _tbl(title: str, data: dict) -> str:
+    def _tbl(title: str, data: dict, head: str, row_fn) -> str:
         if not data:
             return ""
         return (
             f'<div style="flex:1;min-width:220px">'
             f'<div style="font-size:12px;color:var(--muted);margin-bottom:6px">{title}</div>'
             f'<div class="tbl-wrap"><table>'
-            f"<thead><tr><th>구분</th><th>횟수</th><th>성공</th><th>승률</th></tr></thead>"
-            f"<tbody>{_rows(data)}</tbody>"
+            f"<thead>{head}</thead>"
+            f"<tbody>{row_fn(data)}</tbody>"
             f"</table></div></div>"
         )
 
-    return (
+    win_head = "<tr><th>구분</th><th>횟수</th><th>성공</th><th>승률</th></tr>"
+    html = (
         f'<div class="section-title">📊 누적 승률 ({total}개 측정)</div>'
         f'<div style="display:flex;gap:24px;flex-wrap:wrap;margin-bottom:16px">'
-        f'{_tbl("패턴별", stats.get("pattern", {}))}'
-        f'{_tbl("스코어 구간별", stats.get("score_band", {}))}'
+        f'{_tbl("패턴별", stats.get("pattern", {}), win_head, _win_rows)}'
+        f'{_tbl("스코어 구간별", stats.get("score_band", {}), win_head, _win_rows)}'
         f"</div>"
     )
+
+    # ── 멀티데이 통계 ────────────────────────────────────────────
+    md = stats.get("multiday")
+    if not md or md.get("d1_count", 0) == 0:
+        return html
+
+    d1c = md.get("d1_count", 0)
+    d3c = md.get("d3_count", 0)
+    d5c = md.get("d5_count", 0)
+
+    def _avg_rows(data: dict) -> str:
+        rows = ""
+        for pat, v in data.items():
+            mean = v.get("mean", 0)
+            cls  = "td-pos" if mean >= 0 else "td-neg"
+            rows += (
+                f"<tr><td>{_e(pat)}</td>"
+                f'<td style="text-align:center">{v.get("count",0)}</td>'
+                f'<td class="{cls}" style="text-align:center">{mean:+.2f}%</td></tr>'
+            )
+        return rows
+
+    avg_head = "<tr><th>패턴</th><th>N</th><th>평균</th></tr>"
+    html += (
+        f'<div class="section-title">📈 멀티데이 수익률 통계</div>'
+        f'<div style="display:flex;gap:24px;flex-wrap:wrap;margin-bottom:16px">'
+        f'{_tbl(f"D+1 시가 평균 ({d1c}개)", md.get("d1_open_by_pattern", {}), avg_head, _avg_rows)}'
+        f'{_tbl(f"D+3 고가 평균 ({d3c}개)", md.get("d3_mfe_by_pattern",  {}), avg_head, _avg_rows)}'
+        f'{_tbl(f"D+5 MFE 평균 ({d5c}개)",  md.get("d5_mfe_by_pattern",  {}), avg_head, _avg_rows)}'
+        f"</div>"
+    )
+
+    # 결과 타입 분포
+    rtypes = md.get("result_type_counts", {})
+    if rtypes:
+        _COLOR = {
+            "즉시성공형":    "var(--green)",
+            "눌림후재상승형": "var(--blue)",
+            "스윙전환가능형": "var(--yellow)",
+            "과열소멸형":    "#f80",
+            "실패형":       "var(--red)",
+        }
+        rt_html = ""
+        for label, v in rtypes.items():
+            color = _COLOR.get(label, "var(--muted)")
+            rt_html += (
+                f"<tr>"
+                f'<td style="color:{color};font-weight:600">{_e(label)}</td>'
+                f'<td style="text-align:center">{v.get("count",0)}</td>'
+                f'<td style="text-align:center">{v.get("pct",0):.1f}%</td>'
+                f"</tr>"
+            )
+        html += (
+            '<div style="display:flex;gap:24px;flex-wrap:wrap;margin-bottom:16px">'
+            '<div style="flex:1;min-width:220px">'
+            '<div style="font-size:12px;color:var(--muted);margin-bottom:6px">결과 타입 분포</div>'
+            '<div class="tbl-wrap"><table>'
+            "<thead><tr><th>타입</th><th>횟수</th><th>비율</th></tr></thead>"
+            f"<tbody>{rt_html}</tbody>"
+            "</table></div></div>"
+        )
+
+    # 교집합 비교
+    ic = md.get("inter_comparison", {})
+    if ic:
+        def _ic_row(label, mean_key, count_key):
+            mean  = ic.get(mean_key)
+            count = ic.get(count_key, 0)
+            if mean is None:
+                return ""
+            cls = "td-pos" if mean >= 0 else "td-neg"
+            return (
+                f"<tr><td>{_e(label)}</td>"
+                f'<td style="text-align:center">{count}</td>'
+                f'<td class="{cls}" style="text-align:center">{mean:+.2f}%</td></tr>'
+            )
+        ic_html = (
+            _ic_row("교집합 D+1시",    "inter_d1_mean",  "inter_d1_count")
+            + _ic_row("교집합 D+3고",  "inter_d3_mean",  "inter_d3_count")
+            + _ic_row("비교집합 D+1시", "ninter_d1_mean", "ninter_d1_count")
+        )
+        if ic_html:
+            html += (
+                '<div style="flex:1;min-width:200px">'
+                '<div style="font-size:12px;color:var(--muted);margin-bottom:6px">교집합 성과 비교</div>'
+                '<div class="tbl-wrap"><table>'
+                "<thead><tr><th>구분</th><th>N</th><th>평균</th></tr></thead>"
+                f"<tbody>{ic_html}</tbody>"
+                "</table></div></div>"
+            )
+
+    html += "</div>"
+    return html
+
+
+def _rpct(v) -> str:
+    """수익률 포맷: +1.2% / -3.4% / -"""
+    try:
+        f = float(v)
+        return f"+{f:.1f}%" if f >= 0 else f"{f:.1f}%"
+    except (TypeError, ValueError):
+        return "-"
+
+
+def _rpct_cls(v) -> str:
+    try:
+        return "td-pos" if float(v) >= 0 else "td-neg"
+    except (TypeError, ValueError):
+        return ""
+
+
+def _result_type_badge(interim: str | None, final: str | None) -> str:
+    """임시/최종 분류 배지. final 확정 시 최종 우선."""
+    _COLOR = {
+        "즉시성공형":    "var(--green)",
+        "눌림후재상승형": "var(--blue)",
+        "스윙전환가능형": "var(--yellow)",
+        "과열소멸형":    "var(--orange, #f80)",
+        "실패형":       "var(--red)",
+        "pending":      "var(--muted)",
+    }
+    if final:
+        label = final
+        prefix = ""
+    elif interim and interim != "pending":
+        label = interim
+        prefix = "~"  # 임시 표시
+    else:
+        label = "pending"
+        prefix = ""
+    color = _COLOR.get(label, "var(--muted)")
+    return f'<span style="color:{color};font-size:11px;font-weight:600">{prefix}{_e(label)}</span>'
 
 
 def _section_review(results: list) -> str:
@@ -930,23 +1063,38 @@ def _section_review(results: list) -> str:
 
     rows_html = ""
     for r in measured:
-        gap  = r.get("gap_pct")
-        hold = r.get("hold_pct")
-        sp   = r.get("signal_price")
-        gap_str  = f"{gap:+.1f}%"  if gap  is not None else "-"
-        hold_str = f"{hold:+.1f}%" if hold is not None else "-"
+        sp       = r.get("signal_price")
         sp_str   = f"{float(sp):,.0f}" if sp and float(sp) > 0 else "-"
-        gap_cls  = "td-pos" if gap  is not None and gap  >= 0 else "td-neg"
-        hold_cls = "td-pos" if hold is not None and hold >= 0 else "td-neg"
-        reason_str = _e(r.get("fail_reason") or "") if r["result"] == "실패" else "—"
+
+        d1o  = r.get("d1_open_pct")  if r.get("d1_open_pct")  is not None else r.get("gap_pct")
+        d1h  = r.get("d1_high_pct")
+        d1c  = r.get("d1_close_pct") if r.get("d1_close_pct") is not None else r.get("hold_pct")
+        d3h  = r.get("d3_high_pct")
+        mfe  = r.get("mfe")
+        mae  = r.get("mae")
+
+        mfe_day = r.get("mfe_day") or ""
+        mae_day = r.get("mae_day") or ""
+        mfe_str = f"{_rpct(mfe)}<span style='font-size:9px;color:var(--muted)'>({_e(mfe_day)})</span>" if mfe is not None else "-"
+        mae_str = f"{_rpct(mae)}<span style='font-size:9px;color:var(--muted)'>({_e(mae_day)})</span>" if mae is not None else "-"
+
+        alive   = r.get("alive_pullback")
+        alive_s = '<span style="color:var(--green);font-weight:600">살아있음</span>' if alive is True else \
+                  ('<span style="color:var(--muted)">-</span>' if alive is None else "")
+
         rows_html += (
             f"<tr>"
             f'<td class="td-name">{_e(r.get("name",""))}</td>'
             f'<td style="font-size:11px;color:var(--blue)">{_e(r.get("pattern_type",""))}</td>'
-            f'<td style="font-size:12px">{sp_str}</td>'
-            f'<td class="{gap_cls}">{gap_str}</td>'
-            f'<td class="{hold_cls}">{hold_str}</td>'
-            f'<td style="font-size:11px;color:var(--muted)">{reason_str}</td>'
+            f'<td style="font-size:11px">{sp_str}</td>'
+            f'<td class="{_rpct_cls(d1o)}">{_rpct(d1o)}</td>'
+            f'<td class="{_rpct_cls(d1h)}">{_rpct(d1h)}</td>'
+            f'<td class="{_rpct_cls(d1c)}">{_rpct(d1c)}</td>'
+            f'<td class="{_rpct_cls(d3h)}">{_rpct(d3h)}</td>'
+            f'<td class="{_rpct_cls(mfe)}">{mfe_str}</td>'
+            f'<td class="{_rpct_cls(mae) if mae is not None else ""}">{mae_str}</td>'
+            f'<td>{_result_type_badge(r.get("interim_result_type"), r.get("final_result_type"))}</td>'
+            f'<td>{alive_s}</td>'
             f"</tr>"
         )
 
@@ -955,6 +1103,7 @@ def _section_review(results: list) -> str:
         f'총 <strong>{total_n}</strong>개 · '
         f'성공 <strong style="color:{rate_color}">{success_n}개 ({rate_pct:.0f}%)</strong>'
         f'{(" · " + reason_parts) if reason_parts else ""}'
+        f'<span style="font-size:11px;color:var(--muted);margin-left:8px">~ = 임시분류 (D+5 전)</span>'
         f'</div>'
     )
 
@@ -962,7 +1111,12 @@ def _section_review(results: list) -> str:
         '<div class="section-title">📋 전일 복기</div>'
         f'{summary}'
         '<div class="tbl-wrap"><table>'
-        '<thead><tr><th>종목명</th><th>패턴</th><th>진입가</th><th>시가갭</th><th>종가수익</th><th>실패원인</th></tr></thead>'
+        '<thead><tr>'
+        '<th>종목명</th><th>패턴</th><th>진입가</th>'
+        '<th>D+1시</th><th>D+1고</th><th>D+1종</th>'
+        '<th>D+3고</th><th>MFE</th><th>MAE</th>'
+        '<th>분류</th><th>상태</th>'
+        '</tr></thead>'
         f'<tbody>{rows_html}</tbody>'
         '</table></div>'
     )
