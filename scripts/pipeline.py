@@ -795,6 +795,28 @@ def run():
         except Exception as e:
             logger.warning(f"인덱스 생성 중 오류 (무시): {e}")
 
+    # ── 공개 리포트 생성 ─────────────────────────────────────
+    try:
+        from scripts import public_report as _pub
+        _pub.run(
+            report_date=report_date,
+            market_summary={
+                "kospi_level":   index_levels.get("kospi_level"),
+                "kosdaq_level":  index_levels.get("kosdaq_level"),
+                "kospi_chg":     index_levels.get("kospi_chg"),
+                "kosdaq_chg":    index_levels.get("kosdaq_chg"),
+                "market_regime": market_regime,
+                "market_type":   market_type,
+                "limit_up_count": limit_up_count,
+                "kospi_tv_eok":  market_totals.get("kospi_total_tv_eok", 0),
+                "kosdaq_tv_eok": market_totals.get("kosdaq_total_tv_eok", 0),
+            },
+            leading_sectors=leading_sectors,
+            top_tv_records=top_tv.head(20).to_dict("records") if not top_tv.empty else [],
+        )
+    except Exception as e:
+        logger.warning(f"공개 리포트 생성 실패 (무시): {e}")
+
     logger.info("=== 파이프라인 완료 ===")
 
 

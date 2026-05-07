@@ -65,6 +65,40 @@ jobs:
       #     destination_dir: reports
       #     keep_files: true
 
+      - name: Push public report to stock-report-site
+        env:
+          STOCK_SITE_TOKEN: ${{ secrets.STOCK_SITE_TOKEN }}
+        run: |
+          if [ -z "$STOCK_SITE_TOKEN" ]; then
+            echo "STOCK_SITE_TOKEN not set, skipping"
+            exit 0
+          fi
+          REPO_URL="https://x-access-token:${STOCK_SITE_TOKEN}@github.com/sunflowerofmine-afk/stock-report-site.git"
+          if git clone --depth=1 "$REPO_URL" /tmp/stock-site 2>/dev/null; then
+            echo "Cloned existing repo"
+          else
+            mkdir -p /tmp/stock-site && cd /tmp/stock-site
+            git init && git remote add origin "$REPO_URL"
+            cd -
+          fi
+          mkdir -p /tmp/stock-site/reports
+          cp public_site/reports/*.html /tmp/stock-site/reports/ 2>/dev/null || true
+          python -c "
+          import sys; sys.path.insert(0,'.')
+          from scripts.public_report import generate_site_index
+          generate_site_index('/tmp/stock-site')
+          "
+          cd /tmp/stock-site
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to push"
+          else
+            git commit -m "chore: update report $(date +%Y-%m-%d)"
+            git push origin main 2>/dev/null || git push --set-upstream origin main
+          fi
+
       - name: Upload artifacts
         if: always()
         uses: actions/upload-artifact@v4
