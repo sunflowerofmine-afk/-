@@ -8,7 +8,7 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 _SITE_TITLE = "한국주식 데이터 리포트"
-_SITE_URL   = "https://stock-report-site.pages.dev"  # Cloudflare Pages 도메인 확정 후 변경
+_SITE_URL   = "https://stock-report-site.pages.dev"
 
 _CSS = """
 *{box-sizing:border-box;margin:0;padding:0}
