@@ -66,6 +66,7 @@ jobs:
       #     keep_files: true
 
       - name: Push public report to stock-report-site
+        if: false  # 프론트엔드 완성 후 재활성화
         env:
           STOCK_SITE_TOKEN: ${{ secrets.STOCK_SITE_TOKEN }}
         run: |
