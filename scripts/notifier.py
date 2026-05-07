@@ -276,13 +276,15 @@ def format_limit_up_section(extra: dict, code_to_sector: dict = {}) -> str:
 def format_top_gainers(df, enriched: dict = {}, inter_codes: set = set()) -> str:
     if df is None or df.empty:
         return "<b>[상승률 Top20]</b>\n데이터 없음\n"
-    lines = ["<b>[상승률 Top20]</b>"]
-    for i, (_, row) in enumerate(df.iterrows()):
-        code  = str(row.get("종목코드", ""))
-        tv    = float(row.get("거래대금", 0))
-        star  = "★" if code in inter_codes else "  "
+    rows = [(i+1, row) for i, (_, row) in enumerate(df.iterrows())
+            if str(row.get("종목코드", "")) not in inter_codes]
+    if not rows:
+        return ""
+    lines = [f"<b>[상승률 Top{len(rows)}]</b>"]
+    for rank, row in rows:
+        tv = float(row.get("거래대금", 0))
         lines.append(
-            f"{star}{i+1}) {row['종목명']}({code}) [{row.get('시장','')}]"
+            f"  {rank}) {row['종목명']}({str(row.get('종목코드',''))}) [{row.get('시장','')}]"
             f" {_sign(float(row.get('등락률',0)))} | {_tv_eok(tv)}"
         )
     return "\n".join(lines) + "\n"
@@ -293,15 +295,18 @@ def format_top_gainers(df, enriched: dict = {}, inter_codes: set = set()) -> str
 def format_top_tv(df, enriched: dict = {}, inter_codes: set = set(), code_to_sector: dict = {}) -> str:
     if df is None or df.empty:
         return "<b>[거래대금 Top20]</b>\n데이터 없음\n"
-    lines = ["<b>[거래대금 Top20]</b>"]
-    for i, (_, row) in enumerate(df.iterrows()):
+    rows = [(i+1, row) for i, (_, row) in enumerate(df.iterrows())
+            if str(row.get("종목코드", "")) not in inter_codes]
+    if not rows:
+        return ""
+    lines = [f"<b>[거래대금 Top{len(rows)}]</b>"]
+    for rank, row in rows:
         code   = str(row.get("종목코드", ""))
         tv     = float(row.get("거래대금", 0))
-        star   = "★" if code in inter_codes else "  "
         sector = code_to_sector.get(code, "")
         sec_s  = f"[{sector}] " if sector else ""
         lines.append(
-            f"{star}{i+1}) {row['종목명']}({code}) {sec_s}[{row.get('시장','')}]"
+            f"  {rank}) {row['종목명']}({code}) {sec_s}[{row.get('시장','')}]"
             f" {_tv_eok(tv)} | {_sign(float(row.get('등락률',0)))}"
         )
     return "\n".join(lines) + "\n"
@@ -521,10 +526,7 @@ def build_first_alert(
     parts = [
         format_market_summary(market_totals, run_time, "1차", extra=ex, leading_sectors=leading_sectors),
         format_sector_section(leading_sectors or []),
-        format_limit_up_section(ex, code_to_sector),
         format_intersection(intersection, enriched, code_to_sector),
-        format_top_gainers(gainers, enriched, inter_codes),
-        format_top_tv(top_tv, enriched, inter_codes, code_to_sector),
         format_key_candidates(key_candidates),
         format_watch_candidates(watch_candidates),
     ]
@@ -553,10 +555,7 @@ def build_second_alert(
     parts = [
         format_market_summary(market_totals, run_time, "2차", extra=ex, leading_sectors=leading_sectors),
         format_sector_section(leading_sectors or []),
-        format_limit_up_section(ex, code_to_sector),
         format_intersection(intersection, enriched, code_to_sector),
-        format_top_gainers(gainers, enriched, inter_codes),
-        format_top_tv(top_tv, enriched, inter_codes, code_to_sector),
         format_key_candidates(key_candidates),
         format_watch_candidates(watch_candidates),
     ]
