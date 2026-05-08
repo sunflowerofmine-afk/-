@@ -16,6 +16,15 @@ _SCORE_BANDS = [
     ("14+",   14, 99),
 ]
 
+_CHG_BANDS = [
+    ("+10~15%", 10, 15),
+    ("+15~20%", 15, 20),
+    ("+20~25%", 20, 25),
+    ("+25~30%", 25, 30),
+]
+
+
+# ── 헬퍼 ───────────────────────────────────────────────────────────
 
 def _score_band(score: int) -> str:
     for label, lo, hi in _SCORE_BANDS:
@@ -23,6 +32,42 @@ def _score_band(score: int) -> str:
             return label
     return "기타"
 
+
+def _median(vals: list[float]) -> float | None:
+    if not vals:
+        return None
+    s = sorted(vals)
+    n = len(s)
+    return s[n // 2] if n % 2 == 1 else (s[n // 2 - 1] + s[n // 2]) / 2.0
+
+
+def _sample_label(n: int) -> str:
+    """표본 수 경고 레이블."""
+    if n < 5:
+        return "데이터부족"
+    if n < 20:
+        return "참고용"
+    return "관찰가능"
+
+
+def _group_stat(vals: list[float]) -> dict | None:
+    """평균/중앙값/승률/n/표본레이블 계산."""
+    if not vals:
+        return None
+    n    = len(vals)
+    mean = round(sum(vals) / n, 2)
+    med  = _median(vals)
+    win  = round(sum(1 for v in vals if v > 0) / n * 100, 1)
+    return {
+        "n":            n,
+        "mean":         mean,
+        "median":       round(med, 2) if med is not None else None,
+        "win_rate":     win,
+        "sample_label": _sample_label(n),
+    }
+
+
+# ── 데이터 로드 ─────────────────────────────────────────────────────
 
 def _load_all_reviews() -> list[dict]:
     reviews = []
@@ -35,6 +80,8 @@ def _load_all_reviews() -> list[dict]:
             logger.warning(f"복기 JSON 로드 실패 {p}: {e}")
     return reviews
 
+
+# ── 기존 통계 (변경 없음) ────────────────────────────────────────────
 
 def _calc_pattern_stats(reviews: list[dict]) -> dict:
     counts: dict[str, dict] = {}
@@ -120,7 +167,7 @@ def _calc_multiday_stats(reviews: list[dict]) -> dict:
         for t in _TYPES
     } if total_typed > 0 else {}
 
-    # 교집합 vs 비교집합 D+1 시가 비교
+    # 교집합 vs 비교집합 D+1 시가 비교 (기존 필드 유지)
     inter_comparison: dict = {}
     inter_d1  = [r["d1_open_pct"] for r in d1_valid if r.get("in_inter") and r.get("d1_open_pct") is not None]
     ninter_d1 = [r["d1_open_pct"] for r in d1_valid if not r.get("in_inter") and r.get("d1_open_pct") is not None]
@@ -147,6 +194,64 @@ def _calc_multiday_stats(reviews: list[dict]) -> dict:
     }
 
 
+# ── 신규: 교집합/비교집합 상세 통계 ────────────────────────────────
+
+def _calc_inter_full_stats(reviews: list[dict]) -> dict:
+    """교집합/비교집합 분리 통계: 평균/중앙값/승률/MFE/MAE."""
+
+    def _st(entries: list[dict], field: str) -> dict | None:
+        vals = [float(r[field]) for r in entries if r.get(field) is not None]
+        return _group_stat(vals)
+
+    inter  = [r for r in reviews if r.get("in_inter")]
+    ninter = [r for r in reviews if not r.get("in_inter")]
+
+    def _build(grp: list[dict]) -> dict:
+        return {
+            "d1_open":  _st(grp, "d1_open_pct"),
+            "d1_close": _st(grp, "d1_close_pct"),
+            "d3_close": _st(grp, "d3_close_pct"),
+            "mfe":      _st(grp, "mfe"),
+            "mae":      _st(grp, "mae"),
+        }
+
+    return {
+        "inter":  _build(inter),
+        "ninter": _build(ninter),
+    }
+
+
+# ── 신규: 상승률 구간별 통계 ────────────────────────────────────────
+
+def _calc_change_band_stats(reviews: list[dict]) -> list[dict]:
+    """signal-day 등락률 구간별 성과 통계."""
+    results = []
+    for label, lo, hi in _CHG_BANDS:
+        band = [
+            r for r in reviews
+            if r.get("signal_change_pct") is not None
+            and lo <= float(r["signal_change_pct"]) < hi
+        ]
+        n = len(band)
+
+        def _st(field: str, entries: list[dict] = band) -> dict | None:
+            vals = [float(r[field]) for r in entries if r.get(field) is not None]
+            return _group_stat(vals) if vals else None
+
+        results.append({
+            "label":        label,
+            "n":            n,
+            "sample_label": _sample_label(n),
+            "d1_open":      _st("d1_open_pct"),
+            "d3_close":     _st("d3_close_pct"),
+            "mfe":          _st("mfe"),
+            "mae":          _st("mae"),
+        })
+    return results
+
+
+# ── 메인 ────────────────────────────────────────────────────────────
+
 def run() -> dict:
     reviews = _load_all_reviews()
     measured = [r for r in reviews if r.get("result") in ("성공", "실패")]
@@ -159,9 +264,19 @@ def run() -> dict:
         "score_band":     _calc_score_stats(reviews),
     }
 
-    # 멀티데이 통계는 D+1 데이터 있는 항목이 1개 이상일 때만 포함
+    # 멀티데이 통계 (D+1 데이터 있는 항목이 1개 이상일 때)
     multiday = _calc_multiday_stats(reviews)
     if multiday.get("d1_count", 0) > 0:
         result["multiday"] = multiday
+
+    # 교집합/비교집합 상세 통계 (D+1 데이터 있는 항목 기준)
+    d1_reviews = [r for r in reviews if r.get("d1_open_pct") is not None]
+    if d1_reviews:
+        result["inter_full_stats"] = _calc_inter_full_stats(d1_reviews)
+
+    # 상승률 구간별 통계 (signal_change_pct가 있는 항목 기준)
+    chg_reviews = [r for r in reviews if r.get("signal_change_pct") is not None and r.get("d1_open_pct") is not None]
+    if chg_reviews:
+        result["change_band_stats"] = _calc_change_band_stats(chg_reviews)
 
     return result

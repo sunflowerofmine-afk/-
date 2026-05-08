@@ -421,9 +421,10 @@ def run(today: date, kospi_chg_today: float | None) -> list[dict]:
             "sector":       str(row.get("sector", "")),
             "total_score":  int(row.get("total_score") or 0),
             # ── 멀티데이용 메타 ────────────────────────
-            "signal_date":      yesterday_str,
-            "signal_tv":        float(row.get("거래대금") or 0),
-            "in_inter":         bool(row.get("in_inter", False)),
+            "signal_date":       yesterday_str,
+            "signal_tv":         float(row.get("거래대금") or 0),
+            "signal_change_pct": float(row.get("등락률") or 0) or None,
+            "in_inter":          bool(row.get("in_inter", False)),
             "base_high_gap_pct": row.get("base_high_gap_pct"),
             # ── 멀티데이 수익률 ─────────────────────────
             "d1_open_pct":  None,

@@ -28,5 +28,10 @@ logs/
 # ── 대시보드 HTML은 의도적으로 추적함 (GitHub Pages 배포) ──
 # reports/ 는 gitignore 하지 않음
 
+# ── 매매 분석 (개인 데이터) ────────────────────────────────
+data/weekly_trading_review/*.csv
+data/trade_reviews/
+reports/trade_reviews/
+
 # ── Claude Code 내부 파일 ─────────────────────────────────
 CLAUDE.md

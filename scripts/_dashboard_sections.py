@@ -1001,6 +1001,105 @@ def _section_cumulative_stats(stats: dict) -> str:
             )
 
     html += "</div>"
+
+    # ── 교집합/비교집합 상세 통계 ─────────────────────────────────
+    ifs = stats.get("inter_full_stats", {})
+    if ifs:
+        _FIELDS = [
+            ("D+1 시가", "d1_open"),
+            ("D+1 종가", "d1_close"),
+            ("D+3 종가", "d3_close"),
+            ("MFE",     "mfe"),
+            ("MAE",     "mae"),
+        ]
+
+        def _st_cell(st: dict | None) -> str:
+            if not st:
+                return '<td style="text-align:center;color:var(--muted)">-</td>' * 4
+            mean = st["mean"]
+            med  = st.get("median")
+            wr   = st.get("win_rate")
+            cls  = "td-pos" if mean >= 0 else "td-neg"
+            sl   = st.get("sample_label", "")
+            sl_color = "var(--red)" if sl == "데이터부족" else ("var(--yellow)" if sl == "참고용" else "var(--muted)")
+            return (
+                f'<td style="text-align:center">{st["n"]} <span style="font-size:10px;color:{sl_color}">({_e(sl)})</span></td>'
+                f'<td class="{cls}" style="text-align:center">{mean:+.2f}%</td>'
+                f'<td style="text-align:center">{f"{med:+.2f}%" if med is not None else "-"}</td>'
+                f'<td style="text-align:center">{f"{wr:.1f}%" if wr is not None else "-"}</td>'
+            )
+
+        def _group_rows(grp: dict) -> str:
+            rows = ""
+            for label, field in _FIELDS:
+                rows += f"<tr><td>{_e(label)}</td>{_st_cell(grp.get(field))}</tr>"
+            return rows
+
+        tbl_head = "<thead><tr><th>항목</th><th>N</th><th>평균</th><th>중앙</th><th>승률</th></tr></thead>"
+        inter_g  = ifs.get("inter",  {})
+        ninter_g = ifs.get("ninter", {})
+        html += (
+            '<div class="section-title">🔍 교집합/비교집합 상세 비교</div>'
+            '<div style="display:flex;gap:24px;flex-wrap:wrap;margin-bottom:16px">'
+            '<div style="flex:1;min-width:280px">'
+            '<div style="font-size:12px;color:var(--muted);margin-bottom:6px">교집합</div>'
+            '<div class="tbl-wrap"><table>'
+            f"{tbl_head}<tbody>{_group_rows(inter_g)}</tbody>"
+            "</table></div></div>"
+            '<div style="flex:1;min-width:280px">'
+            '<div style="font-size:12px;color:var(--muted);margin-bottom:6px">비교집합</div>'
+            '<div class="tbl-wrap"><table>'
+            f"{tbl_head}<tbody>{_group_rows(ninter_g)}</tbody>"
+            "</table></div></div>"
+            "</div>"
+        )
+
+    # ── 신호일 상승률 구간별 통계 ──────────────────────────────────
+    cbs = stats.get("change_band_stats", [])
+    if cbs:
+        def _cb_cells(st: dict | None) -> str:
+            if not st:
+                return '<td style="text-align:center;color:var(--muted)">-</td>' * 3
+            mean = st["mean"]
+            med  = st.get("median")
+            wr   = st.get("win_rate")
+            cls  = "td-pos" if mean >= 0 else "td-neg"
+            return (
+                f'<td class="{cls}" style="text-align:center">{mean:+.2f}%</td>'
+                f'<td style="text-align:center">{f"{med:+.2f}%" if med is not None else "-"}</td>'
+                f'<td style="text-align:center">{f"{wr:.1f}%" if wr is not None else "-"}</td>'
+            )
+
+        cb_rows = ""
+        for b in cbs:
+            n  = b["n"]
+            sl = b.get("sample_label", "")
+            sl_color = "var(--red)" if sl == "데이터부족" else ("var(--yellow)" if sl == "참고용" else "var(--green)")
+            cb_rows += (
+                f"<tr><td>{_e(b['label'])}</td>"
+                f'<td style="text-align:center">{n} <span style="font-size:10px;color:{sl_color}">({_e(sl)})</span></td>'
+                + _cb_cells(b.get("d1_open"))
+                + _cb_cells(b.get("d3_close"))
+                + _cb_cells(b.get("mfe"))
+                + "</tr>"
+            )
+        html += (
+            '<div class="section-title">📉 신호일 상승률 구간별 통계</div>'
+            '<div style="margin-bottom:16px">'
+            '<div class="tbl-wrap"><table>'
+            '<thead>'
+            '<tr><th rowspan="2">구간</th><th rowspan="2">N</th>'
+            '<th colspan="3">D+1 시가</th>'
+            '<th colspan="3">D+3 종가</th>'
+            '<th colspan="3">MFE</th></tr>'
+            '<tr><th>평균</th><th>중앙</th><th>승률</th>'
+            '<th>평균</th><th>중앙</th><th>승률</th>'
+            '<th>평균</th><th>중앙</th><th>승률</th></tr>'
+            '</thead>'
+            f"<tbody>{cb_rows}</tbody>"
+            "</table></div></div>"
+        )
+
     return html
 
 

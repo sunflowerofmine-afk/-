@@ -211,6 +211,7 @@ def format_market_summary(market_totals: dict, run_time: str, run_type: str,
     idx_line = f"코스피 {_idx(kospi_level, kospi_chg)} | 코스닥 {_idx(kosdaq_level, kosdaq_chg)}\n"
     tv_line  = f"거래대금 {kospi_tv:,.0f}억 | {kosdaq_tv:,.0f}억\n"
 
+    checklist = "─" * 16 + "\n☑ 종가진입  ☑ 물타기금지  ☑ D+1장초계획\n"
     return (
         f"{regime_line}"
         f"{concentration_line}"
@@ -221,6 +222,7 @@ def format_market_summary(market_totals: dict, run_time: str, run_type: str,
         f"교집합 {inter_n}개 | 핵심후보 {core_n}개\n"
         f"{limit_up_line}"
         f"{interpretation_line}"
+        f"{checklist}"
     )
 
 
