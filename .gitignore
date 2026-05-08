@@ -20,6 +20,7 @@ data/raw/
 data/processed/
 data/signals/
 data/results/
+data/gap_results/
 
 # ── 로그 ─────────────────────────────────────────────────
 logs/
