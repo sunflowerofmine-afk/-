@@ -211,7 +211,10 @@ def format_market_summary(market_totals: dict, run_time: str, run_type: str,
     idx_line = f"코스피 {_idx(kospi_level, kospi_chg)} | 코스닥 {_idx(kosdaq_level, kosdaq_chg)}\n"
     tv_line  = f"거래대금 {kospi_tv:,.0f}억 | {kosdaq_tv:,.0f}억\n"
 
-    checklist = "─" * 16 + "\n☑ 종가진입  ☑ 물타기금지  ☑ D+1장초계획\n"
+    if run_type == "2차":
+        checklist = "─" * 16 + "\n[원칙] NXT는 보조 / 추격금지 / 물타기금지\n"
+    else:
+        checklist = "─" * 16 + "\n[원칙] 종가진입 / 물타기금지 / D+1장초계획\n"
     return (
         f"{regime_line}"
         f"{concentration_line}"

@@ -15,7 +15,6 @@ import csv
 import io
 import json
 import logging
-import os
 import sys
 import webbrowser
 from datetime import date, datetime, timedelta
@@ -40,7 +39,7 @@ TAG_DESC = {
     "NON_SIGNAL_TRADE":       "시스템 미신호 종목 매수",
     "SIGNAL_FILE_MISSING":    "신호 파일 없음 (확인불가)",
     "NON_INTERSECTION_TRADE": "교집합 미포함 종목 매수",
-    "NOT_CLOSE_ENTRY":        "종가진입 원칙 위반 (시간/가격 불일치)",
+    "NOT_CLOSE_ENTRY":        "종가진입 원칙 위반 (정규장 시간/가격 불일치)",
     "D1_CHASE_ENTRY":         "D+1 장초 고점 추격매수",
     "REVERSE_AT_EXIT_ZONE":   "D+1 09:20~09:40 고점 역추격매수",
     "MISSED_D1_EXIT":         "D+1 익일 익절 기회 미활용",
@@ -48,7 +47,21 @@ TAG_DESC = {
     "ADDITIONAL_BUY":         "추가매수 (물타기 외)",
     "RE_ENTRY":               "재진입 (당일 청산 후 재매수)",
     "OVERSIZED_POSITION":     "과대 포지션",
-    "NXT_ENTRY":              "NXT 시간외 단일가 진입",
+    "NXT_ENTRY":              "NXT 시간외 단일가 체결 발생",
+    "AFTER_1750_NXT_ENTRY":   "17:50 이후 NXT 진입 (봇 신호 종목)",
+    "CONDITIONAL_NXT_ENTRY":  "조건부 허용 NXT 진입 (신호+교집합+가격±1.5%+물타기없음+포지션OK)",
+    "NXT_ENTRY_CAUTION":      "NXT 주의 진입 (signal_price 대비 +1.5~3%)",
+    "NXT_CHASE_ENTRY":        "NXT 추격 진입 (signal_price 대비 +3% 초과)",
+}
+
+# 진입 구간 → 한글 레이블
+_ENTRY_TYPE_LABEL = {
+    "REGULAR_CLOSE_ENTRY":  "정규장 종가 진입",
+    "AFTER_1750_NXT_ENTRY": "17:50 이후 NXT 진입",
+    "D1_CHASE_ENTRY":       "D+1 장초 추격 진입",
+    "REVERSE_AT_EXIT_ZONE": "D+1 역추격 진입",
+    "NOT_CLOSE_ENTRY":      "시간 위반 진입",
+    "UNKNOWN":              "확인불가",
 }
 
 # 포지션 비중 경고 임계값 (%)
@@ -64,9 +77,9 @@ def _load_hts_csv(path: Path) -> list[dict]:
     """영웅문S# 기간별 주문체결상세 CSV → 체결 거래 목록 반환.
 
     2행 쌍 구조:
-      row1: 주식채널 | 주문번호 | 원주문번호 | 종목코드 | 주문유형 | 현금매수/매도K | 주문수량 | 주문단가 | ...
-      row2: 날짜 | 종목명 | 접수 | 보통매매 | 체결수량 | 체결단가 | 취소/정정주문 | 영웅문S# | | 체결시각 | 시장
-    취소/정정 주문은 제외.
+      row1: 주식채널|주문번호|원주문번호|종목코드|주문유형|현금매수/매도K|주문수량|주문단가
+      row2: 날짜|종목명|접수|보통매매|체결수량|체결단가|취소/정정|영웅문S#||체결시각|시장
+    취소/정정 주문 제외.
     반환 필드: date, time, code, name, side, qty, price, market
     """
     try:
@@ -77,8 +90,6 @@ def _load_hts_csv(path: Path) -> list[dict]:
 
     reader = csv.reader(io.StringIO(text))
     rows = list(reader)
-
-    # 헤더 2행 스킵, 빈 행 제거
     data_rows = [r for r in rows[2:] if any(c.strip() for c in r)]
 
     trades = []
@@ -91,12 +102,10 @@ def _load_hts_csv(path: Path) -> list[dict]:
         if len(row1) < 8 or len(row2) < 10:
             continue
 
-        # 취소/정정 여부: row2[6]
         cancel_flag = row2[6].strip() if len(row2) > 6 else ""
         if "취소" in cancel_flag or "정정" in cancel_flag:
             continue
 
-        # 체결수량: row2[4]
         exec_qty_str = row2[4].strip().replace(",", "") if len(row2) > 4 else ""
         if not exec_qty_str or exec_qty_str == "0":
             continue
@@ -106,19 +115,12 @@ def _load_hts_csv(path: Path) -> list[dict]:
         except ValueError:
             continue
 
-        # 날짜: row2[0] (2026/04/27 → 20260427)
         raw_date  = row2[0].strip().replace("/", "").replace("-", "")
-        # 종목코드: row1[3] (leading apostrophe 제거)
         code      = row1[3].strip().lstrip("'").zfill(6)
-        # 종목명: row2[1]
         name      = row2[1].strip()
-        # 매수/매도 구분: row1[5] ('현금매수', '현금매도 K' 등)
         side_raw  = row1[5].strip()
-        # 시장구분: row2[10] (KRX / NXT / SOR)
         market_s  = row2[10].strip() if len(row2) > 10 else ""
-        # 체결시각: row2[9]
         exec_time = row2[9].strip() if len(row2) > 9 else ""
-        # 체결단가: row2[5]
         exec_px_s = row2[5].strip().replace(",", "") if len(row2) > 5 else ""
 
         try:
@@ -127,7 +129,6 @@ def _load_hts_csv(path: Path) -> list[dict]:
             continue
 
         side = "buy" if "매수" in side_raw else "sell"
-
         trades.append({
             "date":   raw_date,
             "time":   exec_time,
@@ -148,16 +149,14 @@ class SignalCache:
     """signals.csv + gap_results/all.csv 를 메모리에 캐시."""
 
     def __init__(self):
-        self._signals: dict[tuple[str, str], dict] = {}   # (date8, code) → row
-        self._gap:     dict[tuple[str, str], dict] = {}   # (entry_date8, code) → row
-        self._loaded_signal_dirs: set[str] = set()
+        self._signals: dict[tuple[str, str], dict] = {}
+        self._gap:     dict[tuple[str, str], dict] = {}
         self._load_gap()
         self._load_signals()
 
     def _load_gap(self):
         if not _GAP_CSV.exists():
             return
-        # utf-8-sig: BOM 자동 제거 (Excel 저장 CSV 대응)
         with open(_GAP_CSV, encoding="utf-8-sig") as f:
             for row in csv.DictReader(f):
                 d = row.get("entry_date", "").strip()
@@ -167,7 +166,6 @@ class SignalCache:
 
     def _load_signals(self):
         for p in sorted(_SIGNALS_DIR.glob("*_signals.csv")):
-            # 파일명 형식: 2026-04-28_1754_signals.csv → 20260428
             date8 = p.name[:10].replace("-", "")
             with open(p, encoding="utf-8") as f:
                 for row in csv.DictReader(f):
@@ -176,15 +174,12 @@ class SignalCache:
                         self._signals[(date8, code)] = row
 
     def find_signal(self, trade_date8: str, code: str, lookback: int = 3) -> dict | None:
-        """trade_date 및 D-1~D-lookback 날짜에서 신호 검색.
-        signals.csv 없으면 gap_results/all.csv로 폴백."""
         d = datetime.strptime(trade_date8, "%Y%m%d").date()
         for delta in range(lookback + 1):
             candidate = (d - timedelta(days=delta)).strftime("%Y%m%d")
             sig = self._signals.get((candidate, code))
             if sig:
                 return {**sig, "_signal_date": candidate}
-        # gap_results 폴백: 신호 CSV 없는 날짜도 사후 집계 데이터로 확인
         for delta in range(lookback + 1):
             candidate = (d - timedelta(days=delta)).strftime("%Y%m%d")
             if self._gap.get((candidate, code)):
@@ -192,7 +187,6 @@ class SignalCache:
         return None
 
     def signal_price(self, signal_date8: str, code: str) -> float | None:
-        """신호일 종가 (gap_results 우선, fallback: signals.csv signal_price)."""
         gap = self._gap.get((signal_date8, code))
         if gap:
             try:
@@ -212,11 +206,16 @@ class SignalCache:
         sig = self._signals.get((signal_date8, code))
         if sig is not None:
             v = sig.get("in_inter", "").strip().lower()
-            return v in ("true", "1", "yes")
-        # gap_results 폴백
+            if v in ("true", "1", "yes"):
+                return True
+            if v in ("false", "0", "no"):
+                return False
+            # in_inter 컬럼 없거나 빈 값이면 gap_results로 폴백
         gap = self._gap.get((signal_date8, code))
         if gap is not None:
-            return gap.get("in_inter", "").strip() == "True"
+            gv = gap.get("in_inter", "").strip()
+            if gv:
+                return gv == "True"
         return None
 
     def has_signal_file(self, trade_date8: str, lookback: int = 3) -> bool:
@@ -240,7 +239,6 @@ class SignalCache:
 # ── 포지션 빌더 ──────────────────────────────────────────────
 
 def _build_positions(trades: list[dict]) -> dict[str, list[dict]]:
-    """종목코드별 거래 목록 그룹화."""
     result: dict[str, list[dict]] = {}
     for t in trades:
         result.setdefault(t["code"], []).append(t)
@@ -248,24 +246,23 @@ def _build_positions(trades: list[dict]) -> dict[str, list[dict]]:
 
 
 def _calc_pnl(buys: list[dict], sells: list[dict]) -> dict:
-    """매수/매도 내역으로 평균단가·실현손익·미청산 계산."""
-    total_buy_qty   = sum(t["qty"] for t in buys)
-    total_buy_value = sum(t["qty"] * t["price"] for t in buys)
-    total_sell_qty  = sum(t["qty"] for t in sells)
+    total_buy_qty    = sum(t["qty"] for t in buys)
+    total_buy_value  = sum(t["qty"] * t["price"] for t in buys)
+    total_sell_qty   = sum(t["qty"] for t in sells)
     total_sell_value = sum(t["qty"] * t["price"] for t in sells)
     avg_cost = total_buy_value / total_buy_qty if total_buy_qty else 0
     remaining = total_buy_qty - total_sell_qty
     realized = total_sell_value - avg_cost * total_sell_qty if avg_cost else 0
     realized_pct = realized / (avg_cost * total_sell_qty) * 100 if avg_cost and total_sell_qty else None
     return {
-        "avg_cost":       round(avg_cost),
-        "total_buy_qty":  total_buy_qty,
-        "total_buy_value": total_buy_value,
-        "total_sell_qty": total_sell_qty,
+        "avg_cost":         round(avg_cost),
+        "total_buy_qty":    total_buy_qty,
+        "total_buy_value":  total_buy_value,
+        "total_sell_qty":   total_sell_qty,
         "total_sell_value": total_sell_value,
-        "remaining_qty":  remaining,
-        "realized":       round(realized),
-        "realized_pct":   round(realized_pct, 2) if realized_pct is not None else None,
+        "remaining_qty":    remaining,
+        "realized":         round(realized),
+        "realized_pct":     round(realized_pct, 2) if realized_pct is not None else None,
     }
 
 
@@ -278,13 +275,19 @@ def _detect_violations(
     cache: SignalCache,
     period_total_buy: float,
     base_capital: float,
-) -> list[str]:
-    """하나의 종목에 대한 위반 태그 리스트 반환."""
+) -> tuple[list[str], str, float | None]:
+    """종목 위반 태그 리스트 + 진입 구간 반환.
+
+    Returns: (tags, entry_type, entry_price_vs_signal_pct)
+    entry_type: "REGULAR_CLOSE_ENTRY" | "AFTER_1750_NXT_ENTRY" |
+                "D1_CHASE_ENTRY" | "REVERSE_AT_EXIT_ZONE" |
+                "NOT_CLOSE_ENTRY" | "UNKNOWN"
+    """
     tags: list[str] = []
     buys  = [t for t in code_trades if t["side"] == "buy"]
     sells = [t for t in code_trades if t["side"] == "sell"]
     if not buys:
-        return tags
+        return tags, "UNKNOWN", None
 
     first_buy = min(buys, key=lambda t: (t["date"], t["time"]))
     signal = cache.find_signal(first_buy["date"], code)
@@ -294,24 +297,24 @@ def _detect_violations(
             tags.append("SIGNAL_FILE_MISSING")
         else:
             tags.append("NON_SIGNAL_TRADE")
-        # 이후 신호 기반 검사 불가
         _check_position_size(tags, buys, period_total_buy, base_capital)
         _check_additional_and_re_entry(tags, buys, sells)
-        return tags
+        return tags, "UNKNOWN", None
 
-    sig_date = signal["_signal_date"]
+    sig_date  = signal["_signal_date"]
     sig_price = cache.signal_price(sig_date, code)
-    is_inter = cache.is_inter(sig_date, code)
+    is_inter  = cache.is_inter(sig_date, code)
 
     if is_inter is False:
         tags.append("NON_INTERSECTION_TRADE")
 
-    _check_entry_timing(tags, buys, first_buy, sig_date, sig_price)
+    entry_type, price_pct = _check_entry_timing(tags, buys, first_buy, sig_date, sig_price, signal)
     _check_position_size(tags, buys, period_total_buy, base_capital)
     _check_additional_and_re_entry(tags, buys, sells)
     _check_missed_d1_exit(tags, sells, sig_date, code, cache)
+    _classify_nxt_entry(tags, entry_type, price_pct, is_inter)
 
-    return tags
+    return tags, entry_type, price_pct
 
 
 def _check_entry_timing(
@@ -320,40 +323,106 @@ def _check_entry_timing(
     first_buy: dict,
     sig_date: str,
     sig_price: float | None,
-) -> None:
-    """NOT_CLOSE_ENTRY / D1_CHASE_ENTRY / REVERSE_AT_EXIT_ZONE / NXT_ENTRY 판정."""
-    for b in buys:
-        t_date = b["date"]
-        t_time = b["time"]  # "HH:MM:SS" or "HH:MM"
-        t_px   = b["price"]
-        market = b.get("market", "")
+    signal: dict,
+) -> tuple[str, float | None]:
+    """진입 구간 판정 + 타이밍 관련 태그(NXT_ENTRY, NOT_CLOSE_ENTRY, D1_*, REVERSE_*) 추가.
 
-        # NXT 시간외 단일가
-        if "NXT" in market.upper():
-            if "NXT_ENTRY" not in tags:
-                tags.append("NXT_ENTRY")
+    entry_type은 첫 매수 기준으로만 결정.
+    NOT_CLOSE_ENTRY는 sig_date + 15:30 이전 정규장 구간 이탈 시에만 적용.
+    15:30 이후 시간외/NXT 진입은 AFTER_1750_NXT_ENTRY 계열로 처리.
+
+    Returns: (entry_type, entry_price_vs_signal_pct)
+    """
+    entry_type = "UNKNOWN"
+    price_pct: float | None = None
+
+    fb_px     = first_buy["price"]
+    fb_date   = first_buy["date"]
+    fb_time   = first_buy["time"]
+    fb_market = first_buy.get("market", "")
+    fb_h, fb_m = _hm(fb_time)
+
+    if sig_price and sig_price > 0:
+        price_pct = round((fb_px - sig_price) / sig_price * 100, 2)
+
+    # ── entry_type: first_buy 기준 ──────────────────────────
+    if fb_date == sig_date:
+        if (fb_h, fb_m) < (15, 30):
+            # 정규장 시간대 (15:30 이전)
+            in_window = (14, 50) <= (fb_h, fb_m) <= (15, 30)
+            price_ok  = sig_price and abs(fb_px - sig_price) / sig_price <= 0.015
+            entry_type = "REGULAR_CLOSE_ENTRY" if (in_window or price_ok) else "NOT_CLOSE_ENTRY"
+        else:
+            # 15:30 이후 시간외 구간
+            is_nxt = "NXT" in fb_market.upper()
+            if is_nxt and (fb_h, fb_m) >= (17, 50) and signal is not None:
+                entry_type = "AFTER_1750_NXT_ENTRY"
+            # 15:30~17:50 또는 비NXT 시간외 → UNKNOWN
+    elif fb_date > sig_date:
+        # D+1 이후 진입 — REVERSE_AT_EXIT_ZONE이 D1_CHASE_ENTRY의 부분집합이므로 먼저 체크
+        if (9, 20) <= (fb_h, fb_m) <= (9, 40) and sig_price and fb_px >= sig_price * 1.03:
+            entry_type = "REVERSE_AT_EXIT_ZONE"
+        elif (8, 0) <= (fb_h, fb_m) <= (10, 0) and sig_price and fb_px >= sig_price * 1.03:
+            entry_type = "D1_CHASE_ENTRY"
+
+    # ── 전체 매수 순회: NXT_ENTRY / NOT_CLOSE_ENTRY / D1_* 태그 ──
+    for b in buys:
+        t_date   = b["date"]
+        t_time   = b["time"]
+        t_px     = b["price"]
+        market   = b.get("market", "")
+        h, m     = _hm(t_time)
+
+        # NXT 체결 여부 (정보용 — 단독으로 위반 아님)
+        if "NXT" in market.upper() and "NXT_ENTRY" not in tags:
+            tags.append("NXT_ENTRY")
 
         if t_date == sig_date:
-            # 종가진입 원칙: 14:50~15:30 사이 OR ±1.5% 이내
-            h, m = _hm(t_time)
-            in_window = (14, 50) <= (h, m) <= (15, 30)
-            price_ok = sig_price and abs(t_px - sig_price) / sig_price <= 0.015 if sig_price else False
-            if not in_window and not price_ok:
-                if "NOT_CLOSE_ENTRY" not in tags:
+            if (h, m) < (15, 30):
+                # 정규장 구간 이탈만 NOT_CLOSE_ENTRY
+                in_window = (14, 50) <= (h, m) <= (15, 30)
+                price_ok  = sig_price and abs(t_px - sig_price) / sig_price <= 0.015
+                if not in_window and not price_ok and "NOT_CLOSE_ENTRY" not in tags:
                     tags.append("NOT_CLOSE_ENTRY")
+            # 15:30 이후는 _classify_nxt_entry()에서 처리
         else:
-            # 다음 거래일 매수
-            h, m = _hm(t_time)
-            # D+1 장초 추격: 08:00~10:00, 가격 ≥ sig_price × 1.03
-            if (8, 0) <= (h, m) <= (10, 0):
-                if sig_price and t_px >= sig_price * 1.03:
-                    if "D1_CHASE_ENTRY" not in tags:
-                        tags.append("D1_CHASE_ENTRY")
-            # D+1 역추격: 09:20~09:40, 가격 ≥ sig_price × 1.03
+            # D+1 이후 추격 태그
             if (9, 20) <= (h, m) <= (9, 40):
-                if sig_price and t_px >= sig_price * 1.03:
-                    if "REVERSE_AT_EXIT_ZONE" not in tags:
-                        tags.append("REVERSE_AT_EXIT_ZONE")
+                if sig_price and t_px >= sig_price * 1.03 and "REVERSE_AT_EXIT_ZONE" not in tags:
+                    tags.append("REVERSE_AT_EXIT_ZONE")
+            if (8, 0) <= (h, m) <= (10, 0):
+                if sig_price and t_px >= sig_price * 1.03 and "D1_CHASE_ENTRY" not in tags:
+                    tags.append("D1_CHASE_ENTRY")
+
+    return entry_type, price_pct
+
+
+def _classify_nxt_entry(
+    tags: list[str],
+    entry_type: str,
+    price_pct: float | None,
+    is_inter: bool | None,
+) -> None:
+    """17:50 NXT 진입을 가격·조건 기준으로 세분류.
+
+    AFTER_1750_NXT_ENTRY 태그를 추가하고,
+    가격/조건에 따라 CONDITIONAL_NXT_ENTRY / NXT_ENTRY_CAUTION / NXT_CHASE_ENTRY 중 하나 추가.
+    """
+    if entry_type != "AFTER_1750_NXT_ENTRY":
+        return
+    tags.append("AFTER_1750_NXT_ENTRY")
+    if price_pct is None:
+        return
+    if price_pct > 3.0:
+        tags.append("NXT_CHASE_ENTRY")
+    elif price_pct > 1.5:
+        tags.append("NXT_ENTRY_CAUTION")
+    elif (
+        is_inter is True
+        and "AVERAGING_DOWN" not in tags
+        and "OVERSIZED_POSITION" not in tags
+    ):
+        tags.append("CONDITIONAL_NXT_ENTRY")
 
 
 def _check_position_size(
@@ -362,7 +431,6 @@ def _check_position_size(
     period_total_buy: float,
     base_capital: float,
 ) -> None:
-    """포지션 비중 경고 (OVERSIZED_POSITION)."""
     denom = base_capital if base_capital > 0 else period_total_buy
     if not denom:
         return
@@ -377,22 +445,20 @@ def _check_additional_and_re_entry(
     buys: list[dict],
     sells: list[dict],
 ) -> None:
-    """AVERAGING_DOWN / ADDITIONAL_BUY / RE_ENTRY."""
     if len(buys) < 2:
         return
 
-    sorted_buys = sorted(buys, key=lambda t: (t["date"], t["time"]))
+    sorted_buys  = sorted(buys,  key=lambda t: (t["date"], t["time"]))
     sorted_sells = sorted(sells, key=lambda t: (t["date"], t["time"]))
 
-    avg_cost = 0.0
+    avg_cost  = 0.0
     total_qty = 0
     for i, b in enumerate(sorted_buys):
         if i == 0:
-            avg_cost = b["price"]
+            avg_cost  = b["price"]
             total_qty = b["qty"]
             continue
 
-        # 이 매수 직전에 전량 청산되었는지 확인 → RE_ENTRY
         cum_sell_before = sum(
             s["qty"] for s in sorted_sells
             if (s["date"], s["time"]) < (b["date"], b["time"])
@@ -400,11 +466,10 @@ def _check_additional_and_re_entry(
         if cum_sell_before >= total_qty:
             if "RE_ENTRY" not in tags:
                 tags.append("RE_ENTRY")
-            avg_cost = b["price"]
+            avg_cost  = b["price"]
             total_qty = b["qty"]
             continue
 
-        # 물타기: 추가 매수 가격 < 현재 평균단가
         if b["price"] < avg_cost:
             if "AVERAGING_DOWN" not in tags:
                 tags.append("AVERAGING_DOWN")
@@ -412,7 +477,7 @@ def _check_additional_and_re_entry(
             if "ADDITIONAL_BUY" not in tags:
                 tags.append("ADDITIONAL_BUY")
 
-        new_val   = avg_cost * total_qty + b["price"] * b["qty"]
+        new_val    = avg_cost * total_qty + b["price"] * b["qty"]
         total_qty += b["qty"]
         avg_cost   = new_val / total_qty if total_qty else avg_cost
 
@@ -424,18 +489,15 @@ def _check_missed_d1_exit(
     code: str,
     cache: SignalCache,
 ) -> None:
-    """D+1 장초 익절 기회 미활용 (MISSED_D1_EXIT)."""
-    d1_open = cache.d1_open(sig_date, code)
+    d1_open   = cache.d1_open(sig_date, code)
     if d1_open is None:
         return
     sig_price = cache.signal_price(sig_date, code)
     if not sig_price or d1_open <= sig_price:
-        return  # gap-up 아님
+        return
 
-    # D+1에 매도가 없으면 기회 미활용
     d1 = (datetime.strptime(sig_date, "%Y%m%d") + timedelta(days=1)).strftime("%Y%m%d")
-    sold_d1 = any(s["date"] == d1 for s in sells)
-    if not sold_d1:
+    if not any(s["date"] == d1 for s in sells):
         tags.append("MISSED_D1_EXIT")
 
 
@@ -450,83 +512,110 @@ def _hm(time_str: str) -> tuple[int, int]:
 # ── 분석 실행 ─────────────────────────────────────────────────
 
 def _analyze(trades: list[dict], cache: SignalCache) -> dict:
-    """전체 거래 분석. 종목별 결과 + 요약 반환."""
-    buys_all  = [t for t in trades if t["side"] == "buy"]
+    buys_all         = [t for t in trades if t["side"] == "buy"]
     period_total_buy = sum(t["qty"] * t["price"] for t in buys_all)
-
-    base_capital = float(TRADE_ANALYZER_BASE_CAPITAL) if TRADE_ANALYZER_BASE_CAPITAL else 0
-    denom = base_capital if base_capital > 0 else period_total_buy
+    base_capital     = float(TRADE_ANALYZER_BASE_CAPITAL) if TRADE_ANALYZER_BASE_CAPITAL else 0
+    denom            = base_capital if base_capital > 0 else period_total_buy
 
     by_code = _build_positions(trades)
     results = []
 
     for code, code_trades in by_code.items():
-        name = code_trades[0]["name"]
+        name  = code_trades[0]["name"]
         buys  = [t for t in code_trades if t["side"] == "buy"]
         sells = [t for t in code_trades if t["side"] == "sell"]
         if not buys:
             continue
 
         pnl  = _calc_pnl(buys, sells)
-        tags = _detect_violations(code, name, code_trades, cache, period_total_buy, base_capital)
+        tags, entry_type, price_pct = _detect_violations(
+            code, name, code_trades, cache, period_total_buy, base_capital
+        )
 
-        stock_buy  = pnl["total_buy_value"]
-        weight_pct = round(stock_buy / denom * 100, 1) if denom else None
-
-        # 포지션 비중 경고 레벨
+        stock_buy   = pnl["total_buy_value"]
+        weight_pct  = round(stock_buy / denom * 100, 1) if denom else None
         weight_level = ""
         if weight_pct is not None:
-            if weight_pct >= _POS_MAX:
-                weight_level = "최우선경고"
-            elif weight_pct >= _POS_CRIT:
-                weight_level = "심각"
-            elif weight_pct >= _POS_ALERT:
-                weight_level = "경고"
-            elif weight_pct >= _POS_WARN:
-                weight_level = "주의"
+            if weight_pct >= _POS_MAX:     weight_level = "최우선경고"
+            elif weight_pct >= _POS_CRIT:  weight_level = "심각"
+            elif weight_pct >= _POS_ALERT: weight_level = "경고"
+            elif weight_pct >= _POS_WARN:  weight_level = "주의"
 
         first_buy = min(buys, key=lambda t: (t["date"], t["time"]))
-        signal = cache.find_signal(first_buy["date"], code)
-        sig_date = signal["_signal_date"] if signal else None
+        signal    = cache.find_signal(first_buy["date"], code)
+        sig_date  = signal["_signal_date"] if signal else None
         sig_price = cache.signal_price(sig_date, code) if sig_date else None
-        is_inter  = cache.is_inter(sig_date, code)    if sig_date else None
+        is_inter  = cache.is_inter(sig_date, code)     if sig_date else None
 
         results.append({
-            "code":         code,
-            "name":         name,
-            "sig_date":     sig_date,
-            "sig_price":    sig_price,
-            "is_inter":     is_inter,
-            "avg_cost":     pnl["avg_cost"],
-            "total_buy_qty":    pnl["total_buy_qty"],
-            "total_buy_value":  pnl["total_buy_value"],
-            "total_sell_qty":   pnl["total_sell_qty"],
-            "total_sell_value": pnl["total_sell_value"],
-            "remaining_qty":    pnl["remaining_qty"],
-            "realized":         pnl["realized"],
-            "realized_pct":     pnl["realized_pct"],
-            "weight_pct":       weight_pct,
-            "weight_level":     weight_level,
-            "tags":             tags,
-            "buys":             buys,
-            "sells":            sells,
+            "code":                      code,
+            "name":                      name,
+            "sig_date":                  sig_date,
+            "sig_price":                 sig_price,
+            "is_inter":                  is_inter,
+            "avg_cost":                  pnl["avg_cost"],
+            "total_buy_qty":             pnl["total_buy_qty"],
+            "total_buy_value":           pnl["total_buy_value"],
+            "total_sell_qty":            pnl["total_sell_qty"],
+            "total_sell_value":          pnl["total_sell_value"],
+            "remaining_qty":             pnl["remaining_qty"],
+            "realized":                  pnl["realized"],
+            "realized_pct":              pnl["realized_pct"],
+            "weight_pct":                weight_pct,
+            "weight_level":              weight_level,
+            "tags":                      tags,
+            "entry_type":                entry_type,
+            "entry_price_vs_signal_pct": price_pct,
+            "buys":                      buys,
+            "sells":                     sells,
         })
 
-    total_realized  = sum(r["realized"] for r in results)
-    total_buy_value = sum(r["total_buy_value"] for r in results)
-    total_realized_pct = total_realized / total_buy_value * 100 if total_buy_value else None
+    total_realized      = sum(r["realized"] for r in results)
+    total_buy_value     = sum(r["total_buy_value"] for r in results)
+    total_realized_pct  = total_realized / total_buy_value * 100 if total_buy_value else None
 
-    signal_trades    = [r for r in results if "NON_SIGNAL_TRADE" not in r["tags"] and "SIGNAL_FILE_MISSING" not in r["tags"]]
-    inter_trades     = [r for r in signal_trades if r.get("is_inter")]
-    violation_trades = [r for r in results if r["tags"]]
+    signal_trades = [
+        r for r in results
+        if "NON_SIGNAL_TRADE" not in r["tags"] and "SIGNAL_FILE_MISSING" not in r["tags"]
+    ]
+    inter_trades = [r for r in signal_trades if r.get("is_inter")]
+
     tag_counts: dict[str, int] = {}
     for r in results:
         for t in r["tags"]:
             tag_counts[t] = tag_counts.get(t, 0) + 1
 
-    compliant_n = len([r for r in results if not r["tags"]])
-    total_n     = len(results)
+    compliant_n     = len([r for r in results if not r["tags"]])
+    total_n         = len(results)
     compliance_rate = round(compliant_n / total_n * 100, 1) if total_n else None
+
+    # 진입 방식별 집계
+    entry_counts: dict[str, int] = {k: 0 for k in _ENTRY_TYPE_LABEL}
+    entry_pnl:    dict[str, int] = {k: 0 for k in _ENTRY_TYPE_LABEL}
+    for r in results:
+        et = r.get("entry_type", "UNKNOWN")
+        entry_counts[et] = entry_counts.get(et, 0) + 1
+        entry_pnl[et]    = entry_pnl.get(et, 0) + r.get("realized", 0)
+
+    def _cnt(et): return entry_counts.get(et, 0)
+    def _tag_cnt(tag): return sum(1 for r in results if tag in r["tags"])
+    def _rate(n): return round(n / total_n * 100, 1) if total_n else 0
+
+    entry_stats = {
+        "regular_close_n":      _cnt("REGULAR_CLOSE_ENTRY"),
+        "after_1750_nxt_n":     _cnt("AFTER_1750_NXT_ENTRY"),
+        "conditional_nxt_n":    _tag_cnt("CONDITIONAL_NXT_ENTRY"),
+        "nxt_caution_n":        _tag_cnt("NXT_ENTRY_CAUTION"),
+        "nxt_chase_n":          _tag_cnt("NXT_CHASE_ENTRY"),
+        "d1_chase_n":           _cnt("D1_CHASE_ENTRY"),
+        "reverse_n":            _cnt("REVERSE_AT_EXIT_ZONE"),
+        "unknown_n":            _cnt("UNKNOWN"),
+        "regular_close_rate":   _rate(_cnt("REGULAR_CLOSE_ENTRY")),
+        "conditional_nxt_rate": _rate(_tag_cnt("CONDITIONAL_NXT_ENTRY")),
+        "nxt_chase_rate":       _rate(_tag_cnt("NXT_CHASE_ENTRY") + _tag_cnt("NXT_ENTRY_CAUTION")),
+        "d1_chase_rate":        _rate(_cnt("D1_CHASE_ENTRY") + _cnt("REVERSE_AT_EXIT_ZONE")),
+        "entry_pnl":            {k: v for k, v in entry_pnl.items() if v != 0},
+    }
 
     return {
         "summary": {
@@ -539,6 +628,7 @@ def _analyze(trades: list[dict], cache: SignalCache) -> dict:
             "signal_count":       len(signal_trades),
             "inter_count":        len(inter_trades),
             "tag_counts":         tag_counts,
+            "entry_stats":        entry_stats,
         },
         "stocks": results,
     }
@@ -558,7 +648,11 @@ _TAG_COLOR = {
     "ADDITIONAL_BUY":         "#fdd835",
     "RE_ENTRY":               "#fb8c00",
     "OVERSIZED_POSITION":     "#8e24aa",
-    "NXT_ENTRY":              "#0288d1",
+    "NXT_ENTRY":              "#546e7a",
+    "AFTER_1750_NXT_ENTRY":   "#0288d1",
+    "CONDITIONAL_NXT_ENTRY":  "#00897b",
+    "NXT_ENTRY_CAUTION":      "#f57c00",
+    "NXT_CHASE_ENTRY":        "#c62828",
 }
 
 _WEIGHT_COLOR = {
@@ -594,15 +688,15 @@ def _tag_badge(tag: str) -> str:
 
 
 def _generate_html(result: dict, csv_name: str, report_date: str) -> str:
-    s   = result["summary"]
+    s      = result["summary"]
     stocks = result["stocks"]
+    es     = s.get("entry_stats", {})
 
     def _pct_color(v) -> str:
         if v is None:
             return ""
         return "color:#4caf50" if v >= 0 else "color:#ef5350"
 
-    # 요약 카드
     cr = s.get("compliance_rate")
     cr_color = "#4caf50" if (cr or 0) >= 80 else ("#fb8c00" if (cr or 0) >= 60 else "#ef5350")
     rp = s.get("total_realized_pct")
@@ -616,11 +710,36 @@ def _generate_html(result: dict, csv_name: str, report_date: str) -> str:
             f"<td style='color:#aaa;font-size:12px'>{_e(TAG_DESC.get(tag,''))}</td></tr>"
         )
 
-    # 종목별 카드
+    # ── 진입 방식 요약 카드 ──────────────────────────────────
+    def _ep(et_key):
+        v = es.get("entry_pnl", {}).get(et_key, 0)
+        color = "#4caf50" if v >= 0 else "#ef5350"
+        return f'<span style="color:{color}">{_fmt_krw(v)}</span>' if v else "-"
+
+    total_n = s.get("total_stocks", 0)
+    entry_summary_rows = [
+        ("정규장 종가 진입",         es.get("regular_close_n", 0),   es.get("regular_close_rate", 0),   _ep("REGULAR_CLOSE_ENTRY")),
+        ("17:50 이후 NXT (조건부)",  es.get("conditional_nxt_n", 0), es.get("conditional_nxt_rate", 0), _ep("AFTER_1750_NXT_ENTRY")),
+        ("추격성 NXT 진입",          es.get("nxt_caution_n", 0) + es.get("nxt_chase_n", 0), es.get("nxt_chase_rate", 0), "-"),
+        ("D+1 장초 추격 진입",       es.get("d1_chase_n", 0) + es.get("reverse_n", 0),      es.get("d1_chase_rate", 0),  _ep("D1_CHASE_ENTRY")),
+        ("확인불가",                 es.get("unknown_n", 0),         0,                                 _ep("UNKNOWN")),
+    ]
+    entry_summary_html = "".join(
+        f"<tr><td>{_e(label)}</td>"
+        f"<td style='text-align:center'>{cnt}건</td>"
+        f"<td style='text-align:center;color:#aaa'>{rate:.1f}%</td>"
+        f"<td style='text-align:right'>{pnl_html}</td></tr>"
+        for label, cnt, rate, pnl_html in entry_summary_rows
+    )
+
+    # ── 종목별 카드 ───────────────────────────────────────────
     stock_cards = ""
     for r in stocks:
-        tag_html = "".join(_tag_badge(t) for t in r["tags"]) or '<span style="color:#4caf50">✓ 위반없음</span>'
-        wl = r.get("weight_level", "")
+        tag_html = (
+            "".join(_tag_badge(t) for t in r["tags"])
+            or '<span style="color:#4caf50">✓ 위반없음</span>'
+        )
+        wl       = r.get("weight_level", "")
         wl_color = _WEIGHT_COLOR.get(wl, "")
         wl_html  = f' <span style="color:{wl_color};font-weight:700">[{_e(wl)}]</span>' if wl else ""
 
@@ -630,8 +749,19 @@ def _generate_html(result: dict, csv_name: str, report_date: str) -> str:
         elif r.get("is_inter") is False:
             is_inter_html = ' <span style="color:#aaa;font-size:11px">[비교집합]</span>'
 
-        rp_val = r.get("realized_pct")
+        rp_val  = r.get("realized_pct")
         rp_html = f'<span style="{_pct_color(rp_val)}">{_fmt_pct(rp_val)}</span>' if rp_val is not None else "-"
+
+        # 진입 구간 + NXT 평가
+        et      = r.get("entry_type", "UNKNOWN")
+        et_label = _ENTRY_TYPE_LABEL.get(et, et)
+        pct_val  = r.get("entry_price_vs_signal_pct")
+        pct_html = f'{pct_val:+.2f}%' if pct_val is not None else "-"
+
+        nxt_tags = [t for t in r["tags"] if t in (
+            "AFTER_1750_NXT_ENTRY", "CONDITIONAL_NXT_ENTRY", "NXT_ENTRY_CAUTION", "NXT_CHASE_ENTRY"
+        )]
+        nxt_eval_html = ("".join(_tag_badge(t) for t in nxt_tags)) if nxt_tags else ""
 
         buy_rows = "".join(
             f"<tr><td>{_e(b['date'])} {_e(b['time'])}</td>"
@@ -650,7 +780,7 @@ def _generate_html(result: dict, csv_name: str, report_date: str) -> str:
             for s2 in r["sells"]
         )
 
-        rem = r.get("remaining_qty", 0)
+        rem      = r.get("remaining_qty", 0)
         rem_html = f'<span style="color:#fb8c00">{rem:,}주 미청산</span>' if rem else "전량 청산"
 
         stock_cards += f"""
@@ -667,6 +797,11 @@ def _generate_html(result: dict, csv_name: str, report_date: str) -> str:
     <span>비중: {f"{r['weight_pct']:.1f}%" if r.get('weight_pct') is not None else '-'}</span>
     <span>잔여: {rem_html}</span>
     <span>실현손익: {_fmt_krw(r['realized'])}</span>
+  </div>
+  <div style="display:flex;gap:24px;flex-wrap:wrap;font-size:12px;color:#888;margin-bottom:6px">
+    <span>진입구간: <span style="color:#ccc">{_e(et_label)}</span></span>
+    <span>신호가 대비: <span style="color:#ccc">{_e(pct_html)}</span></span>
+    {"<span>17:50 NXT 평가: " + nxt_eval_html + "</span>" if nxt_eval_html else ""}
   </div>
   <details style="margin-top:4px">
     <summary style="cursor:pointer;color:#888;font-size:12px">체결내역 보기</summary>
@@ -729,6 +864,20 @@ def _generate_html(result: dict, csv_name: str, report_date: str) -> str:
   {'<p style="color:#4caf50">위반 없음</p>' if not tag_rows else f'<table><thead><tr><th>태그</th><th>횟수</th><th>설명</th></tr></thead><tbody>{tag_rows}</tbody></table>'}
 </div>
 
+<div class="card">
+  <div style="font-size:14px;font-weight:600;margin-bottom:8px">진입 방식 요약</div>
+  <table>
+    <thead><tr>
+      <th>진입 유형</th><th style="text-align:center">종목 수</th>
+      <th style="text-align:center">비율</th><th style="text-align:right">손익</th>
+    </tr></thead>
+    <tbody>{entry_summary_html}</tbody>
+  </table>
+  <div style="font-size:11px;color:#555;margin-top:8px">
+    ※ 조건부 NXT는 준수율에서 위반으로 집계되나 별도 추적 | NXT 손익은 17:50 진입 전체 기준
+  </div>
+</div>
+
 <div style="font-size:14px;font-weight:600;margin-bottom:8px">종목별 분석</div>
 {stock_cards}
 </body>
@@ -738,10 +887,9 @@ def _generate_html(result: dict, csv_name: str, report_date: str) -> str:
 # ── 누적 이력 ────────────────────────────────────────────────
 
 def _update_history(result: dict, report_date: str) -> None:
-    """trade_history.json / compliance_history.json 갱신."""
     _HISTORY_DIR.mkdir(parents=True, exist_ok=True)
 
-    # compliance_history: 날짜별 준수율 + P&L
+    # compliance_history
     hist_path = _HISTORY_DIR / "compliance_history.json"
     hist: list[dict] = []
     if hist_path.exists():
@@ -750,22 +898,26 @@ def _update_history(result: dict, report_date: str) -> None:
         except Exception:
             hist = []
 
-    s = result["summary"]
+    s  = result["summary"]
+    es = s.get("entry_stats", {})
     entry = {
-        "date":              report_date,
-        "compliance_rate":   s.get("compliance_rate"),
-        "total_realized":    s.get("total_realized"),
-        "total_realized_pct": s.get("total_realized_pct"),
-        "total_stocks":      s.get("total_stocks"),
-        "tag_counts":        s.get("tag_counts"),
+        "date":                  report_date,
+        "compliance_rate":       s.get("compliance_rate"),
+        "total_realized":        s.get("total_realized"),
+        "total_realized_pct":    s.get("total_realized_pct"),
+        "total_stocks":          s.get("total_stocks"),
+        "tag_counts":            s.get("tag_counts"),
+        "regular_close_rate":    es.get("regular_close_rate"),
+        "conditional_nxt_rate":  es.get("conditional_nxt_rate"),
+        "nxt_chase_rate":        es.get("nxt_chase_rate"),
+        "d1_chase_rate":         es.get("d1_chase_rate"),
     }
-    # 같은 날짜면 덮어쓰기
     hist = [h for h in hist if h.get("date") != report_date]
     hist.append(entry)
     hist.sort(key=lambda x: x.get("date", ""))
     hist_path.write_text(json.dumps(hist, ensure_ascii=False, indent=2), encoding="utf-8")
 
-    # trade_history: 종목별 원시 데이터 append
+    # trade_history
     trade_hist_path = _HISTORY_DIR / "trade_history.json"
     all_trades: list[dict] = []
     if trade_hist_path.exists():
@@ -774,21 +926,29 @@ def _update_history(result: dict, report_date: str) -> None:
         except Exception:
             all_trades = []
 
-    # 해당 날짜 항목 제거 후 재추가
     all_trades = [t for t in all_trades if t.get("report_date") != report_date]
     for r in result["stocks"]:
+        tags = r.get("tags", [])
         all_trades.append({
-            "report_date":   report_date,
-            "code":          r["code"],
-            "name":          r["name"],
-            "sig_date":      r.get("sig_date"),
-            "is_inter":      r.get("is_inter"),
-            "realized":      r.get("realized"),
-            "realized_pct":  r.get("realized_pct"),
-            "weight_pct":    r.get("weight_pct"),
-            "tags":          r["tags"],
+            "report_date":               report_date,
+            "code":                      r["code"],
+            "name":                      r["name"],
+            "sig_date":                  r.get("sig_date"),
+            "is_inter":                  r.get("is_inter"),
+            "realized":                  r.get("realized"),
+            "realized_pct":              r.get("realized_pct"),
+            "weight_pct":                r.get("weight_pct"),
+            "tags":                      tags,
+            "entry_type":                r.get("entry_type"),
+            "is_regular_close_entry":    r.get("entry_type") == "REGULAR_CLOSE_ENTRY",
+            "is_after_1750_nxt_entry":   r.get("entry_type") == "AFTER_1750_NXT_ENTRY",
+            "is_conditional_nxt_entry":  "CONDITIONAL_NXT_ENTRY" in tags,
+            "is_nxt_chase_entry":        "NXT_CHASE_ENTRY" in tags,
+            "is_d1_chase_entry":         r.get("entry_type") in ("D1_CHASE_ENTRY", "REVERSE_AT_EXIT_ZONE"),
+            "entry_price_vs_signal_pct": r.get("entry_price_vs_signal_pct"),
+            "entry_type_pnl":            r.get("realized"),
         })
-    all_trades.sort(key=lambda x: (x.get("report_date",""), x.get("code","")))
+    all_trades.sort(key=lambda x: (x.get("report_date", ""), x.get("code", "")))
     trade_hist_path.write_text(json.dumps(all_trades, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
@@ -818,13 +978,12 @@ def main():
             "  python -m scripts.trade_analyzer 경로/파일.csv --overwrite\n"
         ),
     )
-    parser.add_argument("csv_path", nargs="?",  help="HTS CSV 경로 (생략 또는 --latest 시 data/weekly_trading_review/ 최신 파일)")
-    parser.add_argument("--latest",    action="store_true", help="data/weekly_trading_review/ 에서 가장 최근 CSV 자동 선택")
+    parser.add_argument("csv_path", nargs="?",  help="HTS CSV 경로 (생략 또는 --latest 시 자동 선택)")
+    parser.add_argument("--latest",    action="store_true", help="data/weekly_trading_review/ 최신 CSV 자동 선택")
     parser.add_argument("--open",      action="store_true", help="결과 HTML 브라우저로 열기")
-    parser.add_argument("--overwrite", action="store_true", help="오늘 날짜 기존 결과 파일 덮어쓰기")
+    parser.add_argument("--overwrite", action="store_true", help="오늘 날짜 기존 결과 덮어쓰기")
     args = parser.parse_args()
 
-    # CSV 경로 결정
     if args.csv_path and not args.latest:
         csv_path = Path(args.csv_path)
     else:
@@ -847,11 +1006,15 @@ def main():
     cache  = SignalCache()
     result = _analyze(trades, cache)
 
-    s = result["summary"]
+    s  = result["summary"]
+    es = s.get("entry_stats", {})
     print(f"  종목 {s['total_stocks']}개 | 준수율 {s.get('compliance_rate','?')}%"
           f" | 손익 {s['total_realized']:+,.0f}원 ({_fmt_pct(s.get('total_realized_pct'))})")
+    print(f"  정규종가 {es.get('regular_close_n',0)}건"
+          f" | 조건부NXT {es.get('conditional_nxt_n',0)}건"
+          f" | 추격NXT {es.get('nxt_chase_n',0)+es.get('nxt_caution_n',0)}건"
+          f" | D1추격 {es.get('d1_chase_n',0)+es.get('reverse_n',0)}건")
 
-    # 출력 경로
     report_date = date.today().strftime("%Y-%m-%d")
     stem        = f"trade_review_{report_date}"
     _REPORT_DIR.mkdir(parents=True, exist_ok=True)
@@ -860,10 +1023,9 @@ def main():
     default_html = _REPORT_DIR  / f"{stem}.html"
     default_json = _HISTORY_DIR / f"{stem}.json"
     if not args.overwrite and (default_html.exists() or default_json.exists()):
-        print(f"  [주의] 오늘({report_date}) 리포트가 이미 존재합니다.")
-        print(f"         새 버전으로 저장됩니다. 덮어쓰려면 --overwrite 를 사용하세요.")
+        print(f"  [주의] 오늘({report_date}) 리포트가 이미 존재합니다. 새 버전으로 저장됩니다.")
 
-    html_path = _safe_path(_REPORT_DIR, stem, ".html", args.overwrite)
+    html_path = _safe_path(_REPORT_DIR,  stem, ".html", args.overwrite)
     json_path = _safe_path(_HISTORY_DIR, stem, ".json", args.overwrite)
 
     html = _generate_html(result, csv_path.name, report_date)
