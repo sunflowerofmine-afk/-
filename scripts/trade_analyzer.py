@@ -167,7 +167,7 @@ class SignalCache:
     def _load_signals(self):
         for p in sorted(_SIGNALS_DIR.glob("*_signals.csv")):
             date8 = p.name[:10].replace("-", "")
-            with open(p, encoding="utf-8") as f:
+            with open(p, encoding="utf-8-sig") as f:
                 for row in csv.DictReader(f):
                     code = row.get("종목코드", "").strip().zfill(6)
                     if code:
@@ -716,7 +716,6 @@ def _generate_html(result: dict, csv_name: str, report_date: str) -> str:
         color = "#4caf50" if v >= 0 else "#ef5350"
         return f'<span style="color:{color}">{_fmt_krw(v)}</span>' if v else "-"
 
-    total_n = s.get("total_stocks", 0)
     entry_summary_rows = [
         ("정규장 종가 진입",         es.get("regular_close_n", 0),   es.get("regular_close_rate", 0),   _ep("REGULAR_CLOSE_ENTRY")),
         ("17:50 이후 NXT (조건부)",  es.get("conditional_nxt_n", 0), es.get("conditional_nxt_rate", 0), _ep("AFTER_1750_NXT_ENTRY")),
