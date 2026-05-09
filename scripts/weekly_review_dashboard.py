@@ -142,12 +142,14 @@ def _gap_stats(df: pd.DataFrame) -> dict:
     if df.empty:
         return {"n": 0}
     ret = pd.to_numeric(df["return_pct"], errors="coerce") if "return_pct" in df.columns else pd.Series(dtype=float)
-    win = df["win"].apply(lambda x: bool(x)) if "win" in df.columns else pd.Series(dtype=bool)
+    ret_valid = ret.dropna()
+    win_col = df["win"].apply(lambda x: bool(x)) if "win" in df.columns else pd.Series(dtype=bool)
+    win_valid = win_col[ret.notna()] if (not ret.empty and not win_col.empty) else win_col
     return {
         "n": len(df),
-        "d1_open_avg":    round(ret.mean(), 2)   if not ret.empty else None,
-        "d1_open_median": round(ret.median(), 2) if not ret.empty else None,
-        "win_rate":       round(win.mean() * 100, 1) if not win.empty else None,
+        "d1_open_avg":    round(ret_valid.mean(), 2)   if not ret_valid.empty else None,
+        "d1_open_median": round(ret_valid.median(), 2) if not ret_valid.empty else None,
+        "win_rate":       round(win_valid.mean() * 100, 1) if not win_valid.empty else None,
     }
 
 
@@ -171,31 +173,50 @@ def _system_perf(gap: pd.DataFrame, review_entries: list) -> dict:
     has_gap    = not gap.empty
     has_review = bool(review_entries)
 
+    gap_perf = None
+    if has_gap:
+        inter_mask = gap["in_inter"].apply(_is_inter)
+        gap_perf = {
+            "n_total":     len(gap),
+            "n_inter":     int(inter_mask.sum()),
+            "n_non_inter": int((~inter_mask).sum()),
+            "overall":     _gap_stats(gap),
+            "inter":       _gap_stats(gap[inter_mask]),
+            "non_inter":   _gap_stats(gap[~inter_mask]),
+        }
+
+    rev_perf = None
     if has_review:
         rev_df = pd.DataFrame(review_entries)
         inter_mask = rev_df["in_inter"].apply(_is_inter) if "in_inter" in rev_df.columns else pd.Series([False] * len(rev_df))
-        return {
-            "source":    "review_json",
-            "n_total":   len(rev_df),
-            "n_inter":   int(inter_mask.sum()),
+        rev_perf = {
+            "n_total":     len(rev_df),
+            "n_inter":     int(inter_mask.sum()),
             "n_non_inter": int((~inter_mask).sum()),
-            "overall":   _review_stats(review_entries),
-            "inter":     _review_stats(rev_df[inter_mask].to_dict("records")),
-            "non_inter": _review_stats(rev_df[~inter_mask].to_dict("records")),
+            "overall":     _review_stats(review_entries),
+            "inter":       _review_stats(rev_df[inter_mask].to_dict("records")),
+            "non_inter":   _review_stats(rev_df[~inter_mask].to_dict("records")),
         }
-    if has_gap:
-        inter_mask = gap["in_inter"].apply(_is_inter)
-        return {
-            "source":    "gap_results",
-            "n_total":   len(gap),
-            "n_inter":   int(inter_mask.sum()),
-            "n_non_inter": int((~inter_mask).sum()),
-            "overall":   _gap_stats(gap),
-            "inter":     _gap_stats(gap[inter_mask]),
-            "non_inter": _gap_stats(gap[~inter_mask]),
-        }
-    return {"source": "none", "n_total": 0, "n_inter": 0, "n_non_inter": 0,
-            "overall": {}, "inter": {}, "non_inter": {}}
+
+    source  = "review_json" if has_review else ("gap_results" if has_gap else "none")
+    primary = rev_perf or gap_perf or {}
+    return {
+        "source":      source,
+        "n_total":     primary.get("n_total",     0),
+        "n_inter":     primary.get("n_inter",     0),
+        "n_non_inter": primary.get("n_non_inter", 0),
+        "overall":     primary.get("overall",     {}),
+        "inter":       primary.get("inter",       {}),
+        "non_inter":   primary.get("non_inter",   {}),
+        "gap":         gap_perf,
+        "review":      rev_perf,
+    }
+
+
+def _is_valid_success(row: dict) -> bool:
+    """gap_results 시스템 성공 판정: return_pct 유효 + win=True + return_pct > 0"""
+    ret = pd.to_numeric(row.get("return_pct"), errors="coerce")
+    return pd.notna(ret) and bool(row.get("win")) and float(ret) > 0
 
 
 def _compare(stocks: list, sig_df: pd.DataFrame, gap: pd.DataFrame) -> dict:
@@ -215,13 +236,13 @@ def _compare(stocks: list, sig_df: pd.DataFrame, gap: pd.DataFrame) -> dict:
     traded_codes  = set(traded_map)
     traded_inter  = {c for c, s in traded_map.items() if s.get("is_inter")}
 
-    # gap_results 성공 (D+1 시초 > 신호가)
+    # gap_results 성공: return_pct 유효 + win=True + return_pct > 0
     gap_map: dict[str, dict] = {}
     gap_success: set[str] = set()
     if not gap.empty and "_code" in gap.columns:
         for _, row in gap.iterrows():
             gap_map[row["_code"]] = row.to_dict()
-        gap_success = {r["_code"] for _, r in gap.iterrows() if r.get("win")}
+        gap_success = {r["_code"] for _, r in gap.iterrows() if _is_valid_success(r.to_dict())}
 
     # 코드 × signals 맵
     sig_map: dict[str, dict] = {}
@@ -229,22 +250,22 @@ def _compare(stocks: list, sig_df: pd.DataFrame, gap: pd.DataFrame) -> dict:
         for _, row in sig_df.drop_duplicates("_code").iterrows():
             sig_map[row["_code"]] = row.to_dict()
 
-    hit     = gap_success & traded_codes
-    missed  = gap_success - traded_codes
-    no_sig  = traded_codes - sig_codes
+    hit    = gap_success & traded_codes
+    missed = gap_success - traded_codes
+    no_sig = traded_codes - sig_codes
 
-    # 놓친 종목 상세
+    # 놓친 종목 상세 (gap_success 필터 통과 = 유효한 수익 종목만)
     missed_detail = []
     for c in missed:
-        g = gap_map.get(c, {})
+        g   = gap_map.get(c, {})
+        ret = float(pd.to_numeric(g.get("return_pct"), errors="coerce"))
         missed_detail.append({
-            "code":    c,
-            "name":    str(g.get("name", c)),
+            "code":     c,
+            "name":     str(g.get("name", c)),
             "in_inter": bool(g.get("in_inter", False)),
-            "d1_ret":  g.get("return_pct"),
-            "win":     bool(g.get("win", False)),
+            "d1_ret":   ret,
         })
-    missed_detail.sort(key=lambda x: -(x["d1_ret"] or 0))
+    missed_detail.sort(key=lambda x: -x["d1_ret"])
 
     # 비신호 매매 종목명
     no_sig_names = [traded_map[c].get("name", c) for c in sorted(no_sig)]
@@ -256,7 +277,7 @@ def _compare(stocks: list, sig_df: pd.DataFrame, gap: pd.DataFrame) -> dict:
 
     d1_avg = None
     if not gap.empty and "return_pct" in gap.columns:
-        d1_avg = round(pd.to_numeric(gap["return_pct"], errors="coerce").mean(), 2)
+        d1_avg = round(pd.to_numeric(gap["return_pct"], errors="coerce").dropna().mean(), 2)
 
     return {
         "n_sig": len(sig_codes), "n_inter_sig": len(inter_sig),
@@ -290,13 +311,13 @@ _AMB  = "#fb8c00"
 
 def _pc(v) -> str:
     """값에 따른 색상"""
-    if v is None: return _DIM
+    if v is None or (isinstance(v, float) and pd.isna(v)): return _DIM
     return _GRN if v > 0 else (_RED if v < 0 else _DIM)
 
 
 def _fp(v) -> str:
-    """소수점 2자리 %, None → 확인불가"""
-    if v is None: return "확인불가"
+    """소수점 2자리 %, None/NaN → 확인불가"""
+    if v is None or (isinstance(v, float) and pd.isna(v)): return "확인불가"
     return f"{'+' if v > 0 else ''}{v:.2f}%"
 
 
@@ -384,42 +405,66 @@ def _generate_html(d_min, d_max, review, perf, cmp, tr_path, report_date) -> str
 """)
 
     # ── [2] 시스템 후보 성과 요약 ─────────────────────────────────────────
-    src  = perf.get("source", "none")
-    ov   = perf.get("overall", {})
-    n_t  = perf.get("n_total", 0)
+    src      = perf.get("source", "none")
+    rev_perf = perf.get("review")
+    gap_perf = perf.get("gap")
 
-    if src == "none":
-        body2 = f'<div style="color:{_DIM}">데이터 없음 — gap_results와 review.json 모두 해당 기간 데이터가 없습니다.</div>'
-    elif src == "gap_results":
-        d1a = ov.get("d1_open_avg"); wr = ov.get("win_rate")
-        body2 = f"""
-<div style="font-size:11px;color:{_AMB};margin-bottom:8px">
-  데이터 출처: gap_results (교집합 종목 D+1 시초 기준만). D+3/MFE/MAE: 확인불가.</div>
-<div style="display:flex;gap:28px;flex-wrap:wrap">
-  <div><div style="font-size:11px;color:{_DIM}">D+1 시초 평균{_nw(n_t)}</div>
-       <div style="font-size:24px;font-weight:700;color:{_pc(d1a)}">{_fp(d1a)}</div></div>
-  <div><div style="font-size:11px;color:{_DIM}">D+1 승률</div>
-       <div style="font-size:24px;font-weight:700">{_fp(wr)}</div></div>
-</div>
-<div style="font-size:11px;color:{_DIM};margin-top:8px">D+3 / MFE / MAE: 확인불가 (review.json 없음)</div>"""
-    else:
+    # review.json 블록
+    if rev_perf:
+        ov  = rev_perf.get("overall", {})
+        n_t = rev_perf.get("n_total", 0)
         d1a = ov.get("d1_open_avg"); d3a = ov.get("d3_close_avg")
         mfe = ov.get("mfe_avg");     mae = ov.get("mae_avg")
         rt  = ov.get("result_types", {})
         rt_str = " | ".join(f"{k}: {v}건" for k, v in rt.items()) if rt else ""
-        body2 = f"""
-<div style="font-size:11px;color:{_GRN};margin-bottom:8px">데이터 출처: review.json</div>
-<div style="display:flex;gap:28px;flex-wrap:wrap">
+        review_block = f"""
+<div style="font-size:11px;color:{_GRN};font-weight:600;margin-bottom:6px">review.json 기준 (D+1~D+5 / MFE / MAE)</div>
+<div style="display:flex;gap:28px;flex-wrap:wrap;margin-bottom:8px">
   <div><div style="font-size:11px;color:{_DIM}">D+1 시초 평균{_nw(n_t)}</div>
-       <div style="font-size:24px;font-weight:700;color:{_pc(d1a)}">{_fp(d1a)}</div></div>
+       <div style="font-size:22px;font-weight:700;color:{_pc(d1a)}">{_fp(d1a)}</div></div>
   <div><div style="font-size:11px;color:{_DIM}">D+3 종가 평균</div>
-       <div style="font-size:24px;font-weight:700;color:{_pc(d3a)}">{_fp(d3a)}</div></div>
+       <div style="font-size:22px;font-weight:700;color:{_pc(d3a)}">{_fp(d3a)}</div></div>
   <div><div style="font-size:11px;color:{_GRN}">MFE 평균</div>
        <div style="font-size:20px;font-weight:700;color:{_GRN}">{_fp(mfe)}</div></div>
   <div><div style="font-size:11px;color:{_RED}">MAE 평균</div>
        <div style="font-size:20px;font-weight:700;color:{_RED}">{_fp(mae)}</div></div>
 </div>
-{f'<div style="font-size:11px;color:{_DIM};margin-top:8px">{rt_str}</div>' if rt_str else ""}"""
+{f'<div style="font-size:11px;color:{_DIM};margin-bottom:10px">{rt_str}</div>' if rt_str else ""}"""
+    else:
+        review_block = (
+            f'<div style="font-size:11px;margin-bottom:10px">'
+            f'<span style="color:{_GRN};font-weight:600">review.json 기준</span>'
+            f' D+1~D+5 / MFE / MAE: <span style="color:{_AMB}">확인불가</span>'
+            f' (해당 기간 review.json 없음)</div>'
+        )
+
+    # gap_results 블록
+    if gap_perf:
+        g_inter = gap_perf.get("inter", {})
+        n_gi    = gap_perf.get("n_inter", 0)
+        d1a_g   = g_inter.get("d1_open_avg")
+        wr_g    = g_inter.get("win_rate")
+        gap_block = (
+            f'<div style="font-size:11px;color:{_BLU};font-weight:600;margin-bottom:4px">'
+            f'gap_results 기준 (교집합 D+1 시초, NaN 제외)</div>'
+            f'<div style="display:flex;gap:28px;flex-wrap:wrap">'
+            f'<div><div style="font-size:11px;color:{_DIM}">D+1 시초 평균{_nw(n_gi)}</div>'
+            f'<div style="font-size:20px;font-weight:700;color:{_pc(d1a_g)}">{_fp(d1a_g)}</div></div>'
+            f'<div><div style="font-size:11px;color:{_DIM}">D+1 승률</div>'
+            f'<div style="font-size:20px;font-weight:700">{_fp(wr_g)}</div></div>'
+            f'</div>'
+        )
+    else:
+        gap_block = (
+            f'<div style="font-size:11px">'
+            f'<span style="color:{_BLU};font-weight:600">gap_results 기준</span>'
+            f' 교집합 D+1 시초: <span style="color:{_AMB}">확인불가</span></div>'
+        )
+
+    if src == "none":
+        body2 = f'<div style="color:{_DIM}">데이터 없음 — gap_results와 review.json 모두 해당 기간 데이터가 없습니다.</div>'
+    else:
+        body2 = review_block + f'<hr style="border-color:#333;margin:10px 0">' + gap_block
 
     sec2 = _card(f"""
 {_title("시스템 후보 성과 요약")}
@@ -433,9 +478,14 @@ def _generate_html(d_min, d_max, review, perf, cmp, tr_path, report_date) -> str
     n_inter_s = perf.get("n_inter", 0)
     ninon_s   = perf.get("n_non_inter", 0)
     non_s     = perf.get("non_inter", {})
-    gap_note  = (f'<div style="font-size:11px;color:{_AMB};margin-bottom:8px">'
-                 f'비교집합 D+1 성과: 확인불가 (gap_results는 교집합만 기록합니다.)</div>'
-                 ) if src == "gap_results" else ""
+
+    gap_note = ""
+    if src == "gap_results":
+        gap_note = (
+            f'<div style="font-size:11px;color:{_AMB};margin-bottom:8px">'
+            f'비교집합 성과는 review.json이 없으면 확인불가입니다.<br>'
+            f'현재 시스템 후보 성과는 gap_results 기준 교집합 D+1 시초 성과 중심입니다.</div>'
+        )
 
     def _tc(v, n=0):
         if v is None: return f'<td style="text-align:center;color:{_DIM}">확인불가</td>'
@@ -486,7 +536,6 @@ def _generate_html(d_min, d_max, review, perf, cmp, tr_path, report_date) -> str
         missed_rows += (
             f'<tr style="border-top:1px solid #333">'
             f'<td style="padding:4px 8px">{m["name"]} {badge}</td>'
-            f'<td style="text-align:center">{"✅" if m.get("win") else "❌"}</td>'
             f'<td style="text-align:center;color:{_pc(ret)}">{_fp(ret)}</td></tr>'
         )
 
@@ -520,7 +569,7 @@ def _generate_html(d_min, d_max, review, perf, cmp, tr_path, report_date) -> str
       <td style="padding:6px 8px">시스템 성공 종목 중 매매한 것</td>
       <td colspan="2" style="text-align:center">
         {cmp['n_hit']}개 / {cmp['n_gap_success']}개
-        <span style="font-size:10px;color:{_DIM}"> (gap_results D+1 시초 기준)</span></td>
+        <span style="font-size:10px;color:{_DIM}"> (gap_results D+1 시초 기준, NaN 제외)</span></td>
     </tr>
     <tr style="border-top:1px solid #333">
       <td style="padding:6px 8px">시스템 성공 종목 중 놓친 것</td>
@@ -536,7 +585,7 @@ def _generate_html(d_min, d_max, review, perf, cmp, tr_path, report_date) -> str
 {f'''<div style="font-size:12px;color:{_DIM};margin-bottom:4px">놓친 시스템 성공 종목 (D+1 시초 기준, 상위 5개):</div>
 <table style="width:100%;border-collapse:collapse;font-size:12px">
   <thead><tr style="color:{_DIM}"><th style="text-align:left;padding:4px 8px">종목</th>
-  <th style="text-align:center">결과</th><th style="text-align:center">D+1 시초</th></tr></thead>
+  <th style="text-align:center">D+1 시초</th></tr></thead>
   <tbody>{missed_rows}</tbody></table>''' if missed_rows else ""}
 """)
 
@@ -561,18 +610,21 @@ def _generate_html(d_min, d_max, review, perf, cmp, tr_path, report_date) -> str
                       f'<span style="background:#424242;padding:1px 5px;border-radius:10px;'
                        f'font-size:10px">비신호</span>')
 
-        # 시스템 성과
+        # 시스템 성과 (NaN이면 확인불가, 아이콘 없음)
         if g:
-            d1r  = g.get("return_pct")
-            win  = bool(g.get("win", False))
-            sys_txt = f'D+1 시초 <span style="color:{_pc(d1r)}">{_fp(d1r)}</span> {"✅" if win else "❌"}'
+            d1r = pd.to_numeric(g.get("return_pct"), errors="coerce")
+            if pd.isna(d1r):
+                sys_txt = f'D+1 시초 확인불가'
+            else:
+                d1r = float(d1r)
+                sys_txt = f'D+1 시초 <span style="color:{_pc(d1r)}">{_fp(d1r)}</span>'
         else:
             sys_txt = f'<span style="color:{_DIM}">확인불가</span>'
 
         # 실제 매매
         if ts:
             real = ts.get("realized", 0)
-            rpct = ts.get("realized_pct", 0)
+            rpct = ts.get("realized_pct")
             tags = ts.get("tags", [])
             tag_str = " ".join(
                 f'<span style="background:#333;padding:1px 4px;border-radius:3px;font-size:10px">{t}</span>'
@@ -749,7 +801,7 @@ def main():
     print(f"  엄격 준수율: {review.get('summary', {}).get('compliance_rate', 0):.1f}%")
     if wt:
         print(f"  다음 주 집중 원칙: {_PRINCIPLE.get(wt, wt)}")
-    print(f"  HTML → {html_path}")
+    print(f"  HTML -> {html_path}")
 
     if args.open:
         webbrowser.open(html_path.as_uri())
