@@ -337,13 +337,16 @@ def _generate_html(d_min, d_max, review, perf, cmp, tr_path, report_date) -> str
     principle = _PRINCIPLE.get(worst_tag, worst_tag)
     worst_amt = lesson.get("worst_loss_amount")
 
-    # trade_analyzer 링크 (상대경로)
-    ta_rel  = ""
-    if tr_path.exists():
-        try:
-            ta_rel = "../../" + str(tr_path.relative_to(_ROOT)).replace("\\", "/")
-        except ValueError:
-            pass
+    # trade_analyzer HTML 링크 (JSON → HTML 경로 변환)
+    ta_rel = ""
+    if tr_path.name:
+        html_name = tr_path.stem + ".html"
+        ta_html_path = _ROOT / "reports" / "trade_reviews" / html_name
+        if ta_html_path.exists():
+            try:
+                ta_rel = "../trade_reviews/" + html_name
+            except Exception:
+                pass
     ta_link = (f'<a href="{ta_rel}" target="_blank" style="color:{_BLU};font-size:12px">'
                f'매매원칙 분석 상세 리포트 →</a>') if ta_rel else ""
 
