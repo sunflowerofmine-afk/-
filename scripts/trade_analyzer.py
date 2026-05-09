@@ -1182,8 +1182,16 @@ def _update_history(result: dict, report_date: str) -> None:
 
     s  = result["summary"]
     es = s.get("entry_stats", {})
+
+    # 분석 기간 끝날짜 — 같은 CSV를 다른 날 재분석해도 history 중복 방지
+    sig_dates = [st.get("sig_date", "") for st in result.get("stocks", []) if st.get("sig_date")]
+    raw_end   = max(sig_dates) if sig_dates else ""
+    period_end = (f"{raw_end[:4]}-{raw_end[4:6]}-{raw_end[6:]}"
+                  if len(raw_end) == 8 else report_date)
+
     entry = {
         "date":                  report_date,
+        "period_end":            period_end,
         "compliance_rate":       s.get("compliance_rate"),
         "total_realized":        s.get("total_realized"),
         "total_realized_pct":    s.get("total_realized_pct"),
@@ -1195,9 +1203,12 @@ def _update_history(result: dict, report_date: str) -> None:
         "d1_chase_rate":         es.get("d1_chase_rate"),
         "item_compliance":       s.get("item_compliance", {}),
     }
-    hist = [h for h in hist if h.get("date") != report_date]
+    # period_end 또는 date 중 하나라도 일치하면 제거 (재분석/재실행 모두 대응)
+    hist = [h for h in hist
+            if h.get("period_end", h.get("date")) != period_end
+            and h.get("date") != report_date]
     hist.append(entry)
-    hist.sort(key=lambda x: x.get("date", ""))
+    hist.sort(key=lambda x: x.get("period_end", x.get("date", "")))
     hist_path.write_text(json.dumps(hist, ensure_ascii=False, indent=2), encoding="utf-8")
 
     # trade_history
@@ -1318,8 +1329,6 @@ def main():
     html = _generate_html(result, csv_path.name, report_date, cum_pnl, trend_data)
     html_path.write_text(html, encoding="utf-8")
     json_path.write_text(json.dumps(result, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
-
-    _update_history(result, report_date)
 
     print(f"  HTML → {html_path}")
     print(f"  JSON → {json_path}")

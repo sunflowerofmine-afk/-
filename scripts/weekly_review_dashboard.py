@@ -237,12 +237,17 @@ def _compare(stocks: list, sig_df: pd.DataFrame, gap: pd.DataFrame) -> dict:
     traded_inter  = {c for c, s in traded_map.items() if s.get("is_inter")}
 
     # gap_results 성공: return_pct 유효 + win=True + return_pct > 0
+    # gap_map은 valid success 행 우선 저장 (같은 코드에 복수 행 존재 시 NaN 행 덮어쓰기 방지)
     gap_map: dict[str, dict] = {}
     gap_success: set[str] = set()
     if not gap.empty and "_code" in gap.columns:
         for _, row in gap.iterrows():
-            gap_map[row["_code"]] = row.to_dict()
-        gap_success = {r["_code"] for _, r in gap.iterrows() if _is_valid_success(r.to_dict())}
+            rd = row.to_dict()
+            c  = row["_code"]
+            if c not in gap_map or _is_valid_success(rd):
+                gap_map[c] = rd
+            if _is_valid_success(rd):
+                gap_success.add(c)
 
     # 코드 × signals 맵
     sig_map: dict[str, dict] = {}
@@ -275,9 +280,11 @@ def _compare(stocks: list, sig_df: pd.DataFrame, gap: pd.DataFrame) -> dict:
     n = len(stocks)
     avg_realized_pct = round(sum(s.get("realized_pct") or 0 for s in stocks) / n, 2) if n else 0
 
+    # 교집합 종목 D+1 시초 평균 (sec2 gap_results 기준과 동일 기준으로 통일)
     d1_avg = None
     if not gap.empty and "return_pct" in gap.columns:
-        d1_avg = round(pd.to_numeric(gap["return_pct"], errors="coerce").dropna().mean(), 2)
+        inter_gap = gap[gap["in_inter"].apply(_is_inter)] if "in_inter" in gap.columns else gap
+        d1_avg = round(pd.to_numeric(inter_gap["return_pct"], errors="coerce").dropna().mean(), 2)
 
     return {
         "n_sig": len(sig_codes), "n_inter_sig": len(inter_sig),
