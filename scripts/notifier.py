@@ -555,12 +555,13 @@ def build_second_alert(
     market_summary_extra: dict | None = None,
     leading_sectors: list | None = None,
     watch_candidates: list = [],
+    run_type: str = "2차",
 ) -> str:
     ex             = market_summary_extra or {}
     inter_codes    = ex.get("inter_codes", set())
     code_to_sector = ex.get("code_to_sector", {})
     parts = [
-        format_market_summary(market_totals, run_time, "2차", extra=ex, leading_sectors=leading_sectors),
+        format_market_summary(market_totals, run_time, run_type, extra=ex, leading_sectors=leading_sectors),
         format_sector_section(leading_sectors or []),
         format_intersection(intersection, enriched, code_to_sector),
         format_key_candidates(key_candidates),

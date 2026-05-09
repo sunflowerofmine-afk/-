@@ -141,15 +141,15 @@ def _calc_market_subtype(market_regime: str, kospi_chg: float | None) -> str:
     return "혼조형"
 
 
-def _enrich_candidates(codes: list[str], all_df: pd.DataFrame) -> dict:
+def _enrich_candidates(codes: list[str], all_df: pd.DataFrame, run_type: str) -> dict:
     """
     상위 후보 종목에 대해 히스토리, 지표, 패턴, 수급, 뉴스 수집.
-    반환: {code: {indicators, patterns, supply, news}}
+    반환: {code: {indicators, patterns, supply, news, regular_close_price}}
     """
     enriched = {}
 
     for code in codes:
-        enr = {"indicators": {}, "patterns": {}, "supply": SupplyData(code=code), "news": NewsData(code=code)}
+        enr = {"indicators": {}, "patterns": {}, "supply": SupplyData(code=code), "news": NewsData(code=code), "regular_close_price": None}
         row = all_df[all_df["종목코드"] == code]
         if row.empty:
             enriched[code] = enr
@@ -228,6 +228,14 @@ def _enrich_candidates(codes: list[str], all_df: pd.DataFrame) -> dict:
                 "near_high_52w": _52w.get("near_high_52w", False),
             }
             enr["processed"] = processed
+
+            # regular_close_price: 2차/수동 실행 시 정규장 종가 저장 (NXT 제외)
+            if run_type in ("2차", "수동"):
+                try:
+                    _rc = float(daily_df.iloc[0].get("close", 0) or 0)
+                    enr["regular_close_price"] = _rc if _rc > 0 else None
+                except (TypeError, ValueError):
+                    pass
 
             pat = detect_patterns(
                 code=code,
@@ -543,7 +551,7 @@ def run():
             crawl_codes.append(code)
 
     logger.info(f"후보 종목 {len(crawl_codes)}개 지표 수집 시작 (TV필터 후, 원본 {len(candidate_codes)}개) [{run_type}]...")
-    enriched = _enrich_candidates(crawl_codes, filtered_df)
+    enriched = _enrich_candidates(crawl_codes, filtered_df, run_type)
 
     # ── 프로그램 수급 (2차/수동: 장후 확정치) ───────────────────────
     prog_data: dict = {}
@@ -603,6 +611,15 @@ def run():
         supply_ok = checklist.supply_ok
 
         _sector = code_to_sector.get(code, "")
+        _regular_close = enr.get("regular_close_price")
+        _signal_px     = float(row.get("현재가", 0))
+        _entry_ref     = _regular_close if _regular_close else _signal_px
+        if _regular_close:
+            _price_src = "regular_close_price"
+        elif run_type in ("2차", "수동"):
+            _price_src = "signal_price"
+        else:
+            _price_src = "signal_price (장중)"
         key_candidates.append({
             "name":             name,
             "code":             code,
@@ -621,8 +638,12 @@ def run():
             "supply_ok":        supply_ok,
             "near_high_52w":    processed.near_high_52w,
             "sector":           _sector,
-            "is_leading_sector": bool(_sector) and _sector in leading_sector_names,
-            "prog_net_eok":     prog_data.get(code),
+            "is_leading_sector":             bool(_sector) and _sector in leading_sector_names,
+            "prog_net_eok":                  prog_data.get(code),
+            "regular_close_price":           _regular_close,
+            "regular_close_price_available": bool(_regular_close),
+            "entry_reference_price":         _entry_ref,
+            "price_source":                  _price_src,
         })
 
     # 정렬: 교집합 > 패턴타입 > score > supply_ok > 거래대금 > 상승률
@@ -723,8 +744,13 @@ def run():
             "checklist_pass":     c["checklist"].required_pass_count if c.get("checklist") else 0,
             "in_inter":           c["in_inter"],
             "supply_label":       getattr(c.get("supply"), "supply_label", ""),
-            "run_time":           run_time,
-            "run_type":           run_type,
+            "run_time":                      run_time,
+            "run_type":                      run_type,
+            "signal_time":                   run_time,
+            "regular_close_price":           c.get("regular_close_price"),
+            "regular_close_price_available": c.get("regular_close_price_available", False),
+            "entry_reference_price":         c.get("entry_reference_price", 0),
+            "price_source":                  c.get("price_source", ""),
         } for c in key_candidates])
         save_signals(sig_df, timestamp_str)
 
@@ -785,6 +811,7 @@ def run():
             market_summary_extra=_ms_extra,
             leading_sectors=leading_sectors,
             watch_candidates=watch_candidates,
+            run_type=run_type,
         )
         ntf.send_message(msg)
         logger.info(f"2차 알림 전송 완료 (핵심 {len(core_candidates)}개 / 관심 {len(watch_candidates)}개)")
