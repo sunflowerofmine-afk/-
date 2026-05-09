@@ -36,23 +36,45 @@ _HISTORY_DIR = _BASE / "data" / "trade_reviews"
 
 # ── 위반 태그 정의 ────────────────────────────────────────────
 TAG_DESC = {
+    # 신호/진입 분류
     "NON_SIGNAL_TRADE":       "시스템 미신호 종목 매수",
     "SIGNAL_FILE_MISSING":    "신호 파일 없음 (확인불가)",
     "NON_INTERSECTION_TRADE": "교집합 미포함 종목 매수",
     "NOT_CLOSE_ENTRY":        "종가진입 원칙 위반 (정규장 시간/가격 불일치)",
     "D1_CHASE_ENTRY":         "D+1 장초 고점 추격매수",
     "REVERSE_AT_EXIT_ZONE":   "D+1 09:20~09:40 고점 역추격매수",
-    "MISSED_D1_EXIT":         "D+1 익일 익절 기회 미활용",
     "AVERAGING_DOWN":         "물타기 (하락 후 추가매수)",
-    "ADDITIONAL_BUY":         "추가매수 (물타기 외)",
+    "ADDITIONAL_BUY":         "추가매수 (물타기 외, 정보용)",
     "RE_ENTRY":               "재진입 (당일 청산 후 재매수)",
-    "OVERSIZED_POSITION":     "과대 포지션",
-    "NXT_ENTRY":              "NXT 시간외 단일가 체결 발생",
-    "AFTER_1750_NXT_ENTRY":   "17:50 이후 NXT 진입 (봇 신호 종목)",
-    "CONDITIONAL_NXT_ENTRY":  "조건부 허용 NXT 진입 (신호+교집합+가격±1.5%+물타기없음+포지션OK)",
-    "NXT_ENTRY_CAUTION":      "NXT 주의 진입 (signal_price 대비 +1.5~3%)",
-    "NXT_CHASE_ENTRY":        "NXT 추격 진입 (signal_price 대비 +3% 초과)",
-    "PRICE_REFERENCE_MISSING": "기준 가격 확인불가 (signals/gap_results 없음)",
+    # NXT 분류 (AFTER_1750_NXT_ENTRY는 시간 정보 태그 — 단독 위반 아님)
+    "NXT_ENTRY":              "NXT 시간외 단일가 체결 발생 (정보용)",
+    "AFTER_1750_NXT_ENTRY":   "17:50 이후 NXT 체결 시간 태그 (단독 위반 아님)",
+    "CONDITIONAL_NXT_ENTRY":  "조건부 허용 NXT 진입 (교집합+기준가±1.5%+포지션OK)",
+    "NXT_ENTRY_CAUTION":      "NXT 주의 진입 (기준가 대비 +1.5~3%)",
+    "NXT_CHASE_ENTRY":        "NXT 추격 진입 (기준가 대비 +3% 초과)",
+    "PRICE_REFERENCE_MISSING": "기준 가격 확인불가 (signals/gap_results 없음, 정보용)",
+    # 포지션 규칙
+    "OVERSIZED_POSITION":          "과대 포지션 (30% 초과)",
+    "POSITION_RULE_OK":            "포지션 비중 정상 (30% 이하, 정보용)",
+    "POSITION_RULE_BROKEN":        "포지션 비중 위반 (30% 초과)",
+    "MAX_POSITION_COUNT_EXCEEDED": "동시 보유 종목 3개 초과",
+    # D+1 청산 규칙
+    "D1_EXIT_RULE_TARGET": "D+1 09:30 청산 목표 대상 (정보용)",
+    "D1_EXIT_ON_TIME":     "D+1 09:20~09:40 내 청산 완료 (준수, 정보용)",
+    "D1_EXIT_DELAYED":     "D+1 09:40 이후 청산 (지연)",
+    "D1_EXIT_MISSED":      "D+1 미청산 (보유 지속)",
+    # 갭하락 손절
+    "GAP_DOWN_STOP_REQUIRED":      "D+1 시가 갭하락 -3% 이하 — 손절 대상 (정보용)",
+    "GAP_DOWN_STOP_DONE":          "갭하락 손절 이행 (정보용)",
+    "GAP_DOWN_STOP_MISSED":        "갭하락 손절 미이행 (강한 위반)",
+    "POST_GAPDOWN_AVERAGING_DOWN": "갭하락 후 추가매수 (강한 위반)",
+    # 연장 보유
+    "EXTENDED_HOLD_ALLOWED":       "연장 보유 조건 충족 (갭하락 없음+수익권, 정보용)",
+    "EXTENDED_HOLD_NOT_ALLOWED":   "연장 보유 조건 미충족 (정보용)",
+    "UNAUTHORIZED_EXTENDED_HOLD":  "허용 조건 없는 연장 보유 (위반)",
+    "EXTENDED_HOLD_PROFIT":        "연장 보유 후 수익 실현 (정보용)",
+    "EXTENDED_HOLD_LOSS":          "연장 보유 후 손실 실현 (정보용)",
+    "EXTENDED_HOLD_REVIEW_NEEDED": "연장 보유 판단 불가 — D+1 시가 데이터 없음 (정보용)",
 }
 
 # 진입 구간 → 한글 레이블
@@ -65,11 +87,13 @@ _ENTRY_TYPE_LABEL = {
     "UNKNOWN":              "확인불가",
 }
 
-# 포지션 비중 경고 임계값 (%)
-_POS_WARN  = 10
-_POS_ALERT = 15
-_POS_CRIT  = 30
-_POS_MAX   = 40
+# 포지션 비중 경고 임계값 (%) — 표시용 레벨
+_POS_WARN      = 10
+_POS_ALERT     = 15
+_POS_CRIT      = 30
+_POS_MAX       = 40
+# 위반 기준: 30% 초과이면 OVERSIZED_POSITION
+_POS_VIOLATION = 30
 
 
 # ── HTS CSV 파싱 ─────────────────────────────────────────────
@@ -189,17 +213,17 @@ class SignalCache:
 
     def signal_price_with_source(self, signal_date8: str, code: str) -> tuple[float | None, str]:
         """기준 가격을 우선순위대로 탐색해 (가격, 출처) 반환.
-        1순위: signals regular_close_price
-        2순위: signals signal_price
-        3순위: signals entry_reference_price
+        1순위: signals signal_price
+        2순위: signals entry_reference_price
+        3순위: signals regular_close_price
         4순위: gap_results entry_price
         """
         sig = self._signals.get((signal_date8, code))
         if sig is not None:
             for field, label in [
-                ("regular_close_price",   "regular_close_price"),
                 ("signal_price",          "signal_price"),
                 ("entry_reference_price", "entry_reference_price"),
+                ("regular_close_price",   "regular_close_price"),
             ]:
                 try:
                     v = float(sig.get(field) or 0)
@@ -305,6 +329,10 @@ def _detect_violations(
     if not buys:
         return tags, "UNKNOWN", None, "없음", False
 
+    _total_buy_qty = sum(b["qty"] for b in buys)
+    _total_buy_val = sum(b["qty"] * b["price"] for b in buys)
+    avg_cost       = _total_buy_val / _total_buy_qty if _total_buy_qty else 0.0
+
     first_buy = min(buys, key=lambda t: (t["date"], t["time"]))
     signal = cache.find_signal(first_buy["date"], code)
 
@@ -330,7 +358,7 @@ def _detect_violations(
     entry_type, price_pct = _check_entry_timing(tags, buys, first_buy, sig_date, sig_price, signal)
     _check_position_size(tags, buys, period_total_buy, base_capital)
     _check_additional_and_re_entry(tags, buys, sells)
-    d1_exit_target = _check_missed_d1_exit(tags, sells, sig_date, code, cache)
+    d1_exit_target = _check_d1_exit_and_stop(tags, buys, sells, sig_date, code, cache, avg_cost, entry_type)
     _classify_nxt_entry(tags, entry_type, price_pct, is_inter)
 
     return tags, entry_type, price_pct, sig_price_source, d1_exit_target
@@ -455,8 +483,11 @@ def _check_position_size(
         return
     stock_buy = sum(b["qty"] * b["price"] for b in buys)
     pct = stock_buy / denom * 100
-    if pct >= _POS_WARN:
+    if pct > _POS_VIOLATION:
         tags.append("OVERSIZED_POSITION")
+        tags.append("POSITION_RULE_BROKEN")
+    else:
+        tags.append("POSITION_RULE_OK")
 
 
 def _check_additional_and_re_entry(
@@ -501,24 +532,88 @@ def _check_additional_and_re_entry(
         avg_cost   = new_val / total_qty if total_qty else avg_cost
 
 
-def _check_missed_d1_exit(
+def _check_d1_exit_and_stop(
     tags: list[str],
+    buys: list[dict],
     sells: list[dict],
     sig_date: str,
     code: str,
-    cache: SignalCache,
+    cache: "SignalCache",
+    avg_cost: float,
+    entry_type: str,
 ) -> bool:
-    """D+1 갭업 청산 판단 대상 여부 반환 (True = 갭업 발생, 판단 대상)."""
-    d1_open   = cache.d1_open(sig_date, code)
-    if d1_open is None:
-        return False
-    sig_price = cache.signal_price(sig_date, code)
-    if not sig_price or d1_open <= sig_price:
+    """D+1 청산 타이밍 + 갭하락 손절 + 연장 보유 태그 추가.
+
+    D1_CHASE_ENTRY / REVERSE_AT_EXIT_ZONE / UNKNOWN 진입은 적용 제외.
+    Returns True if D1_EXIT_RULE_TARGET 태그가 설정된 경우.
+    """
+    if entry_type in ("D1_CHASE_ENTRY", "REVERSE_AT_EXIT_ZONE", "UNKNOWN"):
         return False
 
-    d1 = (datetime.strptime(sig_date, "%Y%m%d") + timedelta(days=1)).strftime("%Y%m%d")
-    if not any(s["date"] == d1 for s in sells):
-        tags.append("MISSED_D1_EXIT")
+    sig_price = cache.signal_price(sig_date, code)
+    d1_open   = cache.d1_open(sig_date, code)
+    d1        = (datetime.strptime(sig_date, "%Y%m%d") + timedelta(days=1)).strftime("%Y%m%d")
+    d1_sells  = [s for s in sells if s["date"] == d1]
+
+    tags.append("D1_EXIT_RULE_TARGET")
+
+    # 갭하락 -3% 체크 (gap_results 데이터 있을 때만)
+    gap_down_required = False
+    if d1_open is not None and sig_price and sig_price > 0:
+        gap_pct = (d1_open - sig_price) / sig_price * 100
+        if gap_pct <= -3.0:
+            tags.append("GAP_DOWN_STOP_REQUIRED")
+            gap_down_required = True
+
+    # 갭하락 상황에서 D+1 추가매수 (강한 위반)
+    if gap_down_required:
+        if any(b["date"] >= d1 for b in buys):
+            tags.append("POST_GAPDOWN_AVERAGING_DOWN")
+
+    if not d1_sells:
+        # D+1 매도 없음
+        tags.append("D1_EXIT_MISSED")
+        if gap_down_required:
+            tags.append("GAP_DOWN_STOP_MISSED")
+            tags.append("UNAUTHORIZED_EXTENDED_HOLD")
+        else:
+            if d1_open is None:
+                tags.append("EXTENDED_HOLD_REVIEW_NEEDED")
+            elif avg_cost and d1_open > avg_cost:
+                tags.append("EXTENDED_HOLD_ALLOWED")
+            else:
+                tags.append("EXTENDED_HOLD_NOT_ALLOWED")
+                tags.append("UNAUTHORIZED_EXTENDED_HOLD")
+    else:
+        first_sell_time = min(d1_sells, key=lambda s: s["time"])["time"]
+        h, m = _hm(first_sell_time)
+        in_window = (9, 20) <= (h, m) <= (9, 40)
+
+        if in_window:
+            tags.append("D1_EXIT_ON_TIME")
+            if gap_down_required:
+                tags.append("GAP_DOWN_STOP_DONE")
+        else:
+            tags.append("D1_EXIT_DELAYED")
+            if gap_down_required:
+                tags.append("GAP_DOWN_STOP_MISSED")
+            if d1_open is None:
+                tags.append("EXTENDED_HOLD_REVIEW_NEEDED")
+            elif gap_down_required:
+                tags.append("UNAUTHORIZED_EXTENDED_HOLD")
+            elif avg_cost and d1_open > avg_cost:
+                tags.append("EXTENDED_HOLD_ALLOWED")
+                d1_sell_val = sum(s["qty"] * s["price"] for s in d1_sells)
+                d1_sell_qty = sum(s["qty"] for s in d1_sells)
+                d1_pnl      = d1_sell_val - avg_cost * d1_sell_qty
+                if d1_pnl >= 0:
+                    tags.append("EXTENDED_HOLD_PROFIT")
+                else:
+                    tags.append("EXTENDED_HOLD_LOSS")
+            else:
+                tags.append("EXTENDED_HOLD_NOT_ALLOWED")
+                tags.append("UNAUTHORIZED_EXTENDED_HOLD")
+
     return True
 
 
@@ -588,7 +683,7 @@ def _analyze(trades: list[dict], cache: SignalCache) -> dict:
             "entry_type":                entry_type,
             "entry_price_vs_signal_pct": price_pct,
             "sig_price_source":          sig_price_source,
-            "d1_exit_target":            d1_exit_target,
+            "d1_exit_target":            "D1_EXIT_RULE_TARGET" in tags,
             "buys":                      buys,
             "sells":                     sells,
         })
@@ -618,12 +713,12 @@ def _analyze(trades: list[dict], cache: SignalCache) -> dict:
 
     _sig_confirmed = [r for r in results if "NON_SIGNAL_TRADE" not in r["tags"] and "SIGNAL_FILE_MISSING" not in r["tags"]]
     _price_avail   = [r for r in _sig_confirmed if r.get("sig_price") is not None]
-    _d1_targets    = [r for r in results if r.get("d1_exit_target")]
+    _d1_targets    = [r for r in results if "D1_EXIT_RULE_TARGET" in r["tags"]]
 
     _bot_n   = len([r for r in results if "NON_SIGNAL_TRADE" not in r["tags"]])
     _inter_n = len([r for r in _sig_confirmed if "NON_INTERSECTION_TRADE" not in r["tags"]])
     _close_n = len([r for r in _price_avail if r.get("entry_type") == "REGULAR_CLOSE_ENTRY"])
-    _d1_n    = len([r for r in _d1_targets if "MISSED_D1_EXIT" not in r["tags"]])
+    _d1_n    = len([r for r in _d1_targets if "D1_EXIT_ON_TIME" in r["tags"]])
     _avg_n   = len([r for r in results if "AVERAGING_DOWN" not in r["tags"]])
     _pos_n   = len([r for r in results if "OVERSIZED_POSITION" not in r["tags"]])
 
@@ -648,8 +743,39 @@ def _analyze(trades: list[dict], cache: SignalCache) -> dict:
         "pos_limit_denom":   total_n,
     }
 
+    # ── MAX_POSITION_COUNT_EXCEEDED (기간 레벨 체크) ─────────
+    _pos_periods: list[tuple[str, str, str]] = []
+    for _r in results:
+        _rb = _r.get("buys", [])
+        _rs = _r.get("sells", [])
+        if _rb:
+            _od = min(b["date"] for b in _rb)
+            _cd = max(s["date"] for s in _rs) if _rs else "99991231"
+            _pos_periods.append((_r["code"], _od, _cd))
+    _check_dates: set[str] = set()
+    for _, _od, _cd in _pos_periods:
+        _check_dates.add(_od)
+        if _cd != "99991231":
+            _check_dates.add(_cd)
+    _exceeded_codes: set[str] = set()
+    for _chk in _check_dates:
+        _sim = [c for c, od, cd in _pos_periods if od <= _chk <= cd]
+        if len(_sim) > 3:
+            _exceeded_codes.update(_sim)
+    for _r in results:
+        if _r["code"] in _exceeded_codes and "MAX_POSITION_COUNT_EXCEEDED" not in _r["tags"]:
+            _r["tags"].append("MAX_POSITION_COUNT_EXCEEDED")
+
     # ── 교훈 (태그별 손실 집계) ───────────────────────────────
-    _INFO_TAGS = {"NXT_ENTRY", "ADDITIONAL_BUY", "PRICE_REFERENCE_MISSING"}
+    _INFO_TAGS = {
+        "NXT_ENTRY", "ADDITIONAL_BUY", "PRICE_REFERENCE_MISSING",
+        "AFTER_1750_NXT_ENTRY",
+        "D1_EXIT_RULE_TARGET", "D1_EXIT_ON_TIME",
+        "GAP_DOWN_STOP_REQUIRED", "GAP_DOWN_STOP_DONE",
+        "EXTENDED_HOLD_ALLOWED", "EXTENDED_HOLD_PROFIT", "EXTENDED_HOLD_LOSS",
+        "EXTENDED_HOLD_NOT_ALLOWED", "EXTENDED_HOLD_REVIEW_NEEDED",
+        "POSITION_RULE_OK",
+    }
     _tag_pnl: dict[str, float] = {}
     for r in results:
         for t in r["tags"]:
@@ -696,7 +822,41 @@ def _analyze(trades: list[dict], cache: SignalCache) -> dict:
         "entry_pnl":            {k: v for k, v in entry_pnl.items() if v != 0},
     }
 
+    _rule_summary = {
+        "position_rule": {
+            "max_positions":              3,
+            "max_position_pct":           30,
+            "intersection_only":          True,
+            "non_intersection_allowed_pct": 0,
+            "d1_chase_allowed_pct":       0,
+            "averaging_down_allowed_pct": 0,
+        },
+        "nxt_rule": {
+            "reference_price_priority": [
+                "signal_price", "entry_reference_price",
+                "regular_close_price", "gap_results_entry_price",
+            ],
+            "conditional_limit_pct":           1.5,
+            "chase_limit_pct":                 3.0,
+            "after_1750_is_violation_by_itself": False,
+        },
+        "exit_rule": {
+            "default_d1_exit_window":    "09:20-09:40",
+            "reference_time":            "09:30",
+            "gap_down_stop_pct":         -3.0,
+            "extended_hold_allowed":     True,
+            "extended_hold_intraday_only": True,
+        },
+        "kim_hyungjun_rule": {
+            "trade_signal":          False,
+            "hold_signal":           False,
+            "observation_tag_only":  True,
+            "validation_period_weeks": "4-8",
+        },
+    }
+
     return {
+        "rule_summary": _rule_summary,
         "summary": {
             "total_stocks":       total_n,
             "compliant_stocks":   compliant_n,
@@ -718,16 +878,21 @@ def _analyze(trades: list[dict], cache: SignalCache) -> dict:
 # ── 누적 손익 / 4주 추세 헬퍼 ────────────────────────────────
 
 _LESSON_TEXT = {
-    "AVERAGING_DOWN":         "물타기 금지 — 추가매수는 평균단가 위에서만",
-    "D1_CHASE_ENTRY":         "D+1 아침 추격 금지",
-    "REVERSE_AT_EXIT_ZONE":   "D+1 09:20~09:40 역추격 금지",
-    "NXT_CHASE_ENTRY":        "17:50 NXT 추격 금지 (기준가 대비 +3% 초과)",
-    "NXT_ENTRY_CAUTION":      "17:50 NXT 주의 — 기준가 대비 +1.5~3% 범위 자제",
-    "OVERSIZED_POSITION":     "포지션 한도 준수 — 단일 종목 10% 이하",
-    "NON_INTERSECTION_TRADE": "교집합 우선 원칙 — 비교집합 종목 진입 자제",
-    "NON_SIGNAL_TRADE":       "봇 신호 우선 원칙 — 비신호 종목 진입 금지",
-    "MISSED_D1_EXIT":         "D+1 갭업 시 장초 청산 이행",
-    "NOT_CLOSE_ENTRY":        "종가 진입 원칙 — 14:50~15:30 시간창 내 진입",
+    "AVERAGING_DOWN":              "물타기 금지 — 손실 중 추가매수 절대 금지",
+    "D1_CHASE_ENTRY":              "D+1 아침 추격 금지",
+    "REVERSE_AT_EXIT_ZONE":        "D+1 09:20~09:40 역추격 금지",
+    "NXT_CHASE_ENTRY":             "17:50 NXT 추격 금지 (기준가 대비 +3% 초과)",
+    "NXT_ENTRY_CAUTION":           "17:50 NXT 주의 — 기준가 대비 +1.5~3% 범위 자제",
+    "OVERSIZED_POSITION":          "포지션 한도 준수 — 단일 종목 30% 이하 (교집합 종목만)",
+    "NON_INTERSECTION_TRADE":      "교집합 우선 원칙 — 비교집합 종목 진입 금지",
+    "NON_SIGNAL_TRADE":            "봇 신호 우선 원칙 — 비신호 종목 진입 금지",
+    "NOT_CLOSE_ENTRY":             "종가 진입 원칙 — 14:50~15:30 시간창 내 진입",
+    "D1_EXIT_MISSED":              "D+1 09:20~09:40 청산 원칙 이행",
+    "D1_EXIT_DELAYED":             "D+1 09:40 이후 청산 — 연장 조건 없으면 09:30 내 청산",
+    "GAP_DOWN_STOP_MISSED":        "갭하락 -3% 손절 이행 — 갭하락 시 즉시 손절",
+    "POST_GAPDOWN_AVERAGING_DOWN": "갭하락 후 추가매수 절대 금지",
+    "UNAUTHORIZED_EXTENDED_HOLD":  "연장 보유 조건 없으면 D+1 09:20~09:40 청산 이행",
+    "MAX_POSITION_COUNT_EXCEEDED": "동시 보유 3종목 이하 유지",
 }
 
 
@@ -779,23 +944,45 @@ def _load_4week_trend() -> list[dict]:
 # ── HTML 리포트 생성 ──────────────────────────────────────────
 
 _TAG_COLOR = {
+    # 신호/진입
     "NON_SIGNAL_TRADE":       "#e53935",
     "SIGNAL_FILE_MISSING":    "#9e9e9e",
     "NON_INTERSECTION_TRADE": "#fb8c00",
     "NOT_CLOSE_ENTRY":        "#e53935",
     "D1_CHASE_ENTRY":         "#e53935",
     "REVERSE_AT_EXIT_ZONE":   "#c62828",
-    "MISSED_D1_EXIT":         "#fb8c00",
     "AVERAGING_DOWN":         "#e53935",
-    "ADDITIONAL_BUY":         "#fdd835",
+    "ADDITIONAL_BUY":         "#546e7a",
     "RE_ENTRY":               "#fb8c00",
-    "OVERSIZED_POSITION":     "#8e24aa",
+    # NXT
     "NXT_ENTRY":              "#546e7a",
     "AFTER_1750_NXT_ENTRY":   "#0288d1",
     "CONDITIONAL_NXT_ENTRY":  "#00897b",
     "NXT_ENTRY_CAUTION":      "#f57c00",
     "NXT_CHASE_ENTRY":        "#c62828",
     "PRICE_REFERENCE_MISSING": "#607d8b",
+    # 포지션
+    "OVERSIZED_POSITION":          "#8e24aa",
+    "POSITION_RULE_OK":            "#4caf50",
+    "POSITION_RULE_BROKEN":        "#8e24aa",
+    "MAX_POSITION_COUNT_EXCEEDED": "#c62828",
+    # D+1 청산
+    "D1_EXIT_RULE_TARGET": "#546e7a",
+    "D1_EXIT_ON_TIME":     "#4caf50",
+    "D1_EXIT_DELAYED":     "#fb8c00",
+    "D1_EXIT_MISSED":      "#e53935",
+    # 갭하락 손절
+    "GAP_DOWN_STOP_REQUIRED":      "#f57c00",
+    "GAP_DOWN_STOP_DONE":          "#4caf50",
+    "GAP_DOWN_STOP_MISSED":        "#c62828",
+    "POST_GAPDOWN_AVERAGING_DOWN": "#c62828",
+    # 연장 보유
+    "EXTENDED_HOLD_ALLOWED":       "#00897b",
+    "EXTENDED_HOLD_NOT_ALLOWED":   "#607d8b",
+    "UNAUTHORIZED_EXTENDED_HOLD":  "#e53935",
+    "EXTENDED_HOLD_PROFIT":        "#4caf50",
+    "EXTENDED_HOLD_LOSS":          "#ef5350",
+    "EXTENDED_HOLD_REVIEW_NEEDED": "#607d8b",
 }
 
 _WEIGHT_COLOR = {
@@ -1028,7 +1215,7 @@ def _generate_html(
       <tr><td>봇 신호 준수</td>{_ic_cell(ic.get('bot_signal_rate'), ic.get('bot_signal_n', 0), ic.get('bot_signal_denom', 0))}</tr>
       <tr><td>교집합 우선</td>{_ic_cell(ic.get('inter_rate'), ic.get('inter_n', 0), ic.get('inter_denom', 0))}</tr>
       <tr><td>종가 진입</td>{_ic_cell(ic.get('close_entry_rate'), ic.get('close_entry_n', 0), ic.get('close_entry_denom', 0))}</tr>
-      <tr><td>D+1 장초 청산</td>{_ic_cell(ic.get('d1_exit_rate'), ic.get('d1_exit_n', 0), ic.get('d1_exit_denom', 0))}</tr>
+      <tr><td>D+1 09:30 청산</td>{_ic_cell(ic.get('d1_exit_rate'), ic.get('d1_exit_n', 0), ic.get('d1_exit_denom', 0))}</tr>
       <tr><td>물타기 금지</td>{_ic_cell(ic.get('avg_down_rate'), ic.get('avg_down_n', 0), ic.get('avg_down_denom', 0))}</tr>
       <tr><td>포지션 한도</td>{_ic_cell(ic.get('pos_limit_rate'), ic.get('pos_limit_n', 0), ic.get('pos_limit_denom', 0))}</tr>
     </tbody>
