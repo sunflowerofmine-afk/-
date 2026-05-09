@@ -1234,3 +1234,92 @@ def _section_rejected(rejected: list) -> str:
         )
     parts.append("</div>")
     return "".join(parts)
+
+
+# ─── 김형준 기법 관찰 후보 섹션 ────────────────────────────────────────────────
+
+_KH_CSS = """
+<style>
+.kh-notice{background:#1c1c1c;border-left:3px solid #555;padding:10px 14px;
+  font-size:12px;color:#888;margin-bottom:14px;border-radius:4px;line-height:1.7;}
+.kh-card{background:var(--bg2);border:1px solid #444;border-radius:8px;
+  padding:12px 16px;margin-bottom:10px;}
+.kh-card-head{font-size:14px;font-weight:600;margin-bottom:6px;color:#ccc;}
+.kh-card-body{font-size:12px;color:#888;line-height:1.8;}
+.kh-title{color:#888!important;font-size:1rem!important;}
+.badge-kh-only{background:#333;color:#aaa;font-size:11px;
+  padding:1px 6px;border-radius:4px;margin-left:6px;}
+</style>
+"""
+
+
+def _section_kh_candidates(
+    key_candidates: list,
+    kh_only_candidates: list,
+    scope: str = "top40_only",
+) -> str:
+    """[단기스윙 관찰 후보] — 김형준 기법 관찰 태그 (매수 신호 아님)."""
+
+    kh_from_key = [(c, False) for c in key_candidates
+                   if c.get("patterns", {}).get("kim_hyungjun_flag")]
+    all_kh = kh_from_key + [(c, True) for c in kh_only_candidates]
+
+    notice = (
+        '<div class="kh-notice">'
+        '<b>⚠️ 이 섹션은 매수 신호 아님 | 데이터 수집·검증 중</b><br>'
+        '현재 김형준 기법 후보는 기존 상승률/거래대금 Top40 수집 대상 안에서만 탐지됩니다.<br>'
+        '눌림 중인 일부 종목은 탐지되지 않을 수 있습니다.<br>'
+        '1차 구현: 60일 신고가/근접 기준을 포함한 근사 판정 적용.'
+        '</div>'
+    )
+
+    header = (
+        _KH_CSS +
+        '<div class="section-title kh-title">📊 단기스윙 관찰 후보 (김형준 기법)</div>'
+        + notice
+    )
+
+    if not all_kh:
+        return (
+            header +
+            '<p style="color:var(--muted);font-size:13px;padding:8px 0;">탐지된 김형준 기법 후보 없음</p>'
+        )
+
+    cards = []
+    for c, is_kh_only in all_kh:
+        pat    = c.get("patterns", {})
+        supply = c.get("supply")
+
+        base_offset   = pat.get("kim_hyungjun_base_offset")
+        base_tv_r     = pat.get("kim_hyungjun_base_tv_ratio")
+        today_tv_r    = pat.get("kim_hyungjun_today_tv_ratio")
+        close_vs_base = pat.get("kim_hyungjun_close_vs_base_high_pct")
+        above_ma5     = pat.get("kim_hyungjun_above_ma5")
+        supply_ok     = pat.get("kim_hyungjun_supply_ok")
+        in_inter      = c.get("in_inter", False)
+        sector        = c.get("sector", "")
+
+        offset_label  = {1: "1일전", 2: "2일전", 3: "3일전"}.get(base_offset, "-")
+        tv_r_str      = f"{today_tv_r*100:.0f}%" if today_tv_r is not None else "-"
+        close_str     = f"{close_vs_base:+.1f}%" if close_vs_base is not None else "-"
+        base_r_str    = f"{base_tv_r}x" if base_tv_r is not None else "-"
+        supply_str    = ("기관매수O" if supply_ok is True
+                         else ("기관매수X" if supply_ok is False else "수급확인불가"))
+
+        badges = ""
+        if in_inter:   badges += ' <span class="badge ok">★교집합</span>'
+        if is_kh_only: badges += ' <span class="badge-kh-only">종베외</span>'
+
+        cards.append(
+            f'<div class="kh-card">'
+            f'<div class="kh-card-head"><b>{_e(c.get("name"))}({_e(c.get("code"))})</b>'
+            f' [{_e(c.get("market"))}]{badges}</div>'
+            f'<div class="kh-card-body">'
+            f'등락률 {_sign(c.get("change_pct",0))} | 거래대금 {_tv_eok(c.get("trading_value",0))}'
+            f'{f" | [{_e(sector)}]" if sector else ""}<br>'
+            f'기준봉 {_e(offset_label)} | 기준봉TV {_e(base_r_str)} | 오늘TV비율 {_e(tv_r_str)}<br>'
+            f'기준봉고가대비 {_e(close_str)} | 5일선위 {_badge(above_ma5)} | {_e(supply_str)}'
+            f'</div></div>'
+        )
+
+    return header + "".join(cards)

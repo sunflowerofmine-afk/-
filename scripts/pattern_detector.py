@@ -33,6 +33,11 @@ from config.settings import (
     HTC_STRUCTURE_BREAK_FROM_BASE_HIGH_PCT,
     HTC_BREAKDOWN_CANDLE_CHANGE_MIN_PCT,
     HTC_BREAKDOWN_CANDLE_TV_RATIO_MIN,
+    KH_BASE_TV_EXPLOSION_MULT,
+    KH_BASE_TV_MIN_EOK,
+    KH_TODAY_TV_RATIO_MAX,
+    KH_CLOSE_FROM_BASE_HIGH_MIN_PCT,
+    KH_VOLUME_UP_BEARISH_RATIO,
 )
 from scripts.indicators import is_big_candle, is_first_big_candle, is_ma_cluster, calc_all_ma
 
@@ -193,6 +198,101 @@ def detect_high_tight_consolidation(
     }
 
 
+def detect_kim_hyungjun_pullback(
+    daily_df: pd.DataFrame,
+    base_idx: int | None,
+    today_close: float,
+    today_open: float,
+    today_tv: float,
+    structure_broken_flag: bool,
+    near_high_flag: bool,
+) -> dict:
+    """
+    김형준 기법 눌림 탐지 (관찰 태그 전용 — 매수 신호 아님).
+    기준봉(1~3일 전) 이후 거래대금 수축 + 5일선 위 + 고가권 유지 확인.
+    supply 조건(kim_hyungjun_supply_ok)은 pipeline.py에서 별도 추가.
+    신고가 조건은 60일 신고가/근접 기준 근사 판정 (1차 구현 한계).
+    """
+    _default = {
+        "kim_hyungjun_flag":                   False,
+        "kim_hyungjun_stage":                  None,
+        "kim_hyungjun_base_offset":            None,
+        "kim_hyungjun_base_tv_ratio":          None,
+        "kim_hyungjun_today_tv_ratio":         None,
+        "kim_hyungjun_close_vs_base_high_pct": None,
+        "kim_hyungjun_above_ma5":              None,
+        "kim_hyungjun_supply_ok":              None,
+    }
+
+    # 기준봉이 1일 전 이상이어야 함 (오늘이 눌림봉)
+    if base_idx is None or base_idx < 1:
+        return _default
+    if structure_broken_flag:
+        return _default
+    if not near_high_flag:
+        return _default
+    if len(daily_df) <= base_idx:
+        return _default
+
+    base_row  = daily_df.iloc[base_idx]
+    base_high = float(base_row.get("high",          0) or 0)
+    base_tv   = float(base_row.get("trading_value", 0) or 0)
+
+    if base_high <= 0 or base_tv <= 0:
+        return _default
+
+    # 기준봉 거래대금 최소 1500억
+    if base_tv < KH_BASE_TV_MIN_EOK * 100_000_000:
+        return _default
+
+    # 기준봉 거래대금 폭발 (이전 20일 평균 대비 KH_BASE_TV_EXPLOSION_MULT배 이상)
+    past_tv    = daily_df.iloc[base_idx + 1 : base_idx + 21]["trading_value"].replace(0, float("nan"))
+    avg_20d_tv = float(past_tv.mean()) if not past_tv.empty else float("nan")
+    if not pd.isna(avg_20d_tv) and avg_20d_tv > 0:
+        if base_tv < avg_20d_tv * KH_BASE_TV_EXPLOSION_MULT:
+            return _default
+
+    # 오늘 거래대금 수축 (기준봉 대비 KH_TODAY_TV_RATIO_MAX 이하)
+    if today_tv <= 0 or today_tv > base_tv * KH_TODAY_TV_RATIO_MAX:
+        return _default
+
+    # 오늘 종가가 기준봉 고가 대비 KH_CLOSE_FROM_BASE_HIGH_MIN_PCT 이내
+    close_vs_base_high = round((today_close - base_high) / base_high * 100, 2)
+    if close_vs_base_high < KH_CLOSE_FROM_BASE_HIGH_MIN_PCT:
+        return _default
+
+    # 5일선 위 종가 (daily_df는 역순: index 0=오늘, 이후 과거 순)
+    try:
+        recent_5 = daily_df["close"].iloc[:5].replace(0, float("nan"))
+        ma5_val  = float(recent_5.mean()) if recent_5.notna().sum() >= 5 else None
+    except Exception:
+        ma5_val = None
+
+    above_ma5 = None
+    if ma5_val is not None and ma5_val > 0:
+        above_ma5 = today_close > ma5_val
+        if not above_ma5:
+            return _default
+
+    # 거래량 증가 음봉 제외: 음봉 + 오늘 TV ≥ 기준봉 × KH_VOLUME_UP_BEARISH_RATIO
+    if today_close < today_open and today_tv >= base_tv * KH_VOLUME_UP_BEARISH_RATIO:
+        return _default
+
+    base_tv_ratio  = round(base_tv / avg_20d_tv, 2) if not pd.isna(avg_20d_tv) and avg_20d_tv > 0 else None
+    today_tv_ratio = round(today_tv / base_tv, 3)
+
+    return {
+        "kim_hyungjun_flag":                   True,
+        "kim_hyungjun_stage":                  "pullback",
+        "kim_hyungjun_base_offset":            base_idx,
+        "kim_hyungjun_base_tv_ratio":          base_tv_ratio,
+        "kim_hyungjun_today_tv_ratio":         today_tv_ratio,
+        "kim_hyungjun_close_vs_base_high_pct": close_vs_base_high,
+        "kim_hyungjun_above_ma5":              above_ma5,
+        "kim_hyungjun_supply_ok":              None,  # pipeline.py에서 채움
+    }
+
+
 def detect_consolidation_breakout(
     daily_df: pd.DataFrame,
     today_close: float,
@@ -282,6 +382,7 @@ def detect_patterns(
     today_change_pct: float,
     today_tv: float,
     daily_df: pd.DataFrame,
+    near_high_52w: bool = False,
 ) -> dict:
     """
     3가지 패턴 탐지 (당일돌파형 / 고가횡보형 / 눌림관찰형).
@@ -331,6 +432,14 @@ def detect_patterns(
         "high_tight_today_tv_ratio":           None,
         "high_tight_close_from_base_high_pct": None,
         "high_tight_status":                   "",
+        "kim_hyungjun_flag":                   False,
+        "kim_hyungjun_stage":                  None,
+        "kim_hyungjun_base_offset":            None,
+        "kim_hyungjun_base_tv_ratio":          None,
+        "kim_hyungjun_today_tv_ratio":         None,
+        "kim_hyungjun_close_vs_base_high_pct": None,
+        "kim_hyungjun_above_ma5":              None,
+        "kim_hyungjun_supply_ok":              None,
         "details": {},
     }
 
@@ -553,4 +662,18 @@ def detect_patterns(
             "pullback_gap_pct":        pbs.get("pullback_gap_pct"),
         },
     })
+
+    # ── 김형준 기법 눌림 탐지 (관찰 태그) ─────────────────────────────
+    _kh_near_high = new_high_60d or near_high_60d or near_high_52w
+    kh = detect_kim_hyungjun_pullback(
+        daily_df=daily_df,
+        base_idx=base_idx,
+        today_close=today_close,
+        today_open=today_open,
+        today_tv=today_tv,
+        structure_broken_flag=structure_broken_flag,
+        near_high_flag=_kh_near_high,
+    )
+    result.update(kh)
+
     return result

@@ -20,6 +20,7 @@ from config.settings import (
     ENABLE_NXT_FETCH,
     MARKET_REGIME_BULL_ADL, MARKET_REGIME_BEAR_ADL, MARKET_REGIME_BULL_TV1500,
     CANDIDATES_MAX_BULL, CANDIDATES_MAX_NEUTRAL, CANDIDATES_MAX_BEAR, CANDIDATES_MAX_CONCENTRATED_BEAR,
+    KH_CRAWL_MIN_TV_EOK,
 )
 from scripts.market_calendar import get_now_kst, is_trading_day, get_run_type
 from scripts.storage import save_raw, save_processed, save_signals
@@ -39,6 +40,18 @@ from scripts.models import ProcessedData, SupplyData, NewsData
 from scripts.scoring import calc_score, build_checklist
 from scripts import notifier as ntf
 from scripts.dashboard import generate_dashboard_html, build_dashboard_links, generate_index_html
+
+def _calc_kh_supply_ok(supply) -> bool | None:
+    """KH 수급 조건: 기관 당일 또는 5일 누적 순매수. supply 없으면 None."""
+    if supply is None:
+        return None
+    if not hasattr(supply, "status") or supply.status != "ok":
+        return None
+    inst_1d = (supply.institution_net    or 0) > 0
+    inst_5d = (supply.institution_net_5d or 0) > 0
+    frgn_1d = (supply.foreign_net        or 0) > 0
+    return inst_1d or inst_5d or (inst_1d and frgn_1d)
+
 
 def _setup_logging(timestamp_str: str):
     date_str = timestamp_str.split("_")[0]
@@ -246,6 +259,7 @@ def _enrich_candidates(codes: list[str], all_df: pd.DataFrame, run_type: str) ->
                 today_change_pct=_chg,
                 today_tv=tv,
                 daily_df=daily_df,
+                near_high_52w=processed.near_high_52w,
             )
             enr["patterns"] = pat
 
@@ -553,6 +567,20 @@ def run():
     logger.info(f"후보 종목 {len(crawl_codes)}개 지표 수집 시작 (TV필터 후, 원본 {len(candidate_codes)}개) [{run_type}]...")
     enriched = _enrich_candidates(crawl_codes, filtered_df, run_type)
 
+    # ── KH 전용 추가 크롤링 (B안: Top40 중 TV≥300억 + 상한가 아닌 + crawl_codes 제외) ──
+    _KH_MIN_TV_WON = KH_CRAWL_MIN_TV_EOK * 100_000_000
+    _crawl_code_set = set(crawl_codes)
+    kh_extra_codes = [
+        code for code in candidate_codes
+        if code not in _crawl_code_set
+        and float(chg_map.get(code, 0)) < 29.5
+        and float(tv_map.get(code, 0)) >= _KH_MIN_TV_WON
+    ]
+    kh_extra_enriched: dict = {}
+    if kh_extra_codes:
+        logger.info(f"KH 전용 추가 수집: {len(kh_extra_codes)}개 (TV≥{KH_CRAWL_MIN_TV_EOK}억)")
+        kh_extra_enriched = _enrich_candidates(kh_extra_codes, filtered_df, run_type)
+
     # ── 프로그램 수급 (2차/수동: 장후 확정치) ───────────────────────
     prog_data: dict = {}
     if run_type != "1차":
@@ -665,6 +693,49 @@ def run():
 
     key_candidates.sort(key=_priority)
 
+    # ── KH supply_ok 추가 (key_candidates) ──────────────────────────
+    for c in key_candidates:
+        pat = c.get("patterns", {})
+        if pat.get("kim_hyungjun_flag"):
+            kh_sup = _calc_kh_supply_ok(c.get("supply"))
+            pat["kim_hyungjun_supply_ok"] = kh_sup
+            c["kim_hyungjun_supply_ok"]   = kh_sup
+        else:
+            c["kim_hyungjun_supply_ok"] = None
+
+    # ── KH 전용 후보 수집 (kh_extra_codes 중 KH 조건 충족) ─────────
+    _key_codes = {c["code"] for c in key_candidates}
+    kh_only_candidates: list[dict] = []
+    for _kh_code in kh_extra_codes:
+        _kh_enr = kh_extra_enriched.get(_kh_code, {})
+        _kh_pat = _kh_enr.get("patterns", {})
+        if not _kh_pat.get("kim_hyungjun_flag", False):
+            continue
+        _kh_row = filtered_df[filtered_df["종목코드"] == _kh_code]
+        if _kh_row.empty:
+            continue
+        _kh_row_data = _kh_row.iloc[0]
+        _kh_tv       = float(_kh_row_data.get("거래대금", 0))
+        _kh_supply   = _kh_enr.get("supply", SupplyData(code=_kh_code))
+        _kh_sup_ok   = _calc_kh_supply_ok(_kh_supply)
+        _kh_pat["kim_hyungjun_supply_ok"] = _kh_sup_ok
+        kh_only_candidates.append({
+            "name":                   _kh_row_data.get("종목명", ""),
+            "code":                   _kh_code,
+            "market":                 _kh_row_data.get("시장", ""),
+            "change_pct":             float(_kh_row_data.get("등락률", 0)),
+            "trading_value":          _kh_tv,
+            "signal_price":           float(_kh_row_data.get("현재가", 0)),
+            "patterns":               _kh_pat,
+            "supply":                 _kh_supply,
+            "news":                   _kh_enr.get("news", NewsData(code=_kh_code)),
+            "in_inter":               _kh_code in inter_codes,
+            "sector":                 code_to_sector.get(_kh_code, ""),
+            "kim_hyungjun_supply_ok": _kh_sup_ok,
+        })
+    if kh_only_candidates:
+        logger.info(f"KH 전용 후보: {len(kh_only_candidates)}개")
+
     # ── 장세별 핵심/관심 분리 ────────────────────────────────
     if market_regime == "강세":
         _max_n = CANDIDATES_MAX_BULL
@@ -725,40 +796,86 @@ def run():
         logger.warning(f"daily_summary.json 저장 실패: {e}")
 
     # 시그널 저장
-    if key_candidates:
-        sig_df = pd.DataFrame([{
-            "종목명":             c["name"],
-            "종목코드":           c["code"],
-            "시장":               c["market"],
-            "등락률":             c["change_pct"],
-            "거래대금":           c["trading_value"],
-            "signal_price":       c.get("signal_price", 0),
-            "sector":             c.get("sector", ""),
-            "패턴":               c["patterns"].get("pattern_summary", ""),
-            "pattern_type_label": c["patterns"].get("pattern_type_label", "없음"),
-            "base_candle_offset": c["patterns"].get("base_candle_day_offset"),
-            "base_high_gap_pct":  c["patterns"].get("base_high_gap_pct"),
-            "tv_ratio":           c["patterns"].get("tv_ratio"),
-            "status_summary":     c["patterns"].get("status_summary", ""),
-            "total_score":        c["score"].total_score if c.get("score") else 0,
-            "checklist_pass":     c["checklist"].required_pass_count if c.get("checklist") else 0,
-            "in_inter":           c["in_inter"],
-            "supply_label":       getattr(c.get("supply"), "supply_label", ""),
-            "run_time":                      run_time,
-            "run_type":                      run_type,
-            "signal_time":                   run_time,
-            "regular_close_price":           c.get("regular_close_price"),
-            "regular_close_price_available": c.get("regular_close_price_available", False),
-            "entry_reference_price":         c.get("entry_reference_price", 0),
-            "price_source":                  c.get("price_source", ""),
-        } for c in key_candidates])
-        save_signals(sig_df, timestamp_str)
+    def _kh_sig(c: dict, is_kh_only: bool = False) -> dict:
+        pat = c.get("patterns", {})
+        return {
+            "kim_hyungjun_flag":                   pat.get("kim_hyungjun_flag", False),
+            "kim_hyungjun_stage":                  pat.get("kim_hyungjun_stage"),
+            "kim_hyungjun_base_offset":            pat.get("kim_hyungjun_base_offset"),
+            "kim_hyungjun_base_tv_ratio":          pat.get("kim_hyungjun_base_tv_ratio"),
+            "kim_hyungjun_today_tv_ratio":         pat.get("kim_hyungjun_today_tv_ratio"),
+            "kim_hyungjun_close_vs_base_high_pct": pat.get("kim_hyungjun_close_vs_base_high_pct"),
+            "kim_hyungjun_above_ma5":              pat.get("kim_hyungjun_above_ma5"),
+            "kim_hyungjun_supply_ok":              c.get("kim_hyungjun_supply_ok"),
+            "is_kh_only":                          is_kh_only,
+        }
+
+    _sig_rows = [{
+        "종목명":             c["name"],
+        "종목코드":           c["code"],
+        "시장":               c["market"],
+        "등락률":             c["change_pct"],
+        "거래대금":           c["trading_value"],
+        "signal_price":       c.get("signal_price", 0),
+        "sector":             c.get("sector", ""),
+        "패턴":               c["patterns"].get("pattern_summary", ""),
+        "pattern_type_label": c["patterns"].get("pattern_type_label", "없음"),
+        "base_candle_offset": c["patterns"].get("base_candle_day_offset"),
+        "base_high_gap_pct":  c["patterns"].get("base_high_gap_pct"),
+        "tv_ratio":           c["patterns"].get("tv_ratio"),
+        "status_summary":     c["patterns"].get("status_summary", ""),
+        "total_score":        c["score"].total_score if c.get("score") else 0,
+        "checklist_pass":     c["checklist"].required_pass_count if c.get("checklist") else 0,
+        "in_inter":           c["in_inter"],
+        "supply_label":       getattr(c.get("supply"), "supply_label", ""),
+        "run_time":                      run_time,
+        "run_type":                      run_type,
+        "signal_time":                   run_time,
+        "regular_close_price":           c.get("regular_close_price"),
+        "regular_close_price_available": c.get("regular_close_price_available", False),
+        "entry_reference_price":         c.get("entry_reference_price", 0),
+        "price_source":                  c.get("price_source", ""),
+        **_kh_sig(c, is_kh_only=False),
+    } for c in key_candidates]
+
+    _kh_only_rows = [{
+        "종목명":             c["name"],
+        "종목코드":           c["code"],
+        "시장":               c["market"],
+        "등락률":             c["change_pct"],
+        "거래대금":           c["trading_value"],
+        "signal_price":       c.get("signal_price", 0),
+        "sector":             c.get("sector", ""),
+        "패턴":               "",
+        "pattern_type_label": "없음",
+        "base_candle_offset": None,
+        "base_high_gap_pct":  None,
+        "tv_ratio":           None,
+        "status_summary":     "",
+        "total_score":        0,
+        "checklist_pass":     0,
+        "in_inter":           c.get("in_inter", False),
+        "supply_label":       getattr(c.get("supply"), "supply_label", "") or "",
+        "run_time":                      run_time,
+        "run_type":                      run_type,
+        "signal_time":                   run_time,
+        "regular_close_price":           None,
+        "regular_close_price_available": False,
+        "entry_reference_price":         c.get("signal_price", 0),
+        "price_source":                  "signal_price",
+        **_kh_sig(c, is_kh_only=True),
+    } for c in kh_only_candidates]
+
+    if _sig_rows or _kh_only_rows:
+        save_signals(pd.DataFrame(_sig_rows + _kh_only_rows), timestamp_str)
 
     # 대시보드 생성
     report_data["market_summary"]["core_count"] = len(core_candidates)
     report_data["core_candidates"]     = core_candidates
     report_data["watch_candidates"]    = watch_candidates
     report_data["rejected_candidates"] = rejected_list
+    report_data["kh_only_candidates"]  = kh_only_candidates
+    report_data["kh_candidates_scope"] = "top40_only"
 
     dashboard_links = {}
     if ENABLE_DASHBOARD:
