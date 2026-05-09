@@ -32,6 +32,8 @@ logs/
 data/weekly_trading_review/*.csv
 data/trade_reviews/
 reports/trade_reviews/
+data/weekly_reviews/
+reports/weekly_reviews/
 
 # ── Claude Code 내부 파일 ─────────────────────────────────
 CLAUDE.md

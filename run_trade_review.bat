@@ -2,10 +2,13 @@
 chcp 65001 > nul
 cd /d "%~dp0"
 
-REM 인수 없으면 --latest --open 기본 실행
 IF "%~1"=="" (
-    python -m scripts.trade_analyzer --latest --open
+    python -m scripts.trade_analyzer --latest
+    IF %ERRORLEVEL% EQU 0 (
+        python -m scripts.weekly_review_dashboard --latest --open
+    )
 ) ELSE (
     python -m scripts.trade_analyzer %*
+    python -m scripts.weekly_review_dashboard --latest
 )
 pause
