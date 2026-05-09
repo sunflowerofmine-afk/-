@@ -21,15 +21,20 @@ _HISTORY      = _OUT_JSON / "weekly_review_history.json"
 
 # ── 태그 → 원칙 텍스트 ────────────────────────────────────────────────────
 _PRINCIPLE = {
-    "AVERAGING_DOWN":         "물타기 금지 - 추가매수는 평균단가 위에서만",
-    "D1_CHASE_ENTRY":         "D+1 장초 추격매수 금지",
-    "NXT_CHASE_ENTRY":        "NXT 추격 진입 금지 (+3% 초과)",
-    "NON_SIGNAL_TRADE":       "봇 신호 종목만 매매",
-    "NON_INTERSECTION_TRADE": "교집합 우선 원칙 - 비교집합 진입 자제",
-    "OVERSIZED_POSITION":     "종목당 비중 10% 이하 유지",
-    "REVERSE_AT_EXIT_ZONE":   "D+1 09:20~09:40 역매매 금지",
-    "MISSED_D1_EXIT":         "갭업 발생 시 D+1 장초 청산 원칙 준수",
-    "NOT_CLOSE_ENTRY":        "14:50~15:30 창 내 종가 진입",
+    "AVERAGING_DOWN":              "물타기 금지 - 추가매수는 평균단가 위에서만",
+    "D1_CHASE_ENTRY":              "D+1 장초 추격매수 금지",
+    "NXT_CHASE_ENTRY":             "NXT 추격 진입 금지 (+3% 초과)",
+    "NON_SIGNAL_TRADE":            "봇 신호 종목만 매매",
+    "NON_INTERSECTION_TRADE":      "교집합 우선 원칙 - 비교집합 진입 자제",
+    "OVERSIZED_POSITION":          "종목당 비중 30% 이하 유지",
+    "REVERSE_AT_EXIT_ZONE":        "D+1 09:20~09:40 역매매 금지",
+    "D1_EXIT_MISSED":              "D+1 09:20~09:40 청산 원칙 준수",
+    "D1_EXIT_DELAYED":             "D+1 청산 지연 - 09:40 이전에 청산할 것",
+    "GAP_DOWN_STOP_MISSED":        "갭하락 -3% 발생 시 즉시 손절 원칙",
+    "POST_GAPDOWN_AVERAGING_DOWN": "갭하락 상황에서 물타기 절대 금지",
+    "UNAUTHORIZED_EXTENDED_HOLD":  "연장 보유 조건 미충족 - 갭다운 없음 + 수익권일 때만",
+    "MAX_POSITION_COUNT_EXCEEDED": "최대 3종목 동시 보유 원칙",
+    "NOT_CLOSE_ENTRY":             "14:50~15:30 창 내 종가 진입",
 }
 
 # ── 코드 정규화 ───────────────────────────────────────────────────────────
@@ -352,6 +357,108 @@ def _title(t: str) -> str:
             f'margin-bottom:12px;border-bottom:1px solid #444;padding-bottom:6px">{t}</div>')
 
 
+def _section_compliance_summary(summary: dict) -> str:
+    item_comp  = summary.get("item_compliance", {})
+    tag_counts = summary.get("tag_counts", {})
+
+    if not item_comp and not tag_counts:
+        return ""
+
+    # 항목별 준수율 테이블
+    rows = ""
+    for item, data in item_comp.items():
+        rate = data.get("rate", 0)
+        nc   = data.get("n_compliant", 0)
+        nt   = data.get("n_total", 0)
+        color = _GRN if rate >= 80 else (_AMB if rate >= 50 else _RED)
+        rows += (
+            f'<tr style="border-top:1px solid #333">'
+            f'<td style="padding:5px 8px">{item}</td>'
+            f'<td style="text-align:center;font-weight:700;color:{color}">{rate:.0f}%</td>'
+            f'<td style="text-align:center;color:{_DIM}">{nc}/{nt}</td>'
+            f'</tr>'
+        )
+    item_table = (
+        f'<table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:14px">'
+        f'<thead><tr style="color:{_DIM}">'
+        f'<th style="text-align:left;padding:5px 8px">항목</th>'
+        f'<th style="text-align:center">준수율</th>'
+        f'<th style="text-align:center">준수/전체</th>'
+        f'</tr></thead><tbody>{rows}</tbody></table>'
+    ) if rows else ""
+
+    # D+1 청산 현황
+    d1_on   = tag_counts.get("D1_EXIT_ON_TIME", 0)
+    d1_del  = tag_counts.get("D1_EXIT_DELAYED", 0)
+    d1_mis  = tag_counts.get("D1_EXIT_MISSED", 0)
+    d1_total = d1_on + d1_del + d1_mis
+
+    d1_block = ""
+    if d1_total:
+        d1_block = (
+            f'<div style="margin-bottom:12px">'
+            f'<div style="font-size:12px;color:{_DIM};margin-bottom:4px">D+1 09:30 청산 현황</div>'
+            f'<div style="display:flex;gap:16px;flex-wrap:wrap;font-size:13px">'
+            f'<div><span style="color:{_DIM}">제때 청산 </span>'
+            f'<span style="color:{_GRN};font-weight:600">{d1_on}건</span></div>'
+            f'<div><span style="color:{_DIM}">지연 청산 </span>'
+            f'<span style="color:{_AMB};font-weight:600">{d1_del}건</span></div>'
+            f'<div><span style="color:{_DIM}">미청산 </span>'
+            f'<span style="color:{_RED};font-weight:600">{d1_mis}건</span></div>'
+            f'</div></div>'
+        )
+
+    # NXT 진입 현황
+    nxt_cond  = tag_counts.get("CONDITIONAL_NXT_ENTRY", 0)
+    nxt_caut  = tag_counts.get("NXT_ENTRY_CAUTION", 0)
+    nxt_chase = tag_counts.get("NXT_CHASE_ENTRY", 0)
+    nxt_total = nxt_cond + nxt_caut + nxt_chase
+
+    nxt_block = ""
+    if nxt_total:
+        nxt_block = (
+            f'<div style="margin-bottom:12px">'
+            f'<div style="font-size:12px;color:{_DIM};margin-bottom:4px">NXT 진입 현황</div>'
+            f'<div style="display:flex;gap:16px;flex-wrap:wrap;font-size:13px">'
+            f'<div><span style="color:{_DIM}">조건부 허용 </span>'
+            f'<span style="color:{_GRN};font-weight:600">{nxt_cond}건</span></div>'
+            f'<div><span style="color:{_DIM}">주의 </span>'
+            f'<span style="color:{_AMB};font-weight:600">{nxt_caut}건</span></div>'
+            f'<div><span style="color:{_DIM}">추격(위반) </span>'
+            f'<span style="color:{_RED};font-weight:600">{nxt_chase}건</span></div>'
+            f'</div></div>'
+        )
+
+    # 주요 위반 태그
+    _VIOL_ORDER = [
+        "AVERAGING_DOWN", "NON_INTERSECTION_TRADE", "D1_CHASE_ENTRY",
+        "NXT_CHASE_ENTRY", "OVERSIZED_POSITION", "D1_EXIT_MISSED",
+        "D1_EXIT_DELAYED", "GAP_DOWN_STOP_MISSED", "POST_GAPDOWN_AVERAGING_DOWN",
+        "UNAUTHORIZED_EXTENDED_HOLD", "MAX_POSITION_COUNT_EXCEEDED",
+    ]
+    viol_items = [(t, tag_counts.get(t, 0)) for t in _VIOL_ORDER if tag_counts.get(t, 0) > 0]
+
+    if viol_items:
+        badges = " ".join(
+            f'<span style="background:#3a1515;border:1px solid {_RED};padding:2px 8px;'
+            f'border-radius:4px;font-size:11px;color:{_RED}">{t}: {n}건</span>'
+            for t, n in viol_items
+        )
+        viol_block = (
+            f'<div style="margin-bottom:6px">'
+            f'<div style="font-size:12px;color:{_DIM};margin-bottom:6px">위반 태그 (이번 주)</div>'
+            f'<div style="display:flex;flex-wrap:wrap;gap:6px">{badges}</div>'
+            f'</div>'
+        )
+    else:
+        viol_block = f'<div style="font-size:12px;color:{_GRN};margin-bottom:6px">이번 주 주요 위반 없음</div>'
+
+    return _card(
+        f'{_title("매매 원칙 준수 상세")}'
+        f'{item_table}{d1_block}{nxt_block}{viol_block}'
+    )
+
+
 def _generate_html(d_min, d_max, review, perf, cmp, tr_path, report_date) -> str:
     summary  = review.get("summary", {})
     lesson   = summary.get("lesson", {})
@@ -410,6 +517,9 @@ def _generate_html(d_min, d_max, review, perf, cmp, tr_path, report_date) -> str
 {lesson_block}
 <div style="margin-top:12px">{ta_link}</div>
 """)
+
+    # ── [1.5] 매매 원칙 준수 상세 ────────────────────────────────────────
+    sec_comp = _section_compliance_summary(summary)
 
     # ── [2] 시스템 후보 성과 요약 ─────────────────────────────────────────
     src      = perf.get("source", "none")
@@ -690,7 +800,7 @@ def _generate_html(d_min, d_max, review, perf, cmp, tr_path, report_date) -> str
   <div style="font-size:20px;font-weight:700;margin-bottom:4px">주간 통합 리뷰</div>
   <div style="font-size:12px;color:{_DIM};margin-bottom:20px">
     {report_date} 생성 · 시스템 후보 vs 실제 매매 비교 요약</div>
-  {sec1}{sec2}{sec3}{sec4}{sec5}{sec6}
+  {sec1}{sec_comp}{sec2}{sec3}{sec4}{sec5}{sec6}
 </div>
 </body>
 </html>"""
