@@ -158,8 +158,6 @@ def format_market_summary(market_totals: dict, run_time: str, run_type: str,
 
     ex             = extra or {}
     tv1500         = ex.get("tv_1500_count", 0)
-    inter_n        = ex.get("intersection_count", 0)
-    core_n         = ex.get("core_count", 0)
     regime         = ex.get("market_regime", "")
     market_subtype = ex.get("market_subtype", "")
     market_adl     = ex.get("market_adl")
@@ -207,7 +205,6 @@ def format_market_summary(market_totals: dict, run_time: str, run_type: str,
         f"코스피 {_idx(kospi_level, kospi_chg)} | 코스닥 {_idx(kosdaq_level, kosdaq_chg)}\n"
         f"거래대금: 코스피 {kospi_tv:,.0f}억 | 코스닥 {kosdaq_tv:,.0f}억\n"
         f"[시장] {regime_str}{adl_str}{subtype_str} | 1500억↑ {tv1500}개\n"
-        f"교집합 {inter_n}개 | 핵심후보 {core_n}개\n"
         f"{limit_up_line}"
         f"{pat_line}"
         f"{checklist}"
