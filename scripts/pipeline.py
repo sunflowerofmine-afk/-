@@ -116,10 +116,9 @@ def _save_obs_pool(obs_candidates: list, report_date: str, reports_dir: Path) ->
             "source_pool":                 "recent_base_pool",
             "observation_only":            True,
             "pattern_type_label":          c.get("pattern_type_label", "없음"),
-            "is_htc_candidate":            c.get("is_htc_candidate", False),
-            "is_high_range_candidate":     c.get("is_high_range_candidate", False),
-            "is_pullback_watch_candidate": c.get("is_pullback_watch_candidate", False),
-            "kim_hyungjun_flag":           c.get("kim_hyungjun_flag", False),
+            "is_htc_candidate":        c.get("is_htc_candidate", False),
+            "is_high_range_candidate": c.get("is_high_range_candidate", False),
+            "kim_hyungjun_flag":       c.get("kim_hyungjun_flag", False),
             "base_candle_date":            c.get("base_candle_date"),
             "base_candle_offset":          c.get("base_candle_offset"),
             "today_tv_ratio":              c.get("today_tv_ratio"),
@@ -712,7 +711,7 @@ def run():
 
         # 거래대금 급감 제외 (패턴 타입별 임계값 분리)
         # 당일돌파형: 강한 거래대금 지속 필요 → 0.2 유지
-        # 고가횡보형/눌림관찰형: 적은 거래대금 = 건강한 물량 소화 → 0.05로 완화
+        # 고가횡보형/고가수축형: 적은 거래대금 = 건강한 물량 소화 → 0.05로 완화
         _pattern_label = pat.get("pattern_type_label", "없음")
         _tv_min = TV_RATIO_WATCH_MIN if _pattern_label == "당일돌파형" else TV_RATIO_P2P3_MIN
         if tv_ratio is not None and tv_ratio < _tv_min:
@@ -770,7 +769,7 @@ def run():
         })
 
     # 정렬: 교집합 > 패턴타입 > score > supply_ok > 거래대금 > 상승률
-    _PATTERN_TYPE_ORDER = {"당일돌파형": 0, "고가횡보형": 1, "눌림관찰형": 2, "없음": 3}
+    _PATTERN_TYPE_ORDER = {"당일돌파형": 0, "고가수축형": 1, "고가횡보형": 2, "없음": 3}
 
     def _priority(item):
         pat        = item.get("patterns", {})
@@ -786,9 +785,7 @@ def run():
             -item["change_pct"],
         )
 
-    key_candidates.sort(key=_priority)
-
-    # ── KH supply_ok 추가 (key_candidates) ──────────────────────────
+    # ── KH supply_ok 추가 (crawl_codes 후보 — obs 편입 전) ────────────
     for c in key_candidates:
         pat = c.get("patterns", {})
         if pat.get("kim_hyungjun_flag"):
@@ -873,7 +870,6 @@ def run():
                     "pattern_type_label":          _obs_pat.get("pattern_type_label", "없음"),
                     "is_htc_candidate":            bool(_obs_pat.get("high_tight_consolidation_flag")),
                     "is_high_range_candidate":     bool(_obs_pat.get("pattern3")),
-                    "is_pullback_watch_candidate": bool(_obs_pat.get("pullback_watch_flag") or _obs_pat.get("pattern2")),
                     "kim_hyungjun_flag":           bool(_obs_pat.get("kim_hyungjun_flag")),
                     "base_candle_date":            _base_date,
                     "base_candle_offset":          _obs_pat.get("base_candle_day_offset"),
@@ -887,7 +883,6 @@ def run():
             logger.info(f"recent_base_pool 관찰 후보 최종: {len(obs_candidates)}개"
                         f" (HTC={sum(c['is_htc_candidate'] for c in obs_candidates)}"
                         f" 횡보={sum(c['is_high_range_candidate'] for c in obs_candidates)}"
-                        f" 눌림={sum(c['is_pullback_watch_candidate'] for c in obs_candidates)}"
                         f" KH={sum(c['kim_hyungjun_flag'] for c in obs_candidates)})")
             if obs_candidates:
                 try:
@@ -896,6 +891,76 @@ def run():
                     logger.warning(f"관찰 풀 CSV 저장 실패 (무시): {e}")
         else:
             logger.info("recent_base_pool: 과거 신호 데이터 없음 또는 조건 미충족 (정상)")
+
+    # ── obs_candidates → key_candidates 편입 (패턴 통과 종목) ──────────
+    _obs_remaining: list[dict] = []
+    for _obs_c in obs_candidates:
+        _obs_code      = _obs_c["code"]
+        _obs_tv        = _obs_c["trading_value"]
+        _obs_pat       = _obs_c.get("patterns", {})
+        _obs_enr_d     = _obs_enriched.get(_obs_code, {}) if run_type != "1차" else {}
+        _obs_proc      = _obs_enr_d.get("processed", ProcessedData(code=_obs_code))
+        _obs_sup       = _obs_c.get("supply") or SupplyData(code=_obs_code)
+        _obs_news      = _obs_enr_d.get("news") or NewsData(code=_obs_code)
+        _obs_in_inter  = _obs_c.get("in_inter", False)
+        _obs_has_pat   = _obs_pat.get("pattern_summary", "없음") != "없음"
+        _obs_pat_label = _obs_pat.get("pattern_type_label", "없음")
+        _obs_tv_ratio  = _obs_pat.get("tv_ratio")
+
+        _obs_tv_min = TV_RATIO_WATCH_MIN if _obs_pat_label == "당일돌파형" else TV_RATIO_P2P3_MIN
+        if _obs_tv_ratio is not None and _obs_tv_ratio < _obs_tv_min:
+            _obs_remaining.append(_obs_c)
+            continue
+        if not _obs_in_inter and not _obs_has_pat:
+            _obs_remaining.append(_obs_c)
+            continue
+
+        _obs_checklist     = build_checklist(_obs_code, _obs_tv, _obs_proc, _obs_sup)
+        _obs_score         = calc_score(
+            code=_obs_code, trading_value=_obs_tv, processed=_obs_proc,
+            supply=_obs_sup, news=_obs_news, in_intersection=_obs_in_inter,
+            patterns=_obs_pat,
+        )
+        _obs_sector        = _obs_c.get("sector", "")
+        _obs_regular_close = _obs_enr_d.get("regular_close_price")
+        _obs_signal_px     = _obs_c.get("signal_price", 0)
+        _obs_entry_ref     = _obs_regular_close if _obs_regular_close else _obs_signal_px
+        _obs_kh_sup_ok     = _calc_kh_supply_ok(_obs_sup) if _obs_pat.get("kim_hyungjun_flag") else None
+        _obs_pat["kim_hyungjun_supply_ok"] = _obs_kh_sup_ok
+
+        key_candidates.append({
+            "name":                          _obs_c["name"],
+            "code":                          _obs_code,
+            "market":                        _obs_c.get("market", ""),
+            "change_pct":                    _obs_c["change_pct"],
+            "trading_value":                 _obs_tv,
+            "signal_price":                  _obs_signal_px,
+            "indicators":                    _obs_enr_d.get("indicators", {}),
+            "patterns":                      _obs_pat,
+            "supply":                        _obs_sup,
+            "news":                          _obs_news,
+            "score":                         _obs_score,
+            "checklist":                     _obs_checklist,
+            "in_inter":                      _obs_in_inter,
+            "has_pattern":                   _obs_has_pat,
+            "supply_ok":                     _obs_checklist.supply_ok,
+            "near_high_52w":                 _obs_proc.near_high_52w,
+            "sector":                        _obs_sector,
+            "is_leading_sector":             bool(_obs_sector) and _obs_sector in leading_sector_names,
+            "prog_net_eok":                  prog_data.get(_obs_code),
+            "regular_close_price":           _obs_regular_close,
+            "regular_close_price_available": bool(_obs_regular_close),
+            "entry_reference_price":         _obs_entry_ref,
+            "price_source":                  "regular_close_price" if _obs_regular_close else "signal_price",
+            "source_pool":                   "recent_base_pool",
+            "kim_hyungjun_supply_ok":        _obs_kh_sup_ok,
+        })
+
+    obs_candidates = _obs_remaining
+    logger.info(f"obs→key 편입 후: key={len(key_candidates)}개 / obs 잔여={len(obs_candidates)}개")
+
+    # ── 정렬: 교집합 > 패턴타입 > score > supply_ok > 거래대금 > 상승률 ──
+    key_candidates.sort(key=_priority)
 
     # ── 장세별 핵심/관심 분리 ────────────────────────────────
     if market_regime == "강세":

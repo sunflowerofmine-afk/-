@@ -84,19 +84,17 @@ def _score_val(score) -> str:
 # ─── 상수 ─────────────────────────────────────────────────────────────────────
 
 _OFFSET_LABEL = {0: "당일", 1: "1일전", 2: "2일전", 3: "3일전"}
-_PATTERN_TYPE_ORDER = ["당일돌파형", "고가수축형", "고가횡보형", "눌림관찰형", "없음"]
+_PATTERN_TYPE_ORDER = ["당일돌파형", "고가수축형", "고가횡보형", "없음"]
 _PATTERN_SECTION_TITLE = {
     "당일돌파형": "🚀 당일 돌파형",
     "고가수축형": "🔶 고가수축형 (거래대금 수축 대기)",
     "고가횡보형": "📊 1~3일전 기준봉 후 고가횡보형",
-    "눌림관찰형": "📉 눌림 관찰형",
     "없음":       "📌 기타 (교집합)",
 }
 _PATTERN_CARD_COLOR = {
     "당일돌파형": "#3fb950",
     "고가수축형": "#e3b341",
     "고가횡보형": "#58a6ff",
-    "눌림관찰형": "#d29922",
     "없음":       "#8b949e",
 }
 
@@ -222,13 +220,6 @@ def _compute_checkpoints(c: dict) -> list:
         tv_msg   = (f"거래대금 ratio {tv_ratio:.2f} — 증가 동반 돌파 필수"
                     if tv_ratio is not None else "거래대금 증가 동반 확인")
         return [gap_msg, tv_msg, "눌림 없이 횡보 유지 확인"]
-
-    if pl == "눌림관찰형":
-        gap_msg  = (f"기준봉 고가 {gap_pct:+.1f}% — 재돌파 시 진입 검토"
-                    if gap_pct is not None else "기준봉 고가 재돌파 시 진입 검토")
-        tv_msg   = (f"거래대금 ratio {tv_ratio:.2f} — 눌림 중 감소 정상 여부"
-                    if tv_ratio is not None else "거래량 감소 (눌림 정상 여부)")
-        return ["추가 하락 시 -8% 이내 지지 확인", tv_msg, gap_msg]
 
     return ["교집합 유지 여부 확인", "거래대금 1500억 이상 유지"]
 
@@ -562,7 +553,7 @@ def _section_stock_panel(candidates: list, rejected: list, market_regime: str = 
             '<div class="empty-msg">조건 충족 핵심 후보 없음</div>'
         )
 
-    _PAT_CLS = {"당일돌파형": "pat-break", "고가횡보형": "pat-hold", "눌림관찰형": "pat-watch"}
+    _PAT_CLS = {"당일돌파형": "pat-break", "고가횡보형": "pat-hold"}
 
     list_cards = []
     js_data    = []
@@ -1446,7 +1437,7 @@ _OBS_NOTICE_CSS = """
 
 _OBS_TAG_COLOR = {
     "당일돌파형": "#3fb950", "고가수축형": "#e3b341",
-    "고가횡보형": "#58a6ff", "눌림관찰형": "#d29922", "없음": "#8b949e",
+    "고가횡보형": "#58a6ff", "없음": "#8b949e",
 }
 
 
@@ -1462,10 +1453,9 @@ def _section_recent_base_pool(obs_candidates: list) -> str:
         label_color = _OBS_TAG_COLOR.get(pat_label, "#8b949e")
 
         tags = []
-        if c.get("is_htc_candidate"):            tags.append('<span class="badge ok">HTC</span>')
-        if c.get("is_high_range_candidate"):      tags.append('<span class="badge na">횡보</span>')
-        if c.get("is_pullback_watch_candidate"):  tags.append('<span class="badge na">눌림</span>')
-        if not tags:                              tags.append('<span class="badge na">기준봉</span>')
+        if c.get("is_htc_candidate"):        tags.append('<span class="badge ok">HTC</span>')
+        if c.get("is_high_range_candidate"): tags.append('<span class="badge na">횡보</span>')
+        if not tags:                         tags.append('<span class="badge na">기준봉</span>')
 
         close_gap = c.get("close_from_base_high_pct")
         gap_str   = f"{close_gap:+.1f}%" if close_gap is not None else "-"
@@ -1496,7 +1486,6 @@ def _section_recent_base_pool(obs_candidates: list) -> str:
 
     htc_n = sum(1 for c in non_kh if c.get("is_htc_candidate"))
     hrh_n = sum(1 for c in non_kh if c.get("is_high_range_candidate"))
-    pbl_n = sum(1 for c in non_kh if c.get("is_pullback_watch_candidate"))
 
     return (
         _OBS_NOTICE_CSS
@@ -1513,6 +1502,6 @@ def _section_recent_base_pool(obs_candidates: list) -> str:
         + f'<tbody>{rows_html}</tbody>'
         + '</table></div>'
         + f'<p style="font-size:11px;color:var(--muted);margin-top:6px">'
-        + f'총 {len(non_kh)}개 · HTC={htc_n} 횡보={hrh_n} 눌림={pbl_n}'
+        + f'총 {len(non_kh)}개 · HTC={htc_n} 횡보={hrh_n}'
         + '</p>'
     )

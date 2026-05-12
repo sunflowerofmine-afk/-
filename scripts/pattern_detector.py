@@ -385,29 +385,26 @@ def detect_patterns(
     near_high_52w: bool = False,
 ) -> dict:
     """
-    3가지 패턴 탐지 (당일돌파형 / 고가횡보형 / 눌림관찰형).
+    패턴 탐지 (당일돌파형 / 고가수축형 / 고가횡보형).
 
     daily_df: index 0이 오늘(최신), 이후 과거 순서.
     today_tv: 원 단위
 
     반환 필드:
       pattern1            : 당일돌파형 여부
-      pattern2            : 눌림관찰형 여부
       pattern3            : 고가횡보형 여부
-      pattern_summary     : 활성 패턴 이름 조합 (예: "당일돌파형", "고가횡보형+눌림관찰형")
-      pattern_type_label  : 대표 타입 문자열 (우선순위: 당일돌파형 > 고가횡보형 > 눌림관찰형 > 없음)
+      pattern_summary     : 활성 패턴 이름 조합 (예: "당일돌파형", "고가수축형+고가횡보형")
+      pattern_type_label  : 대표 타입 문자열 (우선순위: 당일돌파형 > 고가수축형 > 고가횡보형 > 없음)
       base_candle_day_offset : 기준봉 시점 (0=당일, 1=1일전, 2=2일전, 3=3일전, None=없음)
       base_high_gap_pct   : (오늘종가 - 기준봉고가) / 기준봉고가 * 100 (None=기준봉 없음)
-      high_range_hold_flag: 오늘 종가가 기준봉 고가 대비 3% 이내
+      high_range_hold_flag: 오늘 종가가 기준봉 고가 대비 5% 이내
       post_base_volume_decline_flag: 기준봉 이후 거래대금 감소 여부
-      pullback_watch_flag : 소폭 눌림 상태 (고가 대비 3~10% 이탈, 구조 유지)
       structure_broken_flag: 기준봉 이후 STRUCTURE_BREAK_MAX_GAP_PCT 초과 밀림 발생
-      overheated_3d_flag  : 과열 여부 (3일 누적 급등 / 기준봉 위로 이격 과다 / 윗꼬리 과다)
+      overheated_3d_flag  : 과열 여부 (기준봉 고가 위 5% 초과 이격)
       details             : 세부 계산 정보
     """
     result = {
         "pattern1": False,
-        "pattern2": False,
         "pattern3": False,
         "pattern_summary": "없음",
         "pattern_type_label": "없음",
@@ -418,7 +415,6 @@ def detect_patterns(
         "tv_3d_flow": [],
         "status_summary": "약화",
         "post_base_volume_decline_flag": False,
-        "pullback_watch_flag": False,
         "structure_broken_flag": False,
         "overheated_3d_flag": False,
         "new_high_60d": False,
@@ -470,7 +466,6 @@ def detect_patterns(
     base_high_gap_pct: float | None = None
     high_range_hold_flag = False
     post_base_volume_decline_flag = False
-    pullback_watch_flag = False
     structure_broken_flag = False
     tv_ratio: float | None = None
 
@@ -505,12 +500,6 @@ def detect_patterns(
                 all_between_ok = all(v <= base_tv for v in between_tvs if v > 0) if between_tvs else True
                 post_base_volume_decline_flag = all_between_ok and (today_tv <= base_tv)
 
-            # 눌림 관찰형: 기준봉 고가 대비 -5%~-8% 구간, 구조 미붕괴
-            pullback_watch_flag = (
-                base_high_gap_pct < -HIGH_RANGE_HOLD_MAX_GAP_FROM_BASE_HIGH_PCT
-                and base_high_gap_pct >= -STRUCTURE_BREAK_MAX_GAP_PCT
-                and not structure_broken_flag
-            )
 
     # ── 상태 요약 ─────────────────────────────────────────
     if base_high_gap_pct is not None:
@@ -552,13 +541,6 @@ def detect_patterns(
         and (tv_ratio is None or tv_ratio >= TV_RATIO_WATCH_MIN)
     )
 
-    # ── 패턴2: 눌림관찰형 ─────────────────────────────────
-    p2 = (
-        base_idx is not None
-        and pullback_watch_flag
-        and not structure_broken_flag
-        and (tv_ratio is None or tv_ratio >= TV_RATIO_WATCH_MIN)
-    )
 
     # ── 기준봉 이후 1~3일 상세 (base_idx > 1인 경우만) ──────────
     post_base_days: list[dict] = []
@@ -606,7 +588,7 @@ def detect_patterns(
     )
     p_htc = htc["high_tight_consolidation_flag"]
 
-    # ── 대표 타입 (우선순위: 당일돌파형 > 고가수축형 > 고가횡보형 > 눌림관찰형) ──
+    # ── 대표 타입 (우선순위: 당일돌파형 > 고가수축형 > 고가횡보형) ──
     if p1:
         pattern_type_label    = "당일돌파형"
         base_candle_day_offset = 0
@@ -616,9 +598,6 @@ def detect_patterns(
     elif p3:
         pattern_type_label    = "고가횡보형"
         base_candle_day_offset = base_idx
-    elif p2:
-        pattern_type_label    = "눌림관찰형"
-        base_candle_day_offset = base_idx
     else:
         pattern_type_label    = "없음"
         base_candle_day_offset = base_idx
@@ -627,13 +606,11 @@ def detect_patterns(
         (["당일돌파형"] if p1    else [])
         + (["고가수축형"] if p_htc else [])
         + (["고가횡보형"] if p3   else [])
-        + (["눌림관찰형"] if p2   else [])
     )
     pattern_summary = "+".join(active_labels) if active_labels else "없음"
 
     result.update({
         "pattern1": p1,
-        "pattern2": p2,
         "pattern3": p3,
         "pattern_summary": pattern_summary,
         "pattern_type_label": pattern_type_label,
@@ -645,7 +622,6 @@ def detect_patterns(
         "post_base_days": post_base_days,
         "status_summary": status_summary,
         "post_base_volume_decline_flag": post_base_volume_decline_flag,
-        "pullback_watch_flag": pullback_watch_flag,
         "structure_broken_flag": structure_broken_flag,
         "overheated_3d_flag": overheated_3d_flag,
         "new_high_60d": new_high_60d,
