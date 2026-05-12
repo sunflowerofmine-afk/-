@@ -147,57 +147,32 @@ def _short_sector_name(name: str) -> str:
 
 def format_market_summary(market_totals: dict, run_time: str, run_type: str,
                           extra: dict | None = None,
-                          leading_sectors: list | None = None) -> str:
-    parts = run_time.split(" ", 1)
-    date_str = parts[0]
-    time_str = parts[1] if len(parts) > 1 else run_time
+                          leading_sectors: list | None = None,
+                          pattern_counts: dict | None = None) -> str:
+    parts     = run_time.split(" ", 1)
+    date_str  = parts[0]
+    time_str  = parts[1] if len(parts) > 1 else run_time
     base_time = _BASE_TIME_MAP.get(run_type, time_str)
     kospi_tv  = market_totals.get("kospi_total_tv_eok", 0)
     kosdaq_tv = market_totals.get("kosdaq_total_tv_eok", 0)
 
-    ex           = extra or {}
-    tv1500       = ex.get("tv_1500_count", 0)
-    g_tv1500     = ex.get("gainers_tv_1500_count", 0)
-    inter_n      = ex.get("intersection_count", 0)
-    core_n       = ex.get("core_count", 0)
+    ex             = extra or {}
+    tv1500         = ex.get("tv_1500_count", 0)
+    inter_n        = ex.get("intersection_count", 0)
+    core_n         = ex.get("core_count", 0)
     regime         = ex.get("market_regime", "")
     market_subtype = ex.get("market_subtype", "")
-    market_type    = ex.get("market_type", "")
-    limit_up_n     = ex.get("limit_up_count", 0)
     market_adl     = ex.get("market_adl")
+    limit_up_n     = ex.get("limit_up_count", 0)
     kospi_level    = ex.get("kospi_level")
     kosdaq_level   = ex.get("kosdaq_level")
     kospi_chg      = ex.get("kospi_chg")
     kosdaq_chg     = ex.get("kosdaq_chg")
 
-    _subtype_icon = {"자금집중형": "💰", "전체하락형": "⬇", "혼조형": "↔"}
-    _regime_map   = {"강세": "🟢 강세", "약세": "🔴 약세", "중립": "⚪ 중립"}
-    regime_str    = _regime_map.get(regime, regime)
-
-    is_concentrated = (market_subtype == "자금집중형")
-
-    if is_concentrated:
-        adl_pct     = f"{market_adl*100:.0f}%" if market_adl is not None else "?"
-        regime_line = f"[시장] 🔴 ADL 약세 {adl_pct} | 💰 자금집중형\n" if regime else ""
-
-        sector_parts = []
-        for s in (leading_sectors or [])[:3]:
-            short = _short_sector_name(s.get("sector_name", ""))
-            ratio = s.get("market_ratio_pct")
-            if short and ratio is not None:
-                sector_parts.append(f"{short} {ratio:.1f}%")
-        concentration_line = f"자금 집중: {' / '.join(sector_parts)}\n" if sector_parts else ""
-        interpretation_line = "해석: 전체 확산은 약함. 후보는 주도섹터·교집합 중심 확인.\n"
-        type_str = ""
-    else:
-        adl_str     = f" (ADL {market_adl*100:.1f}% · 1500억↑{tv1500}개)" if market_adl is not None else ""
-        subtype_str = f" | {_subtype_icon.get(market_subtype, '')} {market_subtype}" if market_subtype else ""
-        type_str    = f" | {market_type}" if market_type else ""
-        regime_line = f"[시장] {regime_str}{adl_str}{subtype_str}{type_str}\n" if regime else ""
-        concentration_line  = ""
-        interpretation_line = ""
-
-    limit_up_line = f"상한가 {limit_up_n}개\n" if limit_up_n > 0 else ""
+    _regime_map = {"강세": "🟢 강세", "약세": "🔴 약세", "중립": "⚪ 중립"}
+    regime_str  = _regime_map.get(regime, regime)
+    adl_str     = f" (ADL {market_adl*100:.0f}%)" if market_adl is not None else ""
+    subtype_str = f" · {market_subtype}" if market_subtype else ""
 
     def _idx(level, chg):
         if level is None:
@@ -208,23 +183,33 @@ def format_market_summary(market_totals: dict, run_time: str, run_type: str,
             s += f" {arrow}{abs(chg):.2f}%"
         return s
 
-    idx_line = f"코스피 {_idx(kospi_level, kospi_chg)} | 코스닥 {_idx(kosdaq_level, kosdaq_chg)}\n"
-    tv_line  = f"거래대금 {kospi_tv:,.0f}억 | {kosdaq_tv:,.0f}억\n"
+    # 패턴별 후보 갯수
+    pc = pattern_counts or {}
+    pat_parts = [
+        f"{label} {pc[label]}개"
+        for label in ["당일돌파형", "고가수축형", "고가횡보형"]
+        if pc.get(label, 0) > 0
+    ]
+    etc_n = pc.get("없음", 0)
+    if etc_n > 0:
+        pat_parts.append(f"기타 {etc_n}개")
+    pat_line = ("  ".join(pat_parts) + "\n") if pat_parts else "후보 없음\n"
+
+    limit_up_line = f"상한가 {limit_up_n}개\n" if limit_up_n > 0 else ""
 
     if run_type == "2차":
         checklist = "─" * 16 + "\n[원칙] NXT는 보조 / 추격금지 / 물타기금지\n"
     else:
         checklist = "─" * 16 + "\n[원칙] 종가진입 / 물타기금지 / D+1장초계획\n"
+
     return (
-        f"{regime_line}"
-        f"{concentration_line}"
         f"<b>[종가베팅 스캔] {date_str} · {base_time} KST</b>\n"
-        f"{idx_line}"
-        f"{tv_line}"
-        f"1500억↑ {tv1500}개 | 상승Top 중 {g_tv1500}개\n"
+        f"코스피 {_idx(kospi_level, kospi_chg)} | 코스닥 {_idx(kosdaq_level, kosdaq_chg)}\n"
+        f"거래대금: 코스피 {kospi_tv:,.0f}억 | 코스닥 {kosdaq_tv:,.0f}억\n"
+        f"[시장] {regime_str}{adl_str}{subtype_str} | 1500억↑ {tv1500}개\n"
         f"교집합 {inter_n}개 | 핵심후보 {core_n}개\n"
         f"{limit_up_line}"
-        f"{interpretation_line}"
+        f"{pat_line}"
         f"{checklist}"
     )
 
@@ -498,20 +483,24 @@ def format_key_candidates(candidates: list[dict]) -> str:
 # ── 대시보드 링크 ─────────────────────────────────────────
 
 def _format_dashboard_links(links: dict) -> str:
-    """대시보드 링크 섹션 포맷. links가 없으면 빈 문자열."""
+    """대시보드 링크 포맷. latest_url만 출력."""
     if not links:
         return ""
-    dated  = links.get("dated_url", "")
     latest = links.get("latest_url", "")
-    lines = ["<b>[상세 대시보드]</b>"]
-    if latest:
-        lines.append(f"- 최신: {latest}")
-    if dated:
-        lines.append(f"- 날짜별: {dated}")
-    return "\n".join(lines) + "\n"
+    if not latest:
+        return ""
+    return f"🔗 대시보드: {latest}\n"
 
 
 # ── 1차 / 2차 알림 조합 ───────────────────────────────────
+
+def _count_by_pattern(candidates: list) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for c in candidates:
+        label = c.get("patterns", {}).get("pattern_type_label", "없음")
+        counts[label] = counts.get(label, 0) + 1
+    return counts
+
 
 def build_first_alert(
     market_totals: dict,
@@ -526,15 +515,12 @@ def build_first_alert(
     leading_sectors: list | None = None,
     watch_candidates: list = [],
 ) -> str:
-    ex             = market_summary_extra or {}
-    inter_codes    = ex.get("inter_codes", set())
-    code_to_sector = ex.get("code_to_sector", {})
+    ex = market_summary_extra or {}
+    pattern_counts = _count_by_pattern(list(key_candidates) + list(watch_candidates))
     parts = [
-        format_market_summary(market_totals, run_time, "1차", extra=ex, leading_sectors=leading_sectors),
-        format_sector_section(leading_sectors or []),
-        format_intersection(intersection, enriched, code_to_sector),
-        format_key_candidates(key_candidates),
-        format_watch_candidates(watch_candidates),
+        format_market_summary(market_totals, run_time, "1차", extra=ex,
+                              leading_sectors=leading_sectors,
+                              pattern_counts=pattern_counts),
     ]
     link_str = _format_dashboard_links(dashboard_links)
     if link_str:
@@ -556,15 +542,12 @@ def build_second_alert(
     watch_candidates: list = [],
     run_type: str = "2차",
 ) -> str:
-    ex             = market_summary_extra or {}
-    inter_codes    = ex.get("inter_codes", set())
-    code_to_sector = ex.get("code_to_sector", {})
+    ex = market_summary_extra or {}
+    pattern_counts = _count_by_pattern(list(key_candidates) + list(watch_candidates))
     parts = [
-        format_market_summary(market_totals, run_time, run_type, extra=ex, leading_sectors=leading_sectors),
-        format_sector_section(leading_sectors or []),
-        format_intersection(intersection, enriched, code_to_sector),
-        format_key_candidates(key_candidates),
-        format_watch_candidates(watch_candidates),
+        format_market_summary(market_totals, run_time, run_type, extra=ex,
+                              leading_sectors=leading_sectors,
+                              pattern_counts=pattern_counts),
     ]
     link_str = _format_dashboard_links(dashboard_links)
     if link_str:
