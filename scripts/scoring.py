@@ -11,10 +11,10 @@ from scripts.models import ScoreDetail, ChecklistDetail, ProcessedData, SupplyDa
 MIN_TV_WON = MIN_TRADING_VALUE_EOK * 100_000_000  # 1500억 → 원
 
 
-def calc_supply_label(supply: SupplyData) -> str:
+def calc_supply_label(supply: SupplyData, trading_value: float = 0) -> str:
     """
     수급 텍스트 라벨.
-    당일 + 5일 누적 모두 양수면 ★ 강조. 당일만 기준이면 기본 라벨.
+    당일 + 5일 누적 모두 양수 + TV 대비 순매수 비율 ≥ 1% 일 때만 ★ 강조.
     """
     if supply.status != "ok":
         return "확인불가"
@@ -33,12 +33,17 @@ def calc_supply_label(supply: SupplyData) -> str:
     else:
         base = "혼조"
 
-    # 5일 누적도 같은 방향이면 ★ 강조
-    if base == "쌍매수" and inst_5d and frgn_5d:
+    # TV 대비 순매수 비율 ≥ 1% 조건 (trading_value 미제공 시 스킵)
+    _MIN_RATIO = 0.01
+    inst_ratio_ok = trading_value <= 0 or (supply.institution_net or 0) / trading_value >= _MIN_RATIO
+    frgn_ratio_ok = trading_value <= 0 or (supply.foreign_net     or 0) / trading_value >= _MIN_RATIO
+
+    # 5일 누적 + 비율 조건 모두 충족 시 ★ 강조
+    if base == "쌍매수" and inst_5d and frgn_5d and inst_ratio_ok and frgn_ratio_ok:
         return "★쌍매수"
-    if base == "기관매수" and inst_5d:
+    if base == "기관매수" and inst_5d and inst_ratio_ok:
         return "★기관매수"
-    if base == "외인매수" and frgn_5d:
+    if base == "외인매수" and frgn_5d and frgn_ratio_ok:
         return "★외인매수"
     return base
 
@@ -82,7 +87,7 @@ def calc_score(
             s.supply_score += 1
         if (supply.foreign_net or 0) > 0:
             s.supply_score += 1
-    supply.supply_label = calc_supply_label(supply)
+    supply.supply_label = calc_supply_label(supply, trading_value)
 
     # 보너스 점수
     if in_intersection:

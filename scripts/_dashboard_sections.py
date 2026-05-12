@@ -103,11 +103,22 @@ _PATTERN_CARD_COLOR = {
 
 # ─── compute 헬퍼 ─────────────────────────────────────────────────────────────
 
-def _compute_priority(c: dict) -> str:
+def _compute_status(c: dict, market_regime: str = "중립") -> str:
+    """BUY_REVIEW / WATCH_ONLY / NOT_BUYABLE"""
     pat_label = c.get("patterns", {}).get("pattern_type_label", "없음")
-    if c.get("in_inter") or pat_label in ("당일돌파형", "고가수축형", "고가횡보형"):
-        return "우선확인"
-    return "관찰우선"
+    in_inter  = c.get("in_inter", False)
+    core_pats = ("당일돌파형", "고가수축형", "고가횡보형")
+    if in_inter and pat_label in core_pats:
+        return "BUY_REVIEW"
+    return "WATCH_ONLY"
+
+
+def _status_badge_html(status: str) -> str:
+    if status == "BUY_REVIEW":
+        return '<span class="status-badge status-buy">매수검토</span>'
+    if status == "NOT_BUYABLE":
+        return '<span class="status-badge status-no">매수불가</span>'
+    return '<span class="status-badge status-watch">관찰</span>'
 
 
 def _compute_summary_short(c: dict) -> str:
@@ -134,7 +145,12 @@ def _compute_strengths(c: dict) -> list:
     if tv_ratio is not None and tv_ratio >= 0.4:
         strengths.append(f"거래대금 유지 ratio {tv_ratio:.1f}")
     if ind.get("big_candle"):          strengths.append("장대양봉")
-    if ind.get("ma_cluster"):          strengths.append("이평 밀집 후 이탈")
+    if ind.get("ma_cluster"):
+        _pl = c.get("patterns", {}).get("pattern_type_label", "없음")
+        if _pl == "당일돌파형":
+            strengths.append("이평 수렴 → 당일 돌파")
+        else:
+            strengths.append("이평 수렴")
     inst = sup.get("institution_net")
     if inst is not None and inst > 0:  strengths.append(f"기관 순매수 {inst/1e8:+.0f}억")
     frgn = sup.get("foreign_net")
@@ -162,15 +178,46 @@ def _compute_weaknesses(c: dict) -> list:
 
 
 def _compute_checkpoints(c: dict) -> list:
-    pl = c.get("patterns", {}).get("pattern_type_label", "없음")
+    pl  = c.get("patterns", {}).get("pattern_type_label", "없음")
+    pat = c.get("patterns", {})
+    sup = _supply_info(c.get("supply"))
+    tv_ratio  = pat.get("tv_ratio")
+    gap_pct   = pat.get("base_high_gap_pct")
+    chg       = float(c.get("change_pct", 0))
+    inst_net  = sup.get("institution_net")
+
     if pl == "당일돌파형":
-        return ["내일 거래대금 1500억 유지 여부", "시가 갭업 시 추격 주의", "재료 지속성 확인"]
+        tv_msg = (f"내일 거래대금 ratio {tv_ratio:.2f} 유지 → 1500억 이상 확인"
+                  if tv_ratio is not None else "내일 거래대금 1500억 유지 여부")
+        gap_msg = (f"당일 {chg:.0f}% 급등 — 시가 갭업 추격 금지"
+                   if chg > 15 else "시가 갭업 시 추격 주의")
+        sup_msg = (f"기관 {inst_net/1e8:+.0f}억 매수 — 내일 수급 지속 확인"
+                   if inst_net is not None and inst_net > 0 else "재료 지속성 및 외인·기관 수급 확인")
+        return [tv_msg, gap_msg, sup_msg]
+
     if pl == "고가수축형":
-        return ["거래대금 재폭발 동반 돌파 확인", "재점화 조짐(⚡) 여부 확인", "구조붕괴(-8%) 없이 고가권 유지 확인"]
+        htc_avg  = pat.get("high_tight_tv_ratio_avg")
+        htc_chg  = pat.get("high_tight_close_from_base_high_pct")
+        ratio_msg = (f"현재 대금ratio 평균 {htc_avg*100:.0f}% — 재폭발 신호 대기"
+                     if htc_avg is not None else "거래대금 재폭발 동반 돌파 확인")
+        pos_msg   = (f"기준봉 고가 {htc_chg:+.1f}% — 재점화(⚡) 조짐 포착 시 진입"
+                     if htc_chg is not None else "재점화 조짐(⚡) 여부 확인")
+        return [ratio_msg, pos_msg, "구조붕괴(-8%) 없이 고가권 유지 확인"]
+
     if pl == "고가횡보형":
-        return ["기준봉 고가 돌파 여부", "거래대금 증가 동반 확인", "눌림 없이 횡보 유지"]
+        gap_msg  = (f"기준봉 고가 {gap_pct:+.1f}% — 돌파 여부 확인"
+                    if gap_pct is not None else "기준봉 고가 돌파 여부")
+        tv_msg   = (f"거래대금 ratio {tv_ratio:.2f} — 증가 동반 돌파 필수"
+                    if tv_ratio is not None else "거래대금 증가 동반 확인")
+        return [gap_msg, tv_msg, "눌림 없이 횡보 유지 확인"]
+
     if pl == "눌림관찰형":
-        return ["추가 하락 시 -8% 이내 지지 확인", "거래량 감소 (눌림 정상 여부)", "기준봉 고가 재돌파 시 진입 검토"]
+        gap_msg  = (f"기준봉 고가 {gap_pct:+.1f}% — 재돌파 시 진입 검토"
+                    if gap_pct is not None else "기준봉 고가 재돌파 시 진입 검토")
+        tv_msg   = (f"거래대금 ratio {tv_ratio:.2f} — 눌림 중 감소 정상 여부"
+                    if tv_ratio is not None else "거래량 감소 (눌림 정상 여부)")
+        return ["추가 하락 시 -8% 이내 지지 확인", tv_msg, gap_msg]
+
     return ["교집합 유지 여부 확인", "거래대금 1500억 이상 유지"]
 
 
@@ -204,10 +251,24 @@ def _section_header(data: dict) -> str:
                       if market_subtype else "")
     regime_badge = f'<span class="{rcls}" style="font-size:14px;padding:3px 12px;margin-left:10px;">{rlabel}{adl_suffix}{subtype_badge}</span>' if regime else ""
 
+    inter_n  = market.get("intersection_count", 0)
+    tv_1500  = market.get("tv_1500_count", 0)
+    core_n   = len(data.get("core_candidates", []))
+    key_nums = (
+        f'<div style="margin-top:8px;font-size:15px;font-weight:600;letter-spacing:0.5px">'
+        f'<span style="color:var(--yellow)">교집합 {inter_n}개</span>'
+        f'<span style="color:var(--muted);margin:0 10px">/</span>'
+        f'<span style="color:var(--green)">1500억↑ {tv_1500}개</span>'
+        f'<span style="color:var(--muted);margin:0 10px">/</span>'
+        f'<span style="color:var(--blue)">핵심후보 {core_n}개</span>'
+        f'</div>'
+    )
+
     return f"""
 <div class="page-header">
   <h1>📈 종가베팅 스캔 리포트{regime_badge}</h1>
-  <div class="meta">
+  {key_nums}
+  <div class="meta" style="margin-top:6px;">
     <span>📅 {date}</span>
     <span>기준시각 {base_time}</span>
     <span>실행시각 {run_time_hm} KST</span>
@@ -439,11 +500,50 @@ def _section_rejected_summary(rejected: list) -> str:
             key = reason
         counts[key] = counts.get(key, 0) + 1
 
-    items = " ".join(f'<span>{_e(k)}: {v}개</span>' for k, v in counts.items())
-    return f'<div class="section-title">🚫 탈락 요약</div><div class="rejected-summary">{items}</div>'
+    items = " ".join(
+        f'<span class="status-badge status-no">매수불가</span> {_e(k)}: {v}개'
+        for k, v in counts.items()
+    )
+
+    watches = sorted(
+        [r for r in rejected if "패턴 없음" in r.get("reason", "")],
+        key=lambda x: x.get("trading_value", 0),
+        reverse=True,
+    )[:5]
+
+    watch_html = ""
+    if watches:
+        cards_html = ""
+        for c in watches:
+            tv  = c.get("trading_value", 0)
+            chg = float(c.get("change_pct", 0))
+            chg_cls = "pos" if chg >= 0 else "neg"
+            cards_html += (
+                f'<div class="watch-card">'
+                f'<div><span class="name">{_e(c.get("name",""))}</span>'
+                f'<span class="code">{_e(c.get("code",""))}</span></div>'
+                f'<div style="font-size:11px;color:var(--muted);margin:2px 0">패턴 미충족 · 거래대금 상위</div>'
+                f'<div class="watch-body">'
+                f'거래대금 <strong>{_tv_eok(tv)}</strong>'
+                f' &nbsp;·&nbsp; 등락률 <strong class="{chg_cls}">{_sign(chg)}</strong>'
+                f'</div></div>'
+            )
+        watch_html = (
+            f'<details style="margin-top:10px">'
+            f'<summary style="cursor:pointer;font-size:13px;color:var(--blue);user-select:none">'
+            f'📋 패턴미충족 주시 {len(watches)}개 (거래대금 상위) — 매수 후보 아님</summary>'
+            f'<div class="watch-grid" style="margin-top:8px">{cards_html}</div>'
+            f'</details>'
+        )
+
+    return (
+        f'<div class="section-title">🚫 탈락 요약</div>'
+        f'<div class="rejected-summary">{items}</div>'
+        f'{watch_html}'
+    )
 
 
-def _section_stock_panel(candidates: list, rejected: list) -> str:
+def _section_stock_panel(candidates: list, rejected: list, market_regime: str = "중립") -> str:
     if not candidates:
         return (
             '<div class="section-title">🎯 핵심 후보</div>'
@@ -466,8 +566,8 @@ def _section_stock_panel(candidates: list, rejected: list) -> str:
         offset_str = _OFFSET_LABEL.get(pat.get("base_candle_day_offset"), "-")
         pat_str    = f"{pat_label}({offset_str})" if pat_label != "없음" else "패턴없음"
 
-        priority = _compute_priority(c)
-        summary  = _compute_summary_short(c)
+        status  = _compute_status(c, market_regime)
+        summary = _compute_summary_short(c)
 
         chg_str  = _sign(chg)
         chg_cls  = "pos" if chg >= 0 else "neg"
@@ -489,11 +589,7 @@ def _section_stock_panel(candidates: list, rejected: list) -> str:
         if pat.get("high_tight_consolidation_flag"): tags.append("🔶고가수축")
         tags_str = "  ".join(tags)
 
-        pri_html  = (
-            '<span class="priority-badge priority-first">우선확인</span>'
-            if priority == "우선확인"
-            else '<span class="priority-badge priority-watch">관찰우선</span>'
-        )
+        pri_html  = _status_badge_html(status)
         pat_cls    = _PAT_CLS.get(pat_label, "")
         active_cls = " active" if idx == 0 else ""
 
@@ -529,7 +625,7 @@ def _section_stock_panel(candidates: list, rejected: list) -> str:
             "near_h52w":    near_h52w,
             "consol_flag":  consol_flag,
             "pbs_flag":     pbs_flag,
-            "priority":     priority,
+            "status":       status,
             "llm_summary":  llm_summary,
             "score":        _score_val(c.get("score")),
             "tv_ratio":     f"{pat.get('tv_ratio'):.2f}" if pat.get("tv_ratio") is not None else "-",
@@ -569,9 +665,11 @@ function renderDetail(idx) {{
   const tagsHtml = (c.in_inter ? '<span class="badge inter">★교집합</span> ' : '') +
                    (c.high_tag ? '<span style="color:var(--yellow)">' + c.high_tag + '</span>' : '') +
                    extraTags;
-  const priHtml  = c.priority === '우선확인'
-    ? '<span class="priority-badge priority-first">우선확인</span>'
-    : '<span class="priority-badge priority-watch">관찰우선</span>';
+  const priHtml  = c.status === 'BUY_REVIEW'
+    ? '<span class="status-badge status-buy">매수검토</span>'
+    : (c.status === 'NOT_BUYABLE'
+      ? '<span class="status-badge status-no">매수불가</span>'
+      : '<span class="status-badge status-watch">관찰</span>');
   const llmHtml  = c.llm_summary ? '<div class="llm-box">' + c.llm_summary + '</div>' : '';
   const strHtml  = c.strengths.length
     ? c.strengths.map(s => '<div class="str-item">✅ ' + s + '</div>').join('')
@@ -594,8 +692,6 @@ function renderDetail(idx) {{
   h += '<div class="detail-kv"><span class="k">등락률</span><span class="v ' + chgCls + '">' + c.chg_str + '</span></div>';
   h += '<div class="detail-kv"><span class="k">거래대금</span><span class="v">' + c.tv_str + '</span></div>';
   h += '<div class="detail-kv"><span class="k">패턴</span><span class="v">' + c.pat_str + '</span></div>';
-  h += '<div class="detail-kv"><span class="k">점수</span><span class="v">' + c.score + '</span></div>';
-  h += '<div class="detail-kv"><span class="k">대금ratio</span><span class="v">' + c.tv_ratio + '</span></div>';
   h += '</div></div>';
   h += '<div class="detail-section"><div class="detail-section-title">강점</div>' + strHtml + '</div>';
   h += '<div class="detail-section"><div class="detail-section-title">약점</div>' + wkHtml + '</div>';
@@ -1256,40 +1352,26 @@ _KH_CSS = """
 def _section_kh_candidates(
     key_candidates: list,
     kh_only_candidates: list,
+    obs_candidates: list = [],
     scope: str = "top40_only",
 ) -> str:
-    """[단기스윙 관찰 후보] — 김형준 기법 관찰 태그 (매수 신호 아님)."""
+    """김형준 기법 탐지 섹션 — 관찰 상태, 매수 신호 아님."""
 
-    kh_from_key = [(c, False) for c in key_candidates
+    kh_from_key = [(c, "스캔") for c in key_candidates
                    if c.get("patterns", {}).get("kim_hyungjun_flag")]
-    all_kh = kh_from_key + [(c, True) for c in kh_only_candidates]
+    kh_main = kh_from_key + [( c, "종베외") for c in kh_only_candidates]
 
-    notice = (
-        '<div class="kh-notice">'
-        '<b>⚠️ 이 섹션은 매수 신호 아님 | 데이터 수집·검증 중</b><br>'
-        '현재 김형준 기법 후보는 기존 상승률/거래대금 Top40 수집 대상 안에서만 탐지됩니다.<br>'
-        '눌림 중인 일부 종목은 탐지되지 않을 수 있습니다.<br>'
-        '1차 구현: 60일 신고가/근접 기준을 포함한 근사 판정 적용.'
-        '</div>'
-    )
+    obs_kh = [(c, "기준봉추적") for c in obs_candidates
+              if c.get("kim_hyungjun_flag")]
 
     header = (
-        _KH_CSS +
-        '<div class="section-title kh-title">📊 단기스윙 관찰 후보 (김형준 기법)</div>'
-        + notice
+        _KH_CSS
+        + '<div class="section-title kh-title">📊 김형준 기법 관찰 후보'
+        + f' <span style="font-size:12px;color:var(--muted);font-weight:400">· 관찰 상태 · 매수 신호 아님</span></div>'
     )
 
-    if not all_kh:
-        return (
-            header +
-            '<p style="color:var(--muted);font-size:13px;padding:8px 0;">탐지된 김형준 기법 후보 없음</p>'
-        )
-
-    cards = []
-    for c, is_kh_only in all_kh:
-        pat    = c.get("patterns", {})
-        supply = c.get("supply")
-
+    def _kh_card(c, source_label):
+        pat           = c.get("patterns", {})
         base_offset   = pat.get("kim_hyungjun_base_offset")
         base_tv_r     = pat.get("kim_hyungjun_base_tv_ratio")
         today_tv_r    = pat.get("kim_hyungjun_today_tv_ratio")
@@ -1299,27 +1381,126 @@ def _section_kh_candidates(
         in_inter      = c.get("in_inter", False)
         sector        = c.get("sector", "")
 
-        offset_label  = {1: "1일전", 2: "2일전", 3: "3일전"}.get(base_offset, "-")
-        tv_r_str      = f"{today_tv_r*100:.0f}%" if today_tv_r is not None else "-"
-        close_str     = f"{close_vs_base:+.1f}%" if close_vs_base is not None else "-"
-        base_r_str    = f"{base_tv_r}x" if base_tv_r is not None else "-"
-        supply_str    = ("기관매수O" if supply_ok is True
-                         else ("기관매수X" if supply_ok is False else "수급확인불가"))
+        offset_label = {1: "1일전", 2: "2일전", 3: "3일전"}.get(base_offset, "-")
+        tv_r_str     = f"{today_tv_r*100:.0f}%" if today_tv_r is not None else "-"
+        close_str    = f"{close_vs_base:+.1f}%" if close_vs_base is not None else "-"
+        base_r_str   = f"{base_tv_r}x" if base_tv_r is not None else "-"
+        supply_str   = ("기관O" if supply_ok is True
+                        else ("기관X" if supply_ok is False else "-"))
 
-        badges = ""
-        if in_inter:   badges += ' <span class="badge ok">★교집합</span>'
-        if is_kh_only: badges += ' <span class="badge-kh-only">종베외</span>'
+        badges = f'<span class="badge na">{_e(source_label)}</span>'
+        if in_inter: badges += ' <span class="badge ok">★교집합</span>'
 
-        cards.append(
+        return (
             f'<div class="kh-card">'
-            f'<div class="kh-card-head"><b>{_e(c.get("name"))}({_e(c.get("code"))})</b>'
-            f' [{_e(c.get("market"))}]{badges}</div>'
+            f'<div class="kh-card-head">'
+            f'<b>{_e(c.get("name"))}({_e(c.get("code"))})</b>'
+            f' [{_e(c.get("market"))}] {badges} '
+            f'{_status_badge_html("WATCH_ONLY")}</div>'
             f'<div class="kh-card-body">'
             f'등락률 {_sign(c.get("change_pct",0))} | 거래대금 {_tv_eok(c.get("trading_value",0))}'
-            f'{f" | [{_e(sector)}]" if sector else ""}<br>'
-            f'기준봉 {_e(offset_label)} | 기준봉TV {_e(base_r_str)} | 오늘TV비율 {_e(tv_r_str)}<br>'
-            f'기준봉고가대비 {_e(close_str)} | 5일선위 {_badge(above_ma5)} | {_e(supply_str)}'
+            f'{f" | {_e(sector)}" if sector else ""}<br>'
+            f'기준봉 {_e(offset_label)} | 기준봉TV {_e(base_r_str)} | 오늘TV {_e(tv_r_str)}'
+            f' | 고가대비 {_e(close_str)} | 5일선 {_badge(above_ma5)} | 수급 {_e(supply_str)}'
             f'</div></div>'
         )
 
-    return header + "".join(cards)
+    main_html = "".join(_kh_card(c, lbl) for c, lbl in kh_main) if kh_main else (
+        '<p style="color:var(--muted);font-size:13px;padding:8px 0;">오늘 탐지된 김형준 기법 관찰 후보 없음</p>'
+    )
+
+    obs_html = ""
+    if obs_kh:
+        obs_cards = "".join(_kh_card(c, lbl) for c, lbl in obs_kh)
+        obs_html = (
+            f'<details style="margin-top:10px">'
+            f'<summary style="cursor:pointer;font-size:13px;color:var(--blue);user-select:none">'
+            f'🔭 기준봉 추적 관찰 중 {len(obs_kh)}개 (거자름 대기)</summary>'
+            f'<div style="margin-top:8px">{obs_cards}</div>'
+            f'</details>'
+        )
+
+    return header + main_html + obs_html
+
+
+# ─── 기준봉 이후 관찰 풀 섹션 ─────────────────────────────────────────────────
+
+_OBS_NOTICE_CSS = """
+<style>
+.obs-notice{background:#1a1a2e;border-left:3px solid #4a6fa5;padding:10px 14px;
+  font-size:12px;color:#8899aa;margin-bottom:14px;border-radius:4px;line-height:1.7;}
+</style>
+"""
+
+_OBS_TAG_COLOR = {
+    "당일돌파형": "#3fb950", "고가수축형": "#e3b341",
+    "고가횡보형": "#58a6ff", "눌림관찰형": "#d29922", "없음": "#8b949e",
+}
+
+
+def _section_recent_base_pool(obs_candidates: list) -> str:
+    """기준봉 이후 관찰 후보 — KH 제외(KH 섹션에 표시), 비KH만."""
+    non_kh = [c for c in obs_candidates if not c.get("kim_hyungjun_flag")]
+    if not non_kh:
+        return ""
+
+    rows_html = ""
+    for c in non_kh:
+        pat_label = c.get("pattern_type_label", "없음")
+        label_color = _OBS_TAG_COLOR.get(pat_label, "#8b949e")
+
+        tags = []
+        if c.get("is_htc_candidate"):            tags.append('<span class="badge ok">HTC</span>')
+        if c.get("is_high_range_candidate"):      tags.append('<span class="badge na">횡보</span>')
+        if c.get("is_pullback_watch_candidate"):  tags.append('<span class="badge na">눌림</span>')
+        if not tags:                              tags.append('<span class="badge na">기준봉</span>')
+
+        close_gap = c.get("close_from_base_high_pct")
+        gap_str   = f"{close_gap:+.1f}%" if close_gap is not None else "-"
+        tv_ratio  = c.get("today_tv_ratio")
+        tv_r_str  = f"{tv_ratio:.2f}" if tv_ratio is not None else "-"
+        base_date = _e(c.get("base_candle_date") or "-")
+        offset    = c.get("base_candle_offset")
+        offset_str = _OFFSET_LABEL.get(offset, f"{offset}일전") if offset is not None else "-"
+
+        _obs_sector = _e(c.get("sector", ""))
+        _obs_sector_html = f" · {_obs_sector}" if _obs_sector else ""
+        rows_html += (
+            f"<tr>"
+            f'<td class="td-name">{_e(c.get("name",""))}'
+            f' {_status_badge_html("WATCH_ONLY")}'
+            f'<br><small class="muted">{_e(c.get("code",""))} · {_e(c.get("market",""))}'
+            f'{_obs_sector_html}</small></td>'
+            f'<td>{_sign(c.get("change_pct",0))}</td>'
+            f'<td>{_tv_eok(c.get("trading_value",0))}</td>'
+            f'<td style="color:{label_color};font-weight:600">{_e(pat_label)}</td>'
+            f'<td>{"&nbsp;".join(tags)}</td>'
+            f'<td>{gap_str}</td>'
+            f'<td>{tv_r_str}</td>'
+            f'<td>{base_date}<br><small class="muted">{offset_str}</small></td>'
+            f'<td>{_e(c.get("supply_label","") or "-")}</td>'
+            f"</tr>"
+        )
+
+    htc_n = sum(1 for c in non_kh if c.get("is_htc_candidate"))
+    hrh_n = sum(1 for c in non_kh if c.get("is_high_range_candidate"))
+    pbl_n = sum(1 for c in non_kh if c.get("is_pullback_watch_candidate"))
+
+    return (
+        _OBS_NOTICE_CSS
+        + '<div class="section-title">🔭 기준봉 이후 관찰 후보</div>'
+        + '<div class="obs-notice">'
+        + '<b>관찰 상태 · 매수 신호 아님</b> — 최근 기준봉 이후 고가수축/눌림 패턴 추적.'
+        + ' 김형준 기법 관찰 후보는 위 김형준 기법 관찰 후보 섹션 참고.'
+        + '</div>'
+        + '<div class="tbl-wrap"><table>'
+        + '<thead><tr>'
+        + '<th>종목</th><th>등락률</th><th>거래대금</th><th>패턴</th><th>태그</th>'
+        + '<th>고가대비</th><th>TV비율</th><th>기준봉일</th><th>수급</th>'
+        + '</tr></thead>'
+        + f'<tbody>{rows_html}</tbody>'
+        + '</table></div>'
+        + f'<p style="font-size:11px;color:var(--muted);margin-top:6px">'
+        + f'총 {len(non_kh)}개 · HTC={htc_n} 횡보={hrh_n} 눌림={pbl_n}'
+        + '</p>'
+    )

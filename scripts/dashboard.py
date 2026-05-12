@@ -27,8 +27,8 @@ from scripts._dashboard_sections import (
     _section_env_and_signals,
     _section_limit_up,
     _section_stock_panel,
-    _section_watch_candidates,
     _section_kh_candidates,
+    _section_recent_base_pool,
     _section_leading_sectors,
     _section_sector_calendar,
     _section_review,
@@ -207,30 +207,32 @@ def _build_html(data: dict, nav_entries: list | None = None, current_filename: s
     snap     = meta.get("snapshot_time", "-")
     run_type = meta.get("run_type", "-")
 
-    core      = data.get("core_candidates", [])
-    rejected  = data.get("rejected_candidates", [])
-    today_str = meta.get("date", "")
-    date_map  = _date_map_from_entries(nav_entries) if nav_entries else {}
+    core          = data.get("core_candidates", [])
+    rejected      = data.get("rejected_candidates", [])
+    today_str     = meta.get("date", "")
+    date_map      = _date_map_from_entries(nav_entries) if nav_entries else {}
+    market_regime = data.get("market_summary", {}).get("market_regime", "중립")
 
     body_parts = [
         _section_header(data),
         _section_env_and_signals(data),
-        _section_review(data.get("review_results", [])),
-        _section_cumulative_stats(data.get("cumulative_stats", {})),
-        _section_limit_up(data.get("market_summary", {})),
-        _section_stock_panel(core, rejected),
-        _section_watch_candidates(rejected),
+        _section_stock_panel(core, rejected, market_regime),
         _section_kh_candidates(
             data.get("core_candidates", []) + data.get("watch_candidates", []),
             data.get("kh_only_candidates", []),
-            data.get("kh_candidates_scope", "top40_only"),
+            obs_candidates=data.get("obs_candidates", []),
+            scope=data.get("kh_candidates_scope", "top40_only"),
         ),
+        _section_recent_base_pool(data.get("obs_candidates", [])),
+        _section_limit_up(data.get("market_summary", {})),
+        _section_review(data.get("review_results", [])),
+        _section_cumulative_stats(data.get("cumulative_stats", {})),
         _section_leading_sectors(data.get("leading_sectors", [])),
         _section_sector_calendar(data.get("sector_calendar", {}), today_str, date_map),
         _section_table_intersection(data.get("intersection_candidates", [])),
         _section_rejected_summary(rejected),
-        _section_table_gainers(data.get("gainers_top20", [])),
         _section_table_tv(data.get("trading_value_top20", [])),
+        _section_table_gainers(data.get("gainers_top20", [])),
     ]
     body     = "\n".join(body_parts)
     nav_html = _nav_bar(nav_entries, current_filename) if nav_entries else ""

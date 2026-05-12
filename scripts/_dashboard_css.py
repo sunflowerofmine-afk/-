@@ -426,9 +426,10 @@ tbody tr:hover td { background: var(--bg3); }
 .lc-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px; }
 .lc-name { font-weight: 700; font-size: 14px; }
 .lc-code { color: var(--muted); font-size: 11px; margin-left: 4px; }
-.priority-badge { font-size: 10px; font-weight: 700; border-radius: 3px; padding: 1px 6px; white-space: nowrap; }
-.priority-first { background: var(--yellow-bg); color: var(--yellow); }
-.priority-watch { background: var(--bg3); color: var(--muted); }
+.status-badge { font-size: 10px; font-weight: 700; border-radius: 3px; padding: 1px 6px; white-space: nowrap; }
+.status-buy   { background: var(--green-bg);  color: var(--green); }
+.status-watch { background: var(--bg3);        color: var(--muted); }
+.status-no    { background: var(--red-bg);     color: var(--red); }
 .lc-stats { font-size: 12px; color: var(--muted); margin-bottom: 3px; }
 .lc-summary { font-size: 11px; color: var(--text); background: var(--bg3); border-radius: 3px; padding: 2px 6px; }
 
