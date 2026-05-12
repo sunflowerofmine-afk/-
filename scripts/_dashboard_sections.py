@@ -107,9 +107,21 @@ def _compute_status(c: dict, market_regime: str = "중립") -> str:
     """BUY_REVIEW / WATCH_ONLY / NOT_BUYABLE"""
     pat_label = c.get("patterns", {}).get("pattern_type_label", "없음")
     in_inter  = c.get("in_inter", False)
-    core_pats = ("당일돌파형", "고가수축형", "고가횡보형")
-    if in_inter and pat_label in core_pats:
+    pat       = c.get("patterns", {})
+
+    # 당일돌파형: 교집합 필수
+    if pat_label == "당일돌파형" and in_inter:
         return "BUY_REVIEW"
+
+    # 고가수축형: 교집합 불요, 구조 미붕괴만 확인
+    if pat_label == "고가수축형" and not pat.get("structure_broken_flag", False):
+        return "BUY_REVIEW"
+
+    # 고가횡보형: 교집합 불요, 구조 미붕괴 + 기준봉 고가 -5% 이내
+    if pat_label == "고가횡보형" and not pat.get("structure_broken_flag", False):
+        if (pat.get("base_high_gap_pct") or -99) >= -5:
+            return "BUY_REVIEW"
+
     return "WATCH_ONLY"
 
 
