@@ -3,6 +3,7 @@
 
 import sys
 import logging
+import argparse
 import time
 from pathlib import Path
 
@@ -396,7 +397,9 @@ def _enrich_candidates(codes: list[str], all_df: pd.DataFrame, run_type: str) ->
     return enriched
 
 
-def run():
+def run(preview: bool = False):
+    if preview:
+        ntf.set_preview_mode(True)
     now = get_now_kst()
     timestamp_str = now.strftime("%Y-%m-%d_%H%M")
     _setup_logging(timestamp_str)
@@ -1189,8 +1192,16 @@ def run():
     except Exception as e:
         logger.warning(f"공개 리포트 생성 실패 (무시): {e}")
 
+    if preview and GITHUB_PAGES_BASE_URL:
+        glossary_url = GITHUB_PAGES_BASE_URL.rstrip("/") + "/reports/glossary.html"
+        ntf.send_message(f"📖 용어 해설집\n{glossary_url}")
+
     logger.info("=== 파이프라인 완료 ===")
 
 
 if __name__ == "__main__":
-    run()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--preview", action="store_true",
+                        help="TELEGRAM_CHAT_ID_DEV로만 발송 (단체방 제외)")
+    args = parser.parse_args()
+    run(preview=args.preview)

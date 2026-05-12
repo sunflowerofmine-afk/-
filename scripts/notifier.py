@@ -8,12 +8,21 @@ from pathlib import Path
 import requests
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from config.settings import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, TELEGRAM_CHAT_ID_2
+from config.settings import (
+    TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, TELEGRAM_CHAT_ID_2, TELEGRAM_CHAT_ID_DEV,
+    GITHUB_PAGES_BASE_URL,
+)
 from scripts.models import SupplyData, NewsData
 
 logger = logging.getLogger(__name__)
 
 MAX_MSG_LEN = 4096
+_preview_mode = False
+
+
+def set_preview_mode(enabled: bool) -> None:
+    global _preview_mode
+    _preview_mode = enabled
 
 
 def _chunks(text: str, size: int = MAX_MSG_LEN) -> list[str]:
@@ -31,15 +40,23 @@ def _chunks(text: str, size: int = MAX_MSG_LEN) -> list[str]:
 
 
 def send_message(text: str) -> bool:
-    """텔레그램으로 메시지 전송. 4096자 초과 시 자동 분할. TELEGRAM_CHAT_ID_2 설정 시 동시 발송."""
+    """텔레그램으로 메시지 전송. 4096자 초과 시 자동 분할.
+    preview 모드: TELEGRAM_CHAT_ID_DEV 단독 발송. 일반: CHAT_ID + CHAT_ID_2."""
     if not TELEGRAM_BOT_TOKEN:
         logger.error("TELEGRAM_BOT_TOKEN 미설정")
         return False
-    if not TELEGRAM_CHAT_ID:
-        logger.error("TELEGRAM_CHAT_ID 미설정")
-        return False
 
-    chat_ids = [cid for cid in [TELEGRAM_CHAT_ID, TELEGRAM_CHAT_ID_2] if cid]
+    if _preview_mode:
+        if not TELEGRAM_CHAT_ID_DEV:
+            logger.error("TELEGRAM_CHAT_ID_DEV 미설정 (--preview 사용 시 .env에 추가 필요)")
+            return False
+        chat_ids = [TELEGRAM_CHAT_ID_DEV]
+        logger.info("[preview] 발송 대상: TELEGRAM_CHAT_ID_DEV")
+    else:
+        if not TELEGRAM_CHAT_ID:
+            logger.error("TELEGRAM_CHAT_ID 미설정")
+            return False
+        chat_ids = [cid for cid in [TELEGRAM_CHAT_ID, TELEGRAM_CHAT_ID_2] if cid]
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     success = True
     for chunk in _chunks(text):
