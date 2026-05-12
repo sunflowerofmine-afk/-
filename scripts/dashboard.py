@@ -217,6 +217,13 @@ def _build_html(data: dict, nav_entries: list | None = None, current_filename: s
         _section_header(data),
         _section_env_and_signals(data),
         _section_stock_panel(core, rejected, market_regime),
+        _section_leading_sectors(data.get("leading_sectors", [])),
+        _section_limit_up(data.get("market_summary", {})),
+        _section_table_tv(data.get("trading_value_top20", [])),
+        _section_table_gainers(data.get("gainers_top20", [])),
+        _section_sector_calendar(data.get("sector_calendar", {}), today_str, date_map),
+        _section_table_intersection(data.get("intersection_candidates", [])),
+        _section_rejected_summary(rejected),
         _section_kh_candidates(
             data.get("core_candidates", []) + data.get("watch_candidates", []),
             data.get("kh_only_candidates", []),
@@ -224,15 +231,8 @@ def _build_html(data: dict, nav_entries: list | None = None, current_filename: s
             scope=data.get("kh_candidates_scope", "top40_only"),
         ),
         _section_recent_base_pool(data.get("obs_candidates", [])),
-        _section_limit_up(data.get("market_summary", {})),
         _section_review(data.get("review_results", [])),
         _section_cumulative_stats(data.get("cumulative_stats", {})),
-        _section_leading_sectors(data.get("leading_sectors", [])),
-        _section_sector_calendar(data.get("sector_calendar", {}), today_str, date_map),
-        _section_table_intersection(data.get("intersection_candidates", [])),
-        _section_rejected_summary(rejected),
-        _section_table_tv(data.get("trading_value_top20", [])),
-        _section_table_gainers(data.get("gainers_top20", [])),
     ]
     body     = "\n".join(body_parts)
     nav_html = _nav_bar(nav_entries, current_filename) if nav_entries else ""

@@ -441,11 +441,13 @@ def _section_limit_up(market_summary: dict) -> str:
     rows_html = ""
     for r in limit_up_list:
         chg = float(r.get("등락률", 0))
+        sector = _e(r.get("sector", ""))
         rows_html += (
             f"<tr>"
             f'<td class="td-name">{_e(r.get("종목명",""))}</td>'
             f'<td class="td-code">{_e(str(r.get("종목코드","")))}</td>'
             f'<td>{_e(r.get("시장",""))}</td>'
+            f'<td style="color:var(--muted);font-size:0.82em">{sector}</td>'
             f'<td class="td-pos">{_sign(chg)}</td>'
             f'<td>{_tv_eok(r.get("거래대금",0))}</td>'
             f"</tr>"
@@ -453,7 +455,7 @@ def _section_limit_up(market_summary: dict) -> str:
     return (
         f'<div class="section-title">🚀 상한가 {limit_up_count}개</div>'
         '<div class="tbl-wrap"><table>'
-        '<thead><tr><th>종목명</th><th>코드</th><th>시장</th><th>등락률</th><th>거래대금</th></tr></thead>'
+        '<thead><tr><th>종목명</th><th>코드</th><th>시장</th><th>섹터</th><th>등락률</th><th>거래대금</th></tr></thead>'
         f'<tbody>{rows_html}</tbody>'
         '</table></div>'
     )

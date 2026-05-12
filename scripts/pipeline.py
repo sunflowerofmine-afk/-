@@ -548,6 +548,7 @@ def run(preview: bool = False):
         _limit_up_top[["종목명", "종목코드", "시장", "등락률", "거래대금"]].to_dict("records")
         if not _limit_up_top.empty else []
     )
+    limit_up_list = _add_sector(limit_up_list)
     limit_up_names = [r["종목명"] for r in limit_up_list[:5]]
 
     market_regime, _market_adl = _calc_market_regime(all_df, tv_1500_count)
