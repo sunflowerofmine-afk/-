@@ -622,7 +622,12 @@ def _section_stock_panel(candidates: list, rejected: list, market_regime: str = 
 
         pat_label  = pat.get("pattern_type_label", "없음")
         offset_str = _OFFSET_LABEL.get(pat.get("base_candle_day_offset"), "-")
-        pat_str    = f"{pat_label}({offset_str})" if pat_label != "없음" else "패턴없음"
+        if pat_label != "없음":
+            pat_str = f"{pat_label}({offset_str})"
+        elif (pat.get("today_close_from_high_pct") or 0) <= -5.0:
+            pat_str = "5%↑윗꼬리"
+        else:
+            pat_str = "패턴없음"
 
         status  = _compute_status(c, market_regime)
         summary = _compute_summary_short(c)

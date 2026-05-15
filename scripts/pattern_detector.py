@@ -609,6 +609,11 @@ def detect_patterns(
     )
     pattern_summary = "+".join(active_labels) if active_labels else "없음"
 
+    _today_close_from_high_pct = (
+        round((today_close - today_high) / today_high * 100, 2)
+        if today_high > 0 and today_high > today_close else None
+    )
+
     result.update({
         "pattern1": p1,
         "pattern3": p3,
@@ -616,6 +621,7 @@ def detect_patterns(
         "pattern_type_label": pattern_type_label,
         "base_candle_day_offset": base_candle_day_offset,
         "base_high_gap_pct": base_high_gap_pct,
+        "today_close_from_high_pct": _today_close_from_high_pct,
         "high_range_hold_flag": high_range_hold_flag,
         "tv_ratio": tv_ratio,
         "tv_3d_flow": tv_3d_flow,

@@ -381,7 +381,12 @@ def _format_candidate_card(seq: int, c: dict) -> str:
     # ── Line 2: 등락률 / 거래대금 / 섹터 / 패턴 ──────────────
     pattern_label  = pat.get("pattern_type_label", "없음")
     offset_str     = _OFFSET_LABEL.get(pat.get("base_candle_day_offset"), "-")
-    pattern_str    = f"{pattern_label}({offset_str})" if pattern_label != "없음" else "패턴없음"
+    if pattern_label != "없음":
+        pattern_str = f"{pattern_label}({offset_str})"
+    elif (pat.get("today_close_from_high_pct") or 0) <= -5.0:
+        pattern_str = "5%↑윗꼬리"
+    else:
+        pattern_str = "패턴없음"
     sector         = c.get("sector", "")
     is_leading     = c.get("is_leading_sector", False)
     sector_str     = f"[{sector}✓] | " if (sector and is_leading) else (f"[{sector}] | " if sector else "")
