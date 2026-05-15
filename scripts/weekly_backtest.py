@@ -48,18 +48,6 @@ def _period_start(today: date) -> date:
 
 # ── 데이터 로드 ──────────────────────────────────────────────────────
 
-def _load_signals(date_str: str) -> pd.DataFrame | None:
-    """해당 날짜 최신 signals.csv 로드 (2차/수동 우선, 없으면 최신)."""
-    matches = sorted(Path(SIGNALS_DIR).glob(f"{date_str}_*_signals.csv"), reverse=True)
-    for path in matches:
-        try:
-            df = pd.read_csv(path, dtype={"종목코드": str}, encoding="utf-8-sig")
-            if not df.empty:
-                return df
-        except Exception as e:
-            logger.warning(f"signals 로드 실패 {path}: {e}")
-    return None
-
 
 def _load_market_summary(date_str: str) -> dict:
     """daily_summary_{date}.json에서 지수 등락률 등 로드."""
