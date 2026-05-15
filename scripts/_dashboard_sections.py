@@ -645,6 +645,8 @@ def _section_stock_panel(candidates: list, rejected: list, market_regime: str = 
         if consol_flag: tags.append("📊기간조정")
         if pbs_flag:    tags.append("↩되돌림지지")
         if pat.get("high_tight_consolidation_flag"): tags.append("🔶고가수축")
+        prog_net = c.get("prog_net_eok")
+        if prog_net is not None and prog_net > 0: tags.append("💹프로그")
         tags_str = "  ".join(tags)
 
         pri_html  = _status_badge_html(status)

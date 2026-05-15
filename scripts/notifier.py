@@ -374,6 +374,8 @@ def _format_candidate_card(seq: int, c: dict) -> str:
     if pbs_flag:    tags.append("↩되돌림지지(±5%)")
     if htc_flag:    tags.append("🔶고가수축" + ("⚡" if htc_reignite else ""))
     if is_danbal:   tags.append("⚡단발")
+    prog_net = c.get("prog_net_eok")
+    if prog_net is not None and prog_net > 0: tags.append("💹프로그")
     tag_str = "  " + "  ".join(tags) if tags else ""
 
     # ── Line 2: 등락률 / 거래대금 / 섹터 / 패턴 ──────────────
@@ -402,14 +404,7 @@ def _format_candidate_card(seq: int, c: dict) -> str:
     supply_str  = _supply_str(sup)
     supply_line = f"\n  수급: {supply_str}" if supply_str != "확인불가" else ""
 
-    # ── Line 5: 프로그램 수급 ──────────────────────────────
-    prog_net  = c.get("prog_net_eok")
-    prog_line = ""
-    if prog_net is not None:
-        icon      = "▲" if prog_net > 0 else ("▼" if prog_net < 0 else "–")
-        prog_line = f"\n  프로그램: {icon}{prog_net:+.0f}억"
-
-    # ── Line 6: 체크리스트 ────────────────────────────────
+    # ── Line 5: 체크리스트 ────────────────────────────────
     checklist_line = ""
     if cl is not None:
         def _c(flag, label): return f"{label}✓" if flag else f"{label}✗"
@@ -430,7 +425,6 @@ def _format_candidate_card(seq: int, c: dict) -> str:
         f"{llm_line}"
         f"{htc_line}"
         f"{supply_line}"
-        f"{prog_line}"
         f"{checklist_line}"
     )
 

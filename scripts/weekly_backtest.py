@@ -248,7 +248,7 @@ def collect(start: date, end: date) -> list[dict]:
 
 # ── 통계 ─────────────────────────────────────────────────────────────
 
-def _stats(rows: list[dict], key: str = "d1_close_pct") -> dict:
+def _stats(rows: list[dict], key: str = "d1_open_pct") -> dict:
     vals = [r[key] for r in rows if r.get(key) is not None]
     if not vals:
         return {"n": len(rows), "valid": 0, "avg": None, "win_rate": None, "wins": 0}
@@ -342,7 +342,7 @@ def _stats_row(label: str, s: dict) -> str:
     return (
         f"<tr><td>{_e(label)}</td>"
         f"<td>{s['n']}</td>"
-        f"<td>{s['valid']}</td>"
+        f"<td>{s['wins']}</td>"
         f"<td>{wr_html}</td>"
         f"<td>{avg_html}</td></tr>"
     )
@@ -388,6 +388,7 @@ def generate_html(rows: list[dict], start: date, today: date) -> str:
         _group_header("▸ 등급별")
         + _stats_row("매수검토", buy_s)
         + _stats_row("관찰", watch_s)
+        + _group_header("▸ 교집합")
         + _stats_row("★ 교집합", inter_s)
     )
 
@@ -423,7 +424,7 @@ def generate_html(rows: list[dict], start: date, today: date) -> str:
             idx_html += f' &nbsp;<span class="muted">[{_e(regime)}]</span>'
         detail_html += f'<tr class="date-header"><td colspan="11">{_e(ds)} ({len(day_rows)}종목){idx_html}</td></tr>'
         for r in day_rows:
-            tv_eok = f'{r["trading_value"]/1e8:.0f}억' if r["trading_value"] > 0 else "-"
+            tv_eok = f'{r["trading_value"]/1e8:,.0f}억' if r["trading_value"] > 0 else "-"
             news_td = f'<span style="font-size:11px;color:#8b949e">{_e(r["news_summary"][:30])}</span>' if r.get("news_summary") else '<span class="muted">-</span>'
             detail_html += (
                 f"<tr>"
@@ -445,12 +446,12 @@ def generate_html(rows: list[dict], start: date, today: date) -> str:
             )
 
     stats_thead = (
-        "<tr><th>구분</th><th>후보 수</th><th>수익률 확인</th>"
+        "<tr><th>구분</th><th>후보 수</th><th>적중</th>"
         "<th>D+1 승률</th><th>D+1 평균</th></tr>"
     )
     detail_thead = (
         "<tr><th>종목</th><th>등급</th><th>패턴</th><th>당일등락</th><th>거래대금</th>"
-        "<th>뉴스/재료</th><th>D+1 시가</th><th>D+1 종가</th><th>D+2 종가</th><th>MFE</th><th>MAE</th></tr>"
+        "<th>뉴스/재료</th><th>D+1 시가</th><th>D+1 종가</th><th>D+2 종가</th><th>최고수익률</th><th>최대손실률</th></tr>"
     )
 
     return f"""<!DOCTYPE html>
@@ -464,7 +465,7 @@ def generate_html(rows: list[dict], start: date, today: date) -> str:
 <div class="sub">{start} ~ {today} &nbsp;·&nbsp; 종가베팅 D+1/D+2 수익률</div>
 <div class="cards">{cards_html}</div>
 
-<h2>등급·패턴별 성과 (D+1 종가 기준)</h2>
+<h2>등급·패턴별 성과 (D+1 시가 기준)</h2>
 <div class="tbl-wrap"><table>
 {stats_thead}
 {grade_rows_html}
