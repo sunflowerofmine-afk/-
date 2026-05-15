@@ -70,8 +70,8 @@ INTRADAY_CLOSE_FROM_HIGH_MIN_PCT    = -5.0  # 당일 고가 대비 종가 최소
 TV_RATIO_OK_MIN                     = 0.4   # 거래대금 ratio 정상 감소 기준 (기준봉 대비 40% 이상)
 TV_RATIO_WATCH_MIN                  = 0.2   # 당일돌파형 거래대금 ratio 최소값
 TV_RATIO_P2P3_MIN                   = 0.05  # 고가횡보형/고가수축형 거래대금 ratio 최소값 (수축/횡보 = 적은 거래대금이 건강)
-BIG_CANDLE_UPPER_TAIL_MAX           = 0.25  # 장대양봉 윗꼬리 최대 비율 (전체 캔들 범위 대비)
-LOOSE_BIG_CANDLE_UPPER_TAIL_MAX     = 0.25  # 준장대양봉 윗꼬리 최대 비율
+BIG_CANDLE_CLOSE_FROM_HIGH_MIN_PCT       = -5.0  # 장대양봉 고가 대비 종가 최소값 (%)
+LOOSE_BIG_CANDLE_CLOSE_FROM_HIGH_MIN_PCT = -5.0  # 준장대양봉 고가 대비 종가 최소값 (%)
 BASE_TV_EXPLOSION_MULT              = 3.0   # 기준봉 거래대금 폭발 기준: 이전 20일 평균 대비 배수
 CONSOLIDATION_LOOKBACK_DAYS         = 20    # 기간조정 패턴: 횡보 기준 일수
 CONSOLIDATION_MAX_RANGE_PCT         = 15.0  # 기간조정 패턴: 최대 변동폭 (%)

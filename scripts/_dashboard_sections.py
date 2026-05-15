@@ -645,6 +645,8 @@ def _section_stock_panel(candidates: list, rejected: list, market_regime: str = 
             "htc_reignite":  pat.get("high_tight_reignite_flag", False),
             "htc_avg_str":   (f"{pat['high_tight_tv_ratio_avg']*100:.0f}%" if pat.get("high_tight_tv_ratio_avg") is not None else ""),
             "htc_chg_str":   (f"{pat['high_tight_close_from_base_high_pct']:+.1f}%" if pat.get("high_tight_close_from_base_high_pct") is not None else ""),
+            "entry_ref_str": (f"{c['entry_reference_price']:,.0f}원" if c.get("entry_reference_price") else "-"),
+            "price_src":     c.get("price_source", ""),
             "strengths":    _compute_strengths(c),
             "weaknesses":   _compute_weaknesses(c),
             "checkpoints":  _compute_checkpoints(c),
@@ -667,7 +669,7 @@ function renderDetail(idx) {{
                    (c.consol_flag ? ' <span style="color:var(--blue)">📊기간조정</span>' : '') +
                    (c.pbs_flag    ? ' <span style="color:var(--purple)">↩되돌림지지</span>' : '') +
                    (c.htc_flag    ? ' <span style="color:var(--yellow)">🔶고가수축' + (c.htc_reignite ? '⚡' : '') + (c.htc_avg_str ? ' ' + c.htc_avg_str : '') + (c.htc_chg_str ? ' ' + c.htc_chg_str : '') + '</span>' : '');
-  const tagsHtml = (c.in_inter ? '<span class="badge inter">★교집합</span> ' : '') +
+  const tagsHtml = (c.in_inter ? '<span class="badge inter">교집합</span> ' : '') +
                    (c.high_tag ? '<span style="color:var(--yellow)">' + c.high_tag + '</span>' : '') +
                    extraTags;
   const priHtml  = c.status === 'BUY_REVIEW'
@@ -697,6 +699,7 @@ function renderDetail(idx) {{
   h += '<div class="detail-kv"><span class="k">등락률</span><span class="v ' + chgCls + '">' + c.chg_str + '</span></div>';
   h += '<div class="detail-kv"><span class="k">거래대금</span><span class="v">' + c.tv_str + '</span></div>';
   h += '<div class="detail-kv"><span class="k">패턴</span><span class="v">' + c.pat_str + '</span></div>';
+  h += '<div class="detail-kv"><span class="k">신호가</span><span class="v">' + c.entry_ref_str + (c.price_src ? ' <span style="color:var(--muted);font-size:11px">(' + c.price_src + ')</span>' : '') + '</span></div>';
   h += '</div></div>';
   h += '<div class="detail-section"><div class="detail-section-title">강점</div>' + strHtml + '</div>';
   h += '<div class="detail-section"><div class="detail-section-title">약점</div>' + wkHtml + '</div>';
@@ -764,7 +767,7 @@ def _candidate_card_html(c: dict) -> str:
     if in_inter:  card_cls += " in-inter"
     elif has_pat: card_cls += " has-pattern"
 
-    inter_badge = '<span class="badge inter">★교집합</span> ' if in_inter else ""
+    inter_badge = '<span class="badge inter">교집합</span> ' if in_inter else ""
 
     chg_cls  = "val pos" if chg >= 0 else "val neg"
     inst_str = _net_str(sup.get("institution_net"))

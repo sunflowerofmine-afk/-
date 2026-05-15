@@ -457,6 +457,7 @@ def run(preview: bool = False):
 
     # ── 2. 제외 필터 + 1차 가격 필터 (raw 저장 이후 적용) ──────
     filtered_df = filter_excluded_stocks(all_df)
+    tv_df       = filtered_df  # 거래대금 Top20용: 가격필터 전 (시장 전체 현황)
     filtered_df = rnk.apply_price_filter(filtered_df)
 
     # ── 3. 랭킹 계산 ────────────────────────────────────────
@@ -465,7 +466,7 @@ def run(preview: bool = False):
         raw_data.get("KOSDAQ", pd.DataFrame()),
     )
     gainers      = rnk.get_top_gainers(filtered_df)
-    top_tv       = rnk.get_top_trading_value(filtered_df)
+    top_tv       = rnk.get_top_trading_value(tv_df)  # 가격필터 전 df: 하락 종목 포함
     intersection = rnk.get_intersection(gainers, top_tv)
 
     # processed 저장

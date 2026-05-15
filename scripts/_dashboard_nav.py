@@ -62,8 +62,8 @@ def _nav_bar(entries: list, current_filename: str) -> str:
     prev_file = filenames[cur_idx + 1] if cur_idx >= 0 and cur_idx + 1 < len(filenames) else None
     next_file = filenames[cur_idx - 1] if cur_idx > 0 else None
 
-    prev_btn = f'<a href="{prev_file}" class="nav-btn">&#9664; 이전</a>' if prev_file else '<span class="nav-btn disabled">&#9664; 이전</span>'
-    next_btn = f'<a href="{next_file}" class="nav-btn">다음 &#9654;</a>' if next_file else '<span class="nav-btn disabled">다음 &#9654;</span>'
+    prev_btn = f'<a id="nav-prev" href="{prev_file}" class="nav-btn">&#9664; 이전</a>' if prev_file else '<span id="nav-prev" class="nav-btn disabled">&#9664; 이전</span>'
+    next_btn = f'<a id="nav-next" href="{next_file}" class="nav-btn">다음 &#9654;</a>' if next_file else '<span id="nav-next" class="nav-btn disabled">다음 &#9654;</span>'
 
     opts = []
     for date_str, group in groupby(entries, key=lambda x: x[0]):
@@ -74,10 +74,35 @@ def _nav_bar(entries: list, current_filename: str) -> str:
         opts.append("</optgroup>")
     opts_html = "".join(opts)
 
+    # report_list.js 로드 후 prev/next 동적 업데이트
+    nav_js = """<script>
+(function(){
+  var s=document.createElement('script');
+  s.src='report_list.js';
+  s.onload=function(){
+    if(!window.REPORT_LIST)return;
+    var cur=location.pathname.split('/').pop()||location.href.split('/').pop();
+    cur=cur.split('?')[0].split('#')[0];
+    var list=REPORT_LIST,idx=list.indexOf(cur);
+    if(idx<0)return;
+    var prevF=idx+1<list.length?list[idx+1]:null;
+    var nextF=idx>0?list[idx-1]:null;
+    function _setBtn(id,file,label){
+      var el=document.getElementById(id);if(!el)return;
+      if(file){var a=document.createElement('a');a.id=id;a.href=file;a.className='nav-btn';a.innerHTML=label;el.parentNode.replaceChild(a,el);}
+    }
+    _setBtn('nav-prev',prevF,'&#9664; 이전');
+    _setBtn('nav-next',nextF,'다음 &#9654;');
+  };
+  document.head.appendChild(s);
+})();
+</script>"""
+
     return f"""<div class="hist-nav">
   {prev_btn}
   <select class="hist-select" onchange="if(this.value) location.href=this.value">{opts_html}</select>
   {next_btn}
   <a href="../index.html" class="nav-btn">&#8801; 목록</a>
 </div>
+{nav_js}
 """

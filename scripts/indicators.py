@@ -11,7 +11,7 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from config.settings import (
     BIG_CANDLE_MIN_PCT, LOOSE_BIG_CANDLE_MIN_PCT,
-    BIG_CANDLE_UPPER_TAIL_MAX, LOOSE_BIG_CANDLE_UPPER_TAIL_MAX,
+    BIG_CANDLE_CLOSE_FROM_HIGH_MIN_PCT, LOOSE_BIG_CANDLE_CLOSE_FROM_HIGH_MIN_PCT,
     MIN_TRADING_VALUE_EOK,
     MA_CLUSTER_5_10_20_MAX_GAP_PCT, MA_CLUSTER_5_10_20_60_MAX_GAP_PCT,
     FIRST_BIG_CANDLE_LOOKBACK_DAYS,
@@ -85,19 +85,20 @@ def is_big_candle(
     upper_tail   = (high - close) / candle_range if candle_range else 0
     body         = (close - open_) / candle_range if candle_range else 0
 
-    close_near_high_2 = ((high - close) / high * 100) <= 2.0 if high > 0 else False
+    close_from_high_pct = (close - high) / high * 100 if high > 0 else 0  # 고가 대비 종가 이격 (음수)
+    close_near_high_2   = close_from_high_pct >= -2.0 if high > 0 else False
 
     big_candle = (
         is_bullish and
         change_pct >= BIG_CANDLE_MIN_PCT and
         tv_ok and
-        upper_tail <= BIG_CANDLE_UPPER_TAIL_MAX
+        close_from_high_pct >= BIG_CANDLE_CLOSE_FROM_HIGH_MIN_PCT
     )
     loose_big_candle = (
         is_bullish and
         change_pct >= LOOSE_BIG_CANDLE_MIN_PCT and
         tv_ok and
-        upper_tail <= LOOSE_BIG_CANDLE_UPPER_TAIL_MAX
+        close_from_high_pct >= LOOSE_BIG_CANDLE_CLOSE_FROM_HIGH_MIN_PCT
     )
 
     return {

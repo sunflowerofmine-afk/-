@@ -64,10 +64,22 @@ def generate_dashboard_html(
         if latest_output_path:
             Path(latest_output_path).write_text(html, encoding="utf-8")
             logger.info(f"최신 대시보드: {latest_output_path}")
+        # report_list.js 갱신 (다음 버튼 동적 업데이트용)
+        _write_report_list(output_path.parent, nav_entries)
         return True
     except Exception as e:
         logger.error(f"대시보드 생성 실패: {e}", exc_info=True)
         return False
+
+
+def _write_report_list(reports_dir: Path, nav_entries: list) -> None:
+    """reports/report_list.js 갱신 — nav 동적 prev/next용."""
+    filenames = [e[3] for e in nav_entries]  # 최신순 정렬된 상태
+    js = f"window.REPORT_LIST={_json.dumps(filenames)};"
+    try:
+        (Path(reports_dir) / "report_list.js").write_text(js, encoding="utf-8")
+    except Exception as e:
+        logger.warning(f"report_list.js 생성 실패: {e}")
 
 
 def generate_index_html(reports_dir: Path) -> bool:

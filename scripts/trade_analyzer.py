@@ -61,6 +61,7 @@ TAG_DESC = {
     # D+1 청산 규칙
     "D1_EXIT_RULE_TARGET": "D+1 09:30 청산 목표 대상 (정보용)",
     "D1_EXIT_ON_TIME":     "D+1 09:20~09:40 내 청산 완료 (준수, 정보용)",
+    "D1_EXIT_EARLY":       "D+1 09:20 이전 조기 청산 (정보용)",
     "D1_EXIT_DELAYED":     "D+1 09:40 이후 청산 (지연)",
     "D1_EXIT_MISSED":      "D+1 미청산 (보유 지속)",
     # 갭하락 손절
@@ -593,6 +594,10 @@ def _check_d1_exit_and_stop(
             tags.append("D1_EXIT_ON_TIME")
             if gap_down_required:
                 tags.append("GAP_DOWN_STOP_DONE")
+        elif (h, m) < (9, 20):
+            tags.append("D1_EXIT_EARLY")
+            if gap_down_required:
+                tags.append("GAP_DOWN_STOP_DONE")
         else:
             tags.append("D1_EXIT_DELAYED")
             if gap_down_required:
@@ -770,7 +775,7 @@ def _analyze(trades: list[dict], cache: SignalCache) -> dict:
     _INFO_TAGS = {
         "NXT_ENTRY", "ADDITIONAL_BUY", "PRICE_REFERENCE_MISSING",
         "AFTER_1750_NXT_ENTRY",
-        "D1_EXIT_RULE_TARGET", "D1_EXIT_ON_TIME",
+        "D1_EXIT_RULE_TARGET", "D1_EXIT_ON_TIME", "D1_EXIT_EARLY",
         "GAP_DOWN_STOP_REQUIRED", "GAP_DOWN_STOP_DONE",
         "EXTENDED_HOLD_ALLOWED", "EXTENDED_HOLD_PROFIT", "EXTENDED_HOLD_LOSS",
         "EXTENDED_HOLD_NOT_ALLOWED", "EXTENDED_HOLD_REVIEW_NEEDED",

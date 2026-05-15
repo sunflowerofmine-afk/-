@@ -1,9 +1,10 @@
-# scripts/_dashboard_css.py
-"""대시보드 CSS — dashboard.py 내부용"""
-
-
-def _css() -> str:
-    return """
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>종가베팅 스캔 - - (-)</title>
+<style>
 :root {
     --bg:        #0d1117;
     --bg2:       #161b22;
@@ -156,7 +157,7 @@ body {
 .badge.ok { background: var(--green-bg);  color: var(--green); }
 .badge.ng { background: var(--red-bg);    color: var(--red); }
 .badge.na { background: var(--bg3);       color: var(--muted); }
-.badge.inter { background: transparent; color: var(--muted); border: 1px solid var(--border); font-size: 10px; font-weight: 400; }
+.badge.inter { background: var(--yellow-bg); color: var(--yellow); }
 
 /* ── 테이블 ── */
 .tbl-wrap { overflow-x: auto; margin-bottom: 8px; }
@@ -426,10 +427,10 @@ tbody tr:hover td { background: var(--bg3); }
 .lc-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px; }
 .lc-name { font-weight: 700; font-size: 14px; }
 .lc-code { color: var(--muted); font-size: 11px; margin-left: 4px; }
-.status-badge { font-size: 12px; font-weight: 700; border-radius: 4px; padding: 2px 8px; white-space: nowrap; }
-.status-buy   { background: var(--green-bg);  color: var(--green);  border: 1px solid var(--green); }
-.status-watch { background: var(--bg3);        color: var(--blue);   border: 1px solid var(--border); }
-.status-no    { background: var(--red-bg);     color: var(--red);    border: 1px solid var(--red); }
+.status-badge { font-size: 10px; font-weight: 700; border-radius: 3px; padding: 1px 6px; white-space: nowrap; }
+.status-buy   { background: var(--green-bg);  color: var(--green); }
+.status-watch { background: var(--bg3);        color: var(--muted); }
+.status-no    { background: var(--red-bg);     color: var(--red); }
 .lc-stats { font-size: 12px; color: var(--muted); margin-bottom: 3px; }
 .lc-summary { font-size: 11px; color: var(--text); background: var(--bg3); border-radius: 3px; padding: 2px 6px; }
 
@@ -510,4 +511,86 @@ tbody tr:hover td { background: var(--bg3); }
 }
 .nav-btn:hover { background: var(--bg3); }
 .nav-btn.disabled { color: var(--muted); pointer-events: none; cursor: default; border-color: var(--bg3); }
-"""
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="hist-nav">
+  <span class="nav-btn disabled">&#9664; 이전</span>
+  <select class="hist-select" onchange="if(this.value) location.href=this.value"><optgroup label="2026-05-13"><option value="2026-05-13_0536.html">2026-05-13 수동 05:36</option></optgroup><optgroup label="2026-05-12"><option value="2026-05-12_2219.html">2026-05-12 수동 22:19</option><option value="2026-05-12_2117.html">2026-05-12 수동 21:17</option><option value="2026-05-12_2114.html">2026-05-12 수동 21:14</option><option value="2026-05-12_2110.html">2026-05-12 수동 21:10</option><option value="2026-05-12_2025.html">2026-05-12 수동 20:25</option><option value="2026-05-12_2015.html">2026-05-12 수동 20:15</option><option value="2026-05-12_1750.html">2026-05-12 2차 (17:50)</option><option value="2026-05-12_1450.html">2026-05-12 1차 (14:50)</option></optgroup><optgroup label="2026-05-11"><option value="2026-05-11_1750.html">2026-05-11 2차 (17:50)</option><option value="2026-05-11_1450.html">2026-05-11 1차 (14:50)</option></optgroup><optgroup label="2026-05-09"><option value="2026-05-09_2300.html">2026-05-09 수동 23:00</option><option value="2026-05-09_1127.html">2026-05-09 수동 11:27</option></optgroup><optgroup label="2026-05-08"><option value="2026-05-08_1750.html">2026-05-08 2차 (17:50)</option><option value="2026-05-08_1450.html">2026-05-08 1차 (14:50)</option></optgroup><optgroup label="2026-05-07"><option value="2026-05-07_2219.html">2026-05-07 수동 22:19</option><option value="2026-05-07_2058.html">2026-05-07 수동 20:58</option><option value="2026-05-07_2028.html">2026-05-07 수동 20:28</option><option value="2026-05-07_1750.html">2026-05-07 2차 (17:50)</option><option value="2026-05-07_1450.html">2026-05-07 1차 (14:50)</option><option value="2026-05-07_0741.html">2026-05-07 수동 07:41</option><option value="2026-05-07_0736.html">2026-05-07 수동 07:36</option></optgroup><optgroup label="2026-05-06"><option value="2026-05-06_1920.html">2026-05-06 수동 19:20</option><option value="2026-05-06_1450.html">2026-05-06 1차 (14:50)</option></optgroup><optgroup label="2026-05-04"><option value="2026-05-04_1750.html">2026-05-04 2차 (17:50)</option><option value="2026-05-04_1450.html">2026-05-04 1차 (14:50)</option></optgroup><optgroup label="2026-05-01"><option value="2026-05-01_1750.html">2026-05-01 2차 (17:50)</option><option value="2026-05-01_1450.html">2026-05-01 1차 (14:50)</option></optgroup><optgroup label="2026-04-30"><option value="2026-04-30_1750.html">2026-04-30 2차 (17:50)</option><option value="2026-04-30_1450.html">2026-04-30 1차 (14:50)</option></optgroup><optgroup label="2026-04-29"><option value="2026-04-29_1750.html">2026-04-29 2차 (17:50)</option><option value="2026-04-29_1450.html">2026-04-29 1차 (14:50)</option></optgroup><optgroup label="2026-04-28"><option value="2026-04-28_1927.html">2026-04-28 수동 19:27</option><option value="2026-04-28_1829.html">2026-04-28 수동 18:29</option><option value="2026-04-28_1750.html">2026-04-28 2차 (17:50)</option><option value="2026-04-28_1450.html">2026-04-28 1차 (14:50)</option></optgroup><optgroup label="2026-04-27"><option value="2026-04-27_1750.html">2026-04-27 2차 (17:50)</option><option value="2026-04-27_1450.html">2026-04-27 1차 (14:50)</option></optgroup><optgroup label="2026-04-26"><option value="2026-04-26_0450.html">2026-04-26 수동 04:50</option></optgroup><optgroup label="2026-04-24"><option value="2026-04-24_2040.html">2026-04-24 수동 20:40</option><option value="2026-04-24_2013.html">2026-04-24 수동 20:13</option></optgroup><optgroup label="2026-04-23"><option value="2026-04-23_1750.html">2026-04-23 2차 (17:50)</option><option value="2026-04-23_1450.html">2026-04-23 1차 (14:50)</option></optgroup><optgroup label="2026-04-22"><option value="2026-04-22_1859.html">2026-04-22 수동 18:59</option><option value="2026-04-22_1816.html">2026-04-22 수동 18:16</option><option value="2026-04-22_1750.html">2026-04-22 2차 (17:50)</option><option value="2026-04-22_1450.html">2026-04-22 1차 (14:50)</option><option value="2026-04-22_0904.html">2026-04-22 수동 09:04</option><option value="2026-04-22_0650.html">2026-04-22 수동 06:50</option></optgroup><optgroup label="2026-04-21"><option value="2026-04-21_2203.html">2026-04-21 수동 22:03</option><option value="2026-04-21_2150.html">2026-04-21 수동 21:50</option><option value="2026-04-21_2134.html">2026-04-21 수동 21:34</option><option value="2026-04-21_2109.html">2026-04-21 수동 21:09</option><option value="2026-04-21_2030.html">2026-04-21 수동 20:30</option><option value="2026-04-21_2002.html">2026-04-21 수동 20:02</option><option value="2026-04-21_1948.html">2026-04-21 수동 19:48</option><option value="2026-04-21_1450.html">2026-04-21 1차 (14:50)</option><option value="2026-04-21_0702.html">2026-04-21 수동 07:02</option><option value="2026-04-21_0552.html">2026-04-21 수동 05:52</option><option value="2026-04-21_0543.html">2026-04-21 수동 05:43</option><option value="2026-04-21_0539.html">2026-04-21 수동 05:39</option><option value="2026-04-21_0516.html">2026-04-21 수동 05:16</option></optgroup><optgroup label="2026-04-20"><option value="2026-04-20_2228.html">2026-04-20 수동 22:28</option><option value="2026-04-20_2223.html">2026-04-20 수동 22:23</option><option value="2026-04-20_2144.html">2026-04-20 수동 21:44</option><option value="2026-04-20_2115.html">2026-04-20 수동 21:15</option><option value="2026-04-20_2107.html">2026-04-20 수동 21:07</option><option value="2026-04-20_2019.html">2026-04-20 수동 20:19</option><option value="2026-04-20_1700.html">2026-04-20 수동 17:00</option><option value="2026-04-20_1649.html">2026-04-20 수동 16:49</option></optgroup><optgroup label="2026-04-19"><option value="2026-04-19_0640.html">2026-04-19 수동 06:40</option></optgroup><optgroup label="2026-04-17"><option value="2026-04-17_2039.html">2026-04-17 수동 20:39</option><option value="2026-04-17_1901.html">2026-04-17 수동 19:01</option><option value="2026-04-17_0753.html">2026-04-17 수동 07:53</option><option value="2026-04-17_0626.html">2026-04-17 수동 06:26</option></optgroup></select>
+  <span class="nav-btn disabled">다음 &#9654;</span>
+  <a href="../index.html" class="nav-btn">&#8801; 목록</a>
+</div>
+
+
+<div class="page-header">
+  <h1>📈 종가베팅 스캔 리포트</h1>
+  <div style="margin-top:8px;font-size:15px;font-weight:600;letter-spacing:0.5px"><span style="color:var(--yellow)">교집합 0개</span><span style="color:var(--muted);margin:0 10px">/</span><span style="color:var(--green)">1500억↑ 0개</span><span style="color:var(--muted);margin:0 10px">/</span><span style="color:var(--blue)">핵심후보 0개</span></div>
+  <div class="meta" style="margin-top:6px;">
+    <span>📅 -</span>
+    <span>기준시각 -</span>
+    <span>실행시각 - KST</span>
+    <span>분류 -</span>
+  </div>
+  <div class="meta" style="margin-top:4px;">
+    <span>코스피 0억</span>
+    <span>코스닥 0억</span>
+  </div>
+</div>
+
+<div class="top-boxes"><div class="info-box">
+  <div class="info-box-title">오늘 환경</div>
+  <div class="env-row"><span class="env-label">시장 상태</span><span class="env-val"><span class="regime-neutral" style="font-size:13px;padding:2px 10px">⚪ 중립</span></span></div>
+  
+  
+  <div class="env-row"><span class="env-label">우선 확인</span><span class="env-val" style="color:var(--yellow)">0종목</span></div>
+  <div class="env-row"><span class="env-label">관찰</span><span class="env-val" style="color:var(--muted)">0종목</span></div>
+</div><div class="info-box">
+  <div class="info-box-title">핵심 신호</div>
+  <div class="signal-row">
+    <span class="signal-num">0개</span>
+    <span style="color:var(--muted);font-size:12px;margin-left:8px">교집합 (상승률+거래대금 Top20)</span>
+    <div class="signal-interp">→ 교집합 없음</div>
+  </div>
+  <div class="signal-row">
+    <span class="signal-num">0개</span>
+    <span style="color:var(--muted);font-size:12px;margin-left:8px">1500억↑ 종목</span>
+    <div class="signal-interp">→ 전체 0개</div>
+  </div>
+  <div class="signal-row">
+    <span class="signal-num">0개</span>
+    <span style="color:var(--muted);font-size:12px;margin-left:8px">상승Top20 중 1500억↑</span>
+    <div class="signal-interp">→ 상승Top20 중 0개 포함</div>
+  </div>
+</div></div>
+
+<div class="section-title">🎯 핵심 후보</div><div class="empty-msg">조건 충족 핵심 후보 없음</div>
+
+
+<div class="section-title">💰 거래대금 Top20</div><div class="empty-msg">데이터 없음</div>
+<div class="section-title">📊 상승률 Top20</div><div class="empty-msg">데이터 없음</div>
+
+<div class="section-title">🔀 교집합 후보</div><div class="empty-msg">교집합 없음</div>
+
+
+<style>
+.kh-notice{background:#1c1c1c;border-left:3px solid #555;padding:10px 14px;
+  font-size:12px;color:#888;margin-bottom:14px;border-radius:4px;line-height:1.7;}
+.kh-card{background:var(--bg2);border:1px solid #444;border-radius:8px;
+  padding:12px 16px;margin-bottom:10px;}
+.kh-card-head{font-size:14px;font-weight:600;margin-bottom:6px;color:#ccc;}
+.kh-card-body{font-size:12px;color:#888;line-height:1.8;}
+.kh-title{color:#888!important;font-size:1rem!important;}
+.badge-kh-only{background:#333;color:#aaa;font-size:11px;
+  padding:1px 6px;border-radius:4px;margin-left:6px;}
+</style>
+<div class="section-title kh-title">📊 김형준 기법 관찰 후보 <span style="font-size:12px;color:var(--muted);font-weight:400">· 관찰 상태 · 매수 신호 아님</span></div><p style="color:var(--muted);font-size:13px;padding:8px 0;">오늘 탐지된 김형준 기법 관찰 후보 없음</p>
+
+
+
+<div style="text-align:center;color:var(--muted);font-size:11px;margin-top:24px;padding:16px 0;">
+  korea-close-betting-bot &middot; - -
+</div>
+</div>
+</body>
+</html>
