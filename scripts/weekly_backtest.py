@@ -61,6 +61,17 @@ def _load_signals(date_str: str) -> pd.DataFrame | None:
     return None
 
 
+def _load_market_summary(date_str: str) -> dict:
+    """daily_summary_{date}.json에서 지수 등락률 등 로드."""
+    path = Path(SIGNALS_DIR) / f"daily_summary_{date_str}.json"
+    if not path.exists():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
 def _load_review(date_str: str) -> dict[str, dict]:
     """review.json → {code: row} 반환. 'pending' 항목 제외."""
     path = Path(SIGNALS_DIR) / f"{date_str}_review.json"
@@ -176,6 +187,10 @@ def collect(start: date, end: date) -> list[dict]:
             continue
 
         review_map = _load_review(date_str)
+        mkt = _load_market_summary(date_str)
+        kospi_chg  = mkt.get("kospi_chg")
+        kosdaq_chg = mkt.get("kosdaq_chg")
+        market_regime = mkt.get("market_regime", "")
         logger.info(f"{date_str}: {len(sig_df)}개 후보 (review={'있음' if review_map else '없음'})")
 
         for _, row in sig_df.iterrows():
@@ -221,6 +236,10 @@ def collect(start: date, end: date) -> list[dict]:
                 "in_inter":     in_inter,
                 "total_score":  float(row.get("total_score", 0) or 0),
                 "run_type":     str(row.get("run_type", "") or ""),
+                "news_summary": str(row.get("news_summary", "") or ""),
+                "kospi_chg":    kospi_chg,
+                "kosdaq_chg":   kosdaq_chg,
+                "market_regime": market_regime,
                 **{k: ret.get(k) for k in ["d1_open_pct","d1_close_pct","d2_close_pct","d3_close_pct","mfe","mae"]},
             })
 
@@ -374,14 +393,31 @@ def generate_html(rows: list[dict], start: date, today: date) -> str:
         + _stats_row("교집합 ★", inter_s)
     )
 
+    def _idx_chg(v) -> str:
+        if v is None: return ""
+        # 한국 주식 관례: 상승=빨간색, 하락=초록색
+        color = "#f85149" if float(v) >= 0 else "#3fb950"
+        sign = "+" if float(v) >= 0 else ""
+        return f'<span style="color:{color};font-weight:600">{sign}{v:.2f}%</span>'
+
     # 날짜별 + 종목별 상세
     detail_html = ""
     dates = sorted(set(r["signal_date"] for r in rows))
     for ds in dates:
         day_rows = [r for r in rows if r["signal_date"] == ds]
-        detail_html += f'<tr class="date-header"><td colspan="10">{_e(ds)} ({len(day_rows)}종목)</td></tr>'
+        kospi_c  = day_rows[0].get("kospi_chg")  if day_rows else None
+        kosdaq_c = day_rows[0].get("kosdaq_chg") if day_rows else None
+        regime   = day_rows[0].get("market_regime", "") if day_rows else ""
+        idx_html = ""
+        if kospi_c is not None or kosdaq_c is not None:
+            idx_html = (f' &nbsp;·&nbsp; 코스피 {_idx_chg(kospi_c)}'
+                        f' 코스닥 {_idx_chg(kosdaq_c)}')
+        if regime:
+            idx_html += f' &nbsp;<span class="muted">[{_e(regime)}]</span>'
+        detail_html += f'<tr class="date-header"><td colspan="11">{_e(ds)} ({len(day_rows)}종목){idx_html}</td></tr>'
         for r in day_rows:
             tv_eok = f'{r["trading_value"]/1e8:.0f}억' if r["trading_value"] > 0 else "-"
+            news_td = f'<span style="font-size:11px;color:#8b949e">{_e(r["news_summary"][:30])}</span>' if r.get("news_summary") else '<span class="muted">-</span>'
             detail_html += (
                 f"<tr>"
                 f'<td class="name-col">{_e(r["name"])}'
@@ -392,6 +428,7 @@ def generate_html(rows: list[dict], start: date, today: date) -> str:
                 f'<td class="{"pos" if r["change_pct"]>0 else "neg"}">'
                 f'{"+" if r["change_pct"]>0 else ""}{r["change_pct"]:.2f}%</td>'
                 f"<td>{tv_eok}</td>"
+                f"<td>{news_td}</td>"
                 f"<td>{_fmt(r['d1_open_pct'], '%')}</td>"
                 f"<td>{_fmt(r['d1_close_pct'], '%')}</td>"
                 f"<td>{_fmt(r['d2_close_pct'], '%')}</td>"
@@ -406,7 +443,7 @@ def generate_html(rows: list[dict], start: date, today: date) -> str:
     )
     detail_thead = (
         "<tr><th>종목</th><th>등급</th><th>패턴</th><th>당일등락</th><th>거래대금</th>"
-        "<th>D+1 시가</th><th>D+1 종가</th><th>D+2 종가</th><th>MFE</th><th>MAE</th></tr>"
+        "<th>뉴스/재료</th><th>D+1 시가</th><th>D+1 종가</th><th>D+2 종가</th><th>MFE</th><th>MAE</th></tr>"
     )
 
     return f"""<!DOCTYPE html>

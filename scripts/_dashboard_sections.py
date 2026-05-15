@@ -242,6 +242,15 @@ def _section_header(data: dict) -> str:
     kosdaq_level = market.get("kosdaq_level")
     kospi_lv_str  = f" <span style='color:var(--muted);font-size:12px'>({kospi_level:,.0f}pt)</span>"  if kospi_level else ""
     kosdaq_lv_str = f" <span style='color:var(--muted);font-size:12px'>({kosdaq_level:,.0f}pt)</span>" if kosdaq_level else ""
+
+    def _idx_chg(chg):
+        if chg is None: return ""
+        color = "var(--red)" if chg >= 0 else "var(--green)"
+        sign = "+" if chg >= 0 else ""
+        return f' <span style="color:{color};font-size:12px;font-weight:700">{sign}{chg:.2f}%</span>'
+
+    kospi_chg_html  = _idx_chg(market.get("kospi_chg"))
+    kosdaq_chg_html = _idx_chg(market.get("kosdaq_chg"))
     regime         = market.get("market_regime", "")
     market_adl     = market.get("market_adl")
     market_subtype = market.get("market_subtype", "")
@@ -278,8 +287,8 @@ def _section_header(data: dict) -> str:
     <span>분류 {run_type}</span>
   </div>
   <div class="meta" style="margin-top:4px;">
-    <span>코스피 {kospi_tv}{kospi_lv_str}</span>
-    <span>코스닥 {kosdaq_tv}{kosdaq_lv_str}</span>
+    <span>코스피 {kospi_tv}{kospi_lv_str}{kospi_chg_html}</span>
+    <span>코스닥 {kosdaq_tv}{kosdaq_lv_str}{kosdaq_chg_html}</span>
   </div>
 </div>
 """
@@ -458,6 +467,50 @@ def _section_limit_up(market_summary: dict) -> str:
         '<thead><tr><th>종목명</th><th>코드</th><th>시장</th><th>섹터</th><th>등락률</th><th>거래대금</th></tr></thead>'
         f'<tbody>{rows_html}</tbody>'
         '</table></div>'
+    )
+
+
+def _section_watch_panel(watch_candidates: list, market_regime: str = "중립") -> str:
+    """시장 상황으로 핵심후보에서 제외된 관심 후보 리스트."""
+    if not watch_candidates:
+        return ""
+
+    _max_cfg = {"강세": 5, "중립": 3, "약세": 2}
+    max_n = _max_cfg.get(market_regime, 3)
+
+    rows_html = ""
+    for c in watch_candidates:
+        pat_label = c.get("patterns", {}).get("pattern_type_label", "없음")
+        chg = float(c.get("change_pct", 0))
+        chg_cls = "td-pos" if chg >= 0 else "td-neg"
+        tv = float(c.get("trading_value", 0))
+        status = _compute_status(c, market_regime)
+        in_inter = c.get("in_inter", False)
+        inter_badge = '<span class="badge inter" style="font-size:10px">교집합</span> ' if in_inter else ""
+        status_html = _status_badge_html(status)
+        sector = _e(c.get("sector", ""))
+        rows_html += (
+            f"<tr>"
+            f'<td class="td-name">{inter_badge}{_e(c.get("name",""))}'
+            f'<br><small class="td-code" style="font-size:10px">{_e(c.get("code",""))} {_e(c.get("market",""))}</small></td>'
+            f"<td>{status_html}</td>"
+            f'<td style="color:{_PATTERN_CARD_COLOR.get(pat_label,"#8b949e")};font-weight:600">{_e(pat_label)}</td>'
+            f'<td class="{chg_cls}">{_sign(chg)}</td>'
+            f"<td>{_tv_eok(tv)}</td>"
+            f'<td style="color:var(--muted);font-size:12px">{sector}</td>'
+            f"</tr>"
+        )
+
+    return (
+        f'<details open><summary class="section-title" style="cursor:pointer;list-style:none">'
+        f'📋 관심 후보 {len(watch_candidates)}개 '
+        f'<span style="font-size:12px;color:var(--muted);font-weight:400">'
+        f'(시장 {market_regime} → 핵심후보 상한 {max_n}개 초과분)</span>'
+        f'</summary>\n'
+        f'<div class="tbl-wrap"><table>'
+        f'<thead><tr><th>종목</th><th>등급</th><th>패턴</th><th>등락률</th><th>거래대금</th><th>섹터</th></tr></thead>'
+        f'<tbody>{rows_html}</tbody>'
+        f'</table></div></details>'
     )
 
 
