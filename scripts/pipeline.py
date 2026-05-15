@@ -22,6 +22,7 @@ from config.settings import (
     MARKET_REGIME_BULL_ADL, MARKET_REGIME_BEAR_ADL, MARKET_REGIME_BULL_TV1500,
     CANDIDATES_MAX_BULL, CANDIDATES_MAX_NEUTRAL, CANDIDATES_MAX_BEAR, CANDIDATES_MAX_CONCENTRATED_BEAR,
     KH_CRAWL_MIN_TV_EOK,
+    INTRADAY_CLOSE_FROM_HIGH_MIN_PCT,
 )
 from scripts.market_calendar import get_now_kst, is_trading_day, get_run_type
 from scripts.storage import save_raw, save_processed, save_signals
@@ -286,6 +287,7 @@ def _enrich_candidates(codes: list[str], all_df: pd.DataFrame, run_type: str) ->
             today_high = _d0_high if _d0_high > 0 else _close
             today_low  = _d0_low  if _d0_low  > 0 else _close
             today_open = _d0_open if _d0_open > 0 else _open
+            enr["today_high"] = today_high
 
             bc = is_big_candle(
                 open_=today_open,
@@ -730,6 +732,16 @@ def run(preview: bool = False):
                                    "trading_value": tv, "change_pct": float(row.get("등락률", 0))})
             continue
 
+        _today_high  = enr.get("today_high", 0)
+        _today_close = float(row.get("현재가", 0))
+        if _today_high > 0 and _today_close > 0:
+            _intraday_gap = (_today_close - _today_high) / _today_high * 100
+            if _intraday_gap < INTRADAY_CLOSE_FROM_HIGH_MIN_PCT:
+                rejected_list.append({"code": code, "name": name,
+                                       "reason": f"당일 고가 대비 {_intraday_gap:.1f}% 이격",
+                                       "trading_value": tv, "change_pct": float(row.get("등락률", 0))})
+                continue
+
         checklist = build_checklist(code, tv, processed, supply)
         score     = calc_score(code=code, trading_value=tv, processed=processed,
                                supply=supply, news=news, in_intersection=in_inter,
@@ -861,6 +873,12 @@ def run(preview: bool = False):
                 if (_base_idx is None or _base_idx < 1) and not _obs_pat.get("kim_hyungjun_flag"):
                     continue
 
+                _obs_today_high  = _obs_enr.get("today_high", 0)
+                _obs_close       = float(_obs_row_data.get("현재가", 0))
+                _obs_intraday_gap = (
+                    (_obs_close - _obs_today_high) / _obs_today_high * 100
+                    if _obs_today_high > 0 and _obs_close > 0 else None
+                )
                 obs_candidates.append({
                     "name":                        _obs_row_data.get("종목명", ""),
                     "code":                        _obs_code,
@@ -879,6 +897,7 @@ def run(preview: bool = False):
                     "base_candle_offset":          _obs_pat.get("base_candle_day_offset"),
                     "today_tv_ratio":              _obs_pat.get("tv_ratio"),
                     "close_from_base_high_pct":    _obs_pat.get("base_high_gap_pct"),
+                    "intraday_gap_pct":            _obs_intraday_gap,
                     "above_ma5":                   _obs_pat.get("kim_hyungjun_above_ma5"),
                     "supply_label":                getattr(_obs_enr.get("supply"), "supply_label", "") or "",
                     "patterns":                    _obs_pat,

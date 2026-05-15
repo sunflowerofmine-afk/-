@@ -1449,9 +1449,15 @@ def _section_recent_base_pool(obs_candidates: list) -> str:
     if not non_kh:
         return ""
 
-    rows_html = ""
-    for c in non_kh:
-        pat_label = c.get("pattern_type_label", "없음")
+    def _is_intraday_excluded(c: dict) -> bool:
+        gap = c.get("intraday_gap_pct")
+        return gap is not None and gap < -5.0
+
+    active   = [c for c in non_kh if not _is_intraday_excluded(c)]
+    excluded = [c for c in non_kh if _is_intraday_excluded(c)]
+
+    def _obs_row(c: dict, show_excl_reason: bool = False) -> str:
+        pat_label   = c.get("pattern_type_label", "없음")
         label_color = _OBS_TAG_COLOR.get(pat_label, "#8b949e")
 
         tags = []
@@ -1459,22 +1465,27 @@ def _section_recent_base_pool(obs_candidates: list) -> str:
         if c.get("is_high_range_candidate"): tags.append('<span class="badge na">횡보</span>')
         if not tags:                         tags.append('<span class="badge na">기준봉</span>')
 
-        close_gap = c.get("close_from_base_high_pct")
-        gap_str   = f"{close_gap:+.1f}%" if close_gap is not None else "-"
-        tv_ratio  = c.get("today_tv_ratio")
-        tv_r_str  = f"{tv_ratio:.2f}" if tv_ratio is not None else "-"
-        base_date = _e(c.get("base_candle_date") or "-")
-        offset    = c.get("base_candle_offset")
+        close_gap  = c.get("close_from_base_high_pct")
+        gap_str    = f"{close_gap:+.1f}%" if close_gap is not None else "-"
+        tv_ratio   = c.get("today_tv_ratio")
+        tv_r_str   = f"{tv_ratio:.2f}" if tv_ratio is not None else "-"
+        base_date  = _e(c.get("base_candle_date") or "-")
+        offset     = c.get("base_candle_offset")
         offset_str = _OFFSET_LABEL.get(offset, f"{offset}일전") if offset is not None else "-"
 
-        _obs_sector = _e(c.get("sector", ""))
-        _obs_sector_html = f" · {_obs_sector}" if _obs_sector else ""
-        rows_html += (
+        sector_html = (f" · {_e(c.get('sector', ''))}" if c.get("sector") else "")
+
+        if show_excl_reason:
+            ig = c.get("intraday_gap_pct", 0)
+            name_extra = f' <span style="color:#f85149;font-size:11px">당일 고가 대비 {ig:.1f}%</span>'
+        else:
+            name_extra = ""
+
+        return (
             f"<tr>"
-            f'<td class="td-name">{_e(c.get("name",""))}'
-            f' {_status_badge_html("WATCH_ONLY")}'
+            f'<td class="td-name">{_e(c.get("name",""))}{name_extra}'
             f'<br><small class="muted">{_e(c.get("code",""))} · {_e(c.get("market",""))}'
-            f'{_obs_sector_html}</small></td>'
+            f'{sector_html}</small></td>'
             f'<td>{_sign(c.get("change_pct",0))}</td>'
             f'<td>{_tv_eok(c.get("trading_value",0))}</td>'
             f'<td style="color:{label_color};font-weight:600">{_e(pat_label)}</td>'
@@ -1486,24 +1497,52 @@ def _section_recent_base_pool(obs_candidates: list) -> str:
             f"</tr>"
         )
 
-    htc_n = sum(1 for c in non_kh if c.get("is_htc_candidate"))
-    hrh_n = sum(1 for c in non_kh if c.get("is_high_range_candidate"))
+    active_rows = "".join(_obs_row(c) for c in active)
+    htc_n = sum(1 for c in active if c.get("is_htc_candidate"))
+    hrh_n = sum(1 for c in active if c.get("is_high_range_candidate"))
+
+    excl_html = ""
+    if excluded:
+        excl_rows = "".join(_obs_row(c, show_excl_reason=True) for c in excluded)
+        excl_html = (
+            f'<details style="margin-top:8px">'
+            f'<summary style="cursor:pointer;font-size:12px;color:#f85149;user-select:none">'
+            f'⛔ 당일 고가 이격 탈락 {len(excluded)}개 (당일 고가 대비 -5% 초과)</summary>'
+            f'<div class="tbl-wrap" style="margin-top:6px"><table>'
+            f'<thead><tr>'
+            f'<th>종목</th><th>등락률</th><th>거래대금</th><th>패턴</th><th>태그</th>'
+            f'<th>고가대비(기준봉)</th><th>TV비율</th><th>기준봉일</th><th>수급</th>'
+            f'</tr></thead>'
+            f'<tbody>{excl_rows}</tbody>'
+            f'</table></div>'
+            f'</details>'
+        )
+
+    main_table = ""
+    if active:
+        main_table = (
+            '<div class="tbl-wrap"><table>'
+            '<thead><tr>'
+            '<th>종목</th><th>등락률</th><th>거래대금</th><th>패턴</th><th>태그</th>'
+            '<th>고가대비(기준봉)</th><th>TV비율</th><th>기준봉일</th><th>수급</th>'
+            '</tr></thead>'
+            f'<tbody>{active_rows}</tbody>'
+            '</table></div>'
+            f'<p style="font-size:11px;color:var(--muted);margin-top:6px">'
+            f'총 {len(active)}개 · HTC={htc_n} 횡보={hrh_n}'
+            '</p>'
+        )
+    else:
+        main_table = '<p style="color:var(--muted);font-size:13px;padding:8px 0;">당일 조건 통과 관찰 후보 없음</p>'
 
     return (
         _OBS_NOTICE_CSS
         + '<div class="section-title">🔭 기준봉 이후 관찰 후보</div>'
         + '<div class="obs-notice">'
         + '<b>관찰 상태 · 매수 신호 아님</b> — 최근 기준봉 이후 고가수축/눌림 패턴 추적.'
+        + ' 당일 고가 대비 -5% 초과 이격 종목은 탈락 처리.'
         + ' 김형준 기법 관찰 후보는 위 김형준 기법 관찰 후보 섹션 참고.'
         + '</div>'
-        + '<div class="tbl-wrap"><table>'
-        + '<thead><tr>'
-        + '<th>종목</th><th>등락률</th><th>거래대금</th><th>패턴</th><th>태그</th>'
-        + '<th>고가대비</th><th>TV비율</th><th>기준봉일</th><th>수급</th>'
-        + '</tr></thead>'
-        + f'<tbody>{rows_html}</tbody>'
-        + '</table></div>'
-        + f'<p style="font-size:11px;color:var(--muted);margin-top:6px">'
-        + f'총 {len(non_kh)}개 · HTC={htc_n} 횡보={hrh_n}'
-        + '</p>'
+        + main_table
+        + excl_html
     )

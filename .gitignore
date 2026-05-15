@@ -18,7 +18,6 @@ venv/
 # ── 데이터 파일 (개인 수집 데이터) ──────────────────────────
 data/raw/
 data/processed/
-data/signals/
 data/results/
 data/gap_results/
 

@@ -43,6 +43,18 @@ jobs:
           TZ: Asia/Seoul
         run: python -m scripts.pipeline
 
+      - name: Run weekly backtest (금요일 자동 실행)
+        env:
+          TZ: Asia/Seoul
+        run: |
+          DAY=$(python -c "from datetime import date; print(date.today().weekday())")
+          if [ "$DAY" = "4" ]; then
+            echo "금요일 → 주간 백테스트 실행"
+            python -m scripts.weekly_backtest
+          else
+            echo "금요일 아님 (weekday=$DAY) → skip"
+          fi
+
       # ── 방식 A (권장): reports/ 를 main 브랜치에 자동 커밋 ──
       # GitHub Pages 소스를 "main 브랜치 / (root)" 또는 "main 브랜치 / docs" 로
       # 설정하면 커밋 즉시 Pages에 반영됩니다.
@@ -51,6 +63,7 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add reports/ index.html
+          git add data/signals/ data/weekly_backtest/ reports/weekly_backtest/ 2>/dev/null || true
           git diff --cached --quiet && echo "No changes to commit" || \
             git commit -m "chore: update dashboard reports [skip ci]"
           git pull --rebase --autostash origin main
