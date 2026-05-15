@@ -377,21 +377,28 @@ def generate_html(rows: list[dict], start: date, today: date) -> str:
               "pos" if (inter_s["win_rate"] or 0) >= 50 else "neg"),
     ])
 
+    def _group_header(label: str) -> str:
+        return (f'<tr><td colspan="5" style="'
+                f'background:var(--bg3);color:var(--blue);font-size:11px;'
+                f'font-weight:700;letter-spacing:0.5px;padding:5px 10px;'
+                f'border-top:2px solid var(--border)">{label}</td></tr>')
+
+    # 등급별 통계
+    grade_rows_html = (
+        _group_header("▸ 등급별")
+        + _stats_row("매수검토", buy_s)
+        + _stats_row("관찰", watch_s)
+        + _stats_row("★ 교집합", inter_s)
+    )
+
     # 패턴별 통계
-    pat_rows_html = ""
+    pat_rows_html = _group_header("▸ 패턴별")
     for pt in _PATTERN_ORDER:
         sub = [r for r in rows if r["pattern"] == pt]
         if not sub:
             continue
         s = _stats(sub)
         pat_rows_html += _stats_row(pt, s)
-
-    # 등급별 통계
-    grade_rows_html = (
-        _stats_row("매수검토 (BUY_REVIEW)", buy_s)
-        + _stats_row("관찰 (WATCH_ONLY)", watch_s)
-        + _stats_row("교집합 ★", inter_s)
-    )
 
     def _idx_chg(v) -> str:
         if v is None: return ""
@@ -461,7 +468,6 @@ def generate_html(rows: list[dict], start: date, today: date) -> str:
 <div class="tbl-wrap"><table>
 {stats_thead}
 {grade_rows_html}
-<tr style="border-top:2px solid var(--border)"></tr>
 {pat_rows_html}
 </table></div>
 

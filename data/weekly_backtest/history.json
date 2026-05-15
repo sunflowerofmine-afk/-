@@ -9,6 +9,15 @@
     "buy_review_avg": 8.86
   },
   {
+    "week_start": "2026-05-15",
+    "n": 2,
+    "d1_win_rate": null,
+    "d1_avg": null,
+    "buy_review_n": 0,
+    "buy_review_win_rate": null,
+    "buy_review_avg": null
+  },
+  {
     "week_start": "2026-05-08",
     "n": 18,
     "d1_win_rate": 50.0,
