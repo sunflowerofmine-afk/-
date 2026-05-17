@@ -395,7 +395,7 @@ def _format_candidate_card(seq: int, c: dict) -> str:
     if htc_flag:    tags.append("🔶고가수축" + ("⚡" if htc_reignite else ""))
     if is_danbal:   tags.append("⚡단발")
     prog_net = c.get("prog_net_eok")
-    if prog_net is not None and prog_net > 0: tags.append("💹프로그")
+    if prog_net is not None and prog_net > 0: tags.append("💹프로그램매수")
     tag_str = "  " + "  ".join(tags) if tags else ""
 
     # ── Line 2: 등락률 / 거래대금 / 섹터 / 패턴 ──────────────
