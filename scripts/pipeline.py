@@ -234,6 +234,73 @@ def _calc_market_regime(all_df: pd.DataFrame, tv_1500_count: int) -> tuple[str, 
         return "중립", 0.0
 
 
+def _build_theme_leaders(
+    filtered_df: pd.DataFrame,
+    code_to_sector: dict,
+    leading_sector_names: set,
+) -> dict:
+    """주도 테마별 등락률 최고 종목코드 반환 {sector_name: code}."""
+    from collections import defaultdict
+    sector_stocks: dict[str, list] = defaultdict(list)
+    for _, row in filtered_df.iterrows():
+        code = str(row.get("종목코드", ""))
+        sec  = code_to_sector.get(code, "")
+        if sec and sec in leading_sector_names:
+            sector_stocks[sec].append((code, float(row.get("등락률", 0))))
+    return {
+        sec: max(stocks, key=lambda x: x[1])[0]
+        for sec, stocks in sector_stocks.items()
+        if stocks
+    }
+
+
+def _build_limit_up_followup(
+    limit_up_list: list,
+    code_to_sector: dict,
+    leading_sectors: list,
+) -> list[dict]:
+    """상한가 종목 테마의 후속 후보 목록 반환.
+    동일 테마가 leading_sectors에 있을 때만 후속 후보 포함.
+    """
+    result = []
+    seen_sectors: set = set()
+    for lu in limit_up_list:
+        lu_code   = str(lu.get("종목코드", ""))
+        lu_sector = code_to_sector.get(lu_code, "")
+        if not lu_sector or lu_sector in seen_sectors:
+            continue
+        seen_sectors.add(lu_sector)
+        for sec in leading_sectors:
+            if sec["sector_name"] != lu_sector:
+                continue
+            followups = [
+                s for s in sec.get("top_stocks", [])
+                if str(s.get("종목코드", "")) != lu_code
+            ]
+            if followups:
+                result.append({
+                    "leader_name": lu.get("종목명", ""),
+                    "leader_code": lu_code,
+                    "sector":      lu_sector,
+                    "followups":   followups,
+                })
+            break
+    return result
+
+
+def _calc_market_direction(kospi_chg: float | None) -> str:
+    """코스피 등락률 기준 장세 방향 판정.
+    ≥ +0.3% → 상승, ≤ -0.3% → 하락, 그 외 → 횡보
+    """
+    if kospi_chg is None:
+        return "확인불가"
+    if kospi_chg >= 0.3:
+        return "상승"
+    if kospi_chg <= -0.3:
+        return "하락"
+    return "횡보"
+
+
 def _calc_market_subtype(market_regime: str, kospi_chg: float | None) -> str:
     """약세 시 세부 장세 유형 판단.
     자금집중형: 지수 강세지만 ADL 약세 → 대형주/주도섹터에 자금 쏠림
@@ -551,14 +618,16 @@ def run(preview: bool = False):
         _limit_up_top[["종목명", "종목코드", "시장", "등락률", "거래대금"]].to_dict("records")
         if not _limit_up_top.empty else []
     )
-    limit_up_list = _add_sector(limit_up_list)
+    limit_up_list  = _add_sector(limit_up_list)
     limit_up_names = [r["종목명"] for r in limit_up_list[:5]]
+    followup_data  = _build_limit_up_followup(limit_up_list, code_to_sector, leading_sectors)
 
     market_regime, _market_adl = _calc_market_regime(all_df, tv_1500_count)
-    market_type    = _calc_market_type(gainers_top20_records, market_regime, leading_sectors)
-    _kospi_chg     = index_levels.get("kospi_chg")
-    market_subtype = _calc_market_subtype(market_regime, _kospi_chg)
-    logger.info(f"시장 상태: {market_regime}{' · ' + market_subtype if market_subtype else ''} | 장세: {market_type}")
+    market_type      = _calc_market_type(gainers_top20_records, market_regime, leading_sectors)
+    _kospi_chg       = index_levels.get("kospi_chg")
+    market_subtype   = _calc_market_subtype(market_regime, _kospi_chg)
+    market_direction = _calc_market_direction(_kospi_chg)
+    logger.info(f"시장 상태: {market_regime}{' · ' + market_subtype if market_subtype else ''} | 장세: {market_type} | 방향: {market_direction}")
 
     # ── 전일 복기 ───────────────────────────────────────────────────────────
     review_results = []
@@ -645,6 +714,7 @@ def run(preview: bool = False):
     MIN_TV_WON            = MIN_TRADING_VALUE_EOK * 100_000_000
     inter_codes           = set(intersection["종목코드"].dropna() if not intersection.empty else [])
     leading_sector_names  = {s["sector_name"] for s in leading_sectors}
+    _theme_leader_codes   = _build_theme_leaders(filtered_df, code_to_sector, leading_sector_names)
 
     # ── TV / 상한가 1차 필터: 크롤링 전에 적용해 불필요한 수집 방지 ─────
     tv_map  = filtered_df.set_index("종목코드")["거래대금"].to_dict()
@@ -744,13 +814,18 @@ def run(preview: bool = False):
                                        "trading_value": tv, "change_pct": float(row.get("등락률", 0))})
                 continue
 
+        _sector      = code_to_sector.get(code, "")
+        _is_leading  = bool(_sector) and _sector in leading_sector_names
+        _theme_role  = ""
+        if _is_leading:
+            _theme_role = "리더" if code == _theme_leader_codes.get(_sector) else "후속주"
+
         checklist = build_checklist(code, tv, processed, supply)
         score     = calc_score(code=code, trading_value=tv, processed=processed,
                                supply=supply, news=news, in_intersection=in_inter,
-                               patterns=pat)
+                               patterns=pat, is_leading_sector=_is_leading)
         supply_ok = checklist.supply_ok
 
-        _sector = code_to_sector.get(code, "")
         _regular_close = enr.get("regular_close_price")
         _signal_px     = float(row.get("현재가", 0))
         _entry_ref     = _regular_close if _regular_close else _signal_px
@@ -778,7 +853,8 @@ def run(preview: bool = False):
             "supply_ok":        supply_ok,
             "near_high_52w":    processed.near_high_52w,
             "sector":           _sector,
-            "is_leading_sector":             bool(_sector) and _sector in leading_sector_names,
+            "is_leading_sector":             _is_leading,
+            "theme_role":                    _theme_role,
             "prog_net_eok":                  prog_data.get(code),
             "regular_close_price":           _regular_close,
             "regular_close_price_available": bool(_regular_close),
@@ -941,12 +1017,17 @@ def run(preview: bool = False):
             continue
 
         _obs_checklist     = build_checklist(_obs_code, _obs_tv, _obs_proc, _obs_sup)
+        _obs_sector      = _obs_c.get("sector", "")
+        _obs_is_leading  = bool(_obs_sector) and _obs_sector in leading_sector_names
+        _obs_theme_role  = ""
+        if _obs_is_leading:
+            _obs_theme_role = "리더" if _obs_code == _theme_leader_codes.get(_obs_sector) else "후속주"
+
         _obs_score         = calc_score(
             code=_obs_code, trading_value=_obs_tv, processed=_obs_proc,
             supply=_obs_sup, news=_obs_news, in_intersection=_obs_in_inter,
-            patterns=_obs_pat,
+            patterns=_obs_pat, is_leading_sector=_obs_is_leading,
         )
-        _obs_sector        = _obs_c.get("sector", "")
         _obs_regular_close = _obs_enr_d.get("regular_close_price")
         _obs_signal_px     = _obs_c.get("signal_price", 0)
         _obs_entry_ref     = _obs_regular_close if _obs_regular_close else _obs_signal_px
@@ -971,7 +1052,8 @@ def run(preview: bool = False):
             "supply_ok":                     _obs_checklist.supply_ok,
             "near_high_52w":                 _obs_proc.near_high_52w,
             "sector":                        _obs_sector,
-            "is_leading_sector":             bool(_obs_sector) and _obs_sector in leading_sector_names,
+            "is_leading_sector":             _obs_is_leading,
+            "theme_role":                    _obs_theme_role,
             "prog_net_eok":                  prog_data.get(_obs_code),
             "regular_close_price":           _obs_regular_close,
             "regular_close_price_available": bool(_obs_regular_close),
@@ -1132,6 +1214,7 @@ def run(preview: bool = False):
     report_data["kh_only_candidates"]  = kh_only_candidates
     report_data["kh_candidates_scope"] = "top40_only"
     report_data["obs_candidates"]      = obs_candidates
+    report_data["followup_data"]       = followup_data
 
     dashboard_links = {}
     if ENABLE_DASHBOARD:
@@ -1159,6 +1242,7 @@ def run(preview: bool = False):
         "kosdaq_level":          index_levels.get("kosdaq_level"),
         "kospi_chg":             index_levels.get("kospi_chg"),
         "kosdaq_chg":            index_levels.get("kosdaq_chg"),
+        "market_direction":      market_direction,
         "limit_up_count":        limit_up_count,
         "limit_up_names":        limit_up_names,
         "limit_up_list":         limit_up_list,
@@ -1173,6 +1257,7 @@ def run(preview: bool = False):
             market_summary_extra=_ms_extra,
             leading_sectors=leading_sectors,
             watch_candidates=watch_candidates,
+            followup_data=followup_data,
         )
         ntf.send_message(msg)
         logger.info(f"1차 알림 전송 완료 (핵심 {len(core_candidates)}개 / 관심 {len(watch_candidates)}개)")
@@ -1185,6 +1270,7 @@ def run(preview: bool = False):
             leading_sectors=leading_sectors,
             watch_candidates=watch_candidates,
             run_type=run_type,
+            followup_data=followup_data,
         )
         ntf.send_message(msg)
         logger.info(f"2차 알림 전송 완료 (핵심 {len(core_candidates)}개 / 관심 {len(watch_candidates)}개)")

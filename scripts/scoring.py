@@ -56,6 +56,7 @@ def calc_score(
     news:       NewsData,
     in_intersection: bool = False,
     patterns:   dict | None = None,
+    is_leading_sector: bool = False,
 ) -> ScoreDetail:
     """
     ScoreDetail 계산.
@@ -92,6 +93,8 @@ def calc_score(
     # 보너스 점수
     if in_intersection:
         s.bonus_score += 2
+    if is_leading_sector:
+        s.bonus_score += 1
     if processed.volume_peak_60d:
         s.bonus_score += 1
     if processed.trading_value_peak_60d:

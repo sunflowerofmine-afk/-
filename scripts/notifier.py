@@ -173,16 +173,17 @@ def format_market_summary(market_totals: dict, run_time: str, run_type: str,
     kospi_tv  = market_totals.get("kospi_total_tv_eok", 0)
     kosdaq_tv = market_totals.get("kosdaq_total_tv_eok", 0)
 
-    ex             = extra or {}
-    tv1500         = ex.get("tv_1500_count", 0)
-    regime         = ex.get("market_regime", "")
-    market_subtype = ex.get("market_subtype", "")
-    market_adl     = ex.get("market_adl")
-    limit_up_n     = ex.get("limit_up_count", 0)
-    kospi_level    = ex.get("kospi_level")
-    kosdaq_level   = ex.get("kosdaq_level")
-    kospi_chg      = ex.get("kospi_chg")
-    kosdaq_chg     = ex.get("kosdaq_chg")
+    ex               = extra or {}
+    tv1500           = ex.get("tv_1500_count", 0)
+    regime           = ex.get("market_regime", "")
+    market_subtype   = ex.get("market_subtype", "")
+    market_adl       = ex.get("market_adl")
+    market_direction = ex.get("market_direction", "")
+    limit_up_n       = ex.get("limit_up_count", 0)
+    kospi_level      = ex.get("kospi_level")
+    kosdaq_level     = ex.get("kosdaq_level")
+    kospi_chg        = ex.get("kospi_chg")
+    kosdaq_chg       = ex.get("kosdaq_chg")
 
     _regime_map = {"강세": "🟢 강세", "약세": "🔴 약세", "중립": "⚪ 중립"}
     regime_str  = _regime_map.get(regime, regime)
@@ -212,6 +213,24 @@ def format_market_summary(market_totals: dict, run_time: str, run_type: str,
 
     limit_up_line = f"상한가 {limit_up_n}개\n" if limit_up_n > 0 else ""
 
+    _direction_map = {
+        "상승": "📈 상승",
+        "하락": "📉 하락",
+        "횡보": "➡ 횡보",
+    }
+    _timing_map = {
+        "상승": "3시 즉시 진입 가능",
+        "하락": "3시 30분 동시호가 후 신중 진입",
+        "횡보": "3시 10분 이후 방향 확인 후 진입",
+    }
+    direction_str = _direction_map.get(market_direction, "")
+    timing_str    = _timing_map.get(market_direction, "")
+
+    if run_type == "1차" and direction_str:
+        direction_line = f"[지수방향] {direction_str} → {timing_str}\n"
+    else:
+        direction_line = ""
+
     if run_type == "2차":
         checklist = "─" * 16 + "\n[원칙] NXT는 보조 / 추격금지 / 물타기금지\n"
     else:
@@ -222,6 +241,7 @@ def format_market_summary(market_totals: dict, run_time: str, run_type: str,
         f"코스피 {_idx(kospi_level, kospi_chg)} | 코스닥 {_idx(kosdaq_level, kosdaq_chg)}\n"
         f"거래대금: 코스피 {kospi_tv:,.0f}억 | 코스닥 {kosdaq_tv:,.0f}억\n"
         f"[시장] {regime_str}{adl_str}{subtype_str} | 1500억↑ {tv1500}개\n"
+        f"{direction_line}"
         f"{limit_up_line}"
         f"{pat_line}"
         f"{checklist}"
@@ -389,7 +409,12 @@ def _format_candidate_card(seq: int, c: dict) -> str:
         pattern_str = "패턴없음"
     sector         = c.get("sector", "")
     is_leading     = c.get("is_leading_sector", False)
-    sector_str     = f"[{sector}✓] | " if (sector and is_leading) else (f"[{sector}] | " if sector else "")
+    theme_role     = c.get("theme_role", "")
+    if sector and is_leading:
+        role_badge = f"·{theme_role}" if theme_role else ""
+        sector_str = f"[{sector}{role_badge}✓] | "
+    else:
+        sector_str = f"[{sector}] | " if sector else ""
 
     # ── Line 3: 재료 (LLM summary) ─────────────────────────
     llm_line = f"\n  {llm_text}" if llm_text else ""
@@ -434,6 +459,24 @@ def _format_candidate_card(seq: int, c: dict) -> str:
     )
 
 
+def format_limit_up_followup(followup_data: list) -> str:
+    """상한가 리더 기반 테마 후속 후보 섹션."""
+    if not followup_data:
+        return ""
+    lines = ["<b>[테마 후속 후보]</b>"]
+    for item in followup_data:
+        leader = f"{item['leader_name']}({item['leader_code']})"
+        sector = item.get("sector", "")
+        lines.append(f"  ▶ 리더: {leader} 상한가 [{sector}]")
+        for f in item["followups"][:3]:
+            chg = float(f.get("등락률", 0))
+            tv  = float(f.get("거래대금", 0))
+            lines.append(
+                f"    └ {f.get('종목명','')}({f.get('종목코드','')}) {_sign(chg)} {_tv_eok(tv)}"
+            )
+    return "\n".join(lines) + "\n"
+
+
 def format_watch_candidates(candidates: list[dict]) -> str:
     """관심 후보 — 1줄 요약 (장세 상한 초과 종목)."""
     if not candidates:
@@ -446,7 +489,13 @@ def format_watch_candidates(candidates: list[dict]) -> str:
         sign    = "+" if pct >= 0 else ""
         sector  = c.get("sector", "")
         is_lead = c.get("is_leading_sector", False)
-        sec_s   = f"[{sector}✓] " if (sector and is_lead) else (f"[{sector}] " if sector else "")
+        role    = c.get("theme_role", "")
+        if sector and is_lead and role:
+            sec_s = f"[{sector}·{role}✓] "
+        elif sector and is_lead:
+            sec_s = f"[{sector}✓] "
+        else:
+            sec_s = f"[{sector}] " if sector else ""
         lines.append(
             f"  • {c['name']}({c['code']}) "
             f"{sign}{pct:.1f}% | {tv/100_000_000:.0f}억 | {sec_s}{pat}"
@@ -527,6 +576,7 @@ def build_first_alert(
     market_summary_extra: dict | None = None,
     leading_sectors: list | None = None,
     watch_candidates: list = [],
+    followup_data: list | None = None,
 ) -> str:
     ex = market_summary_extra or {}
     pattern_counts = _count_by_pattern(list(key_candidates) + list(watch_candidates))
@@ -534,6 +584,7 @@ def build_first_alert(
         format_market_summary(market_totals, run_time, "1차", extra=ex,
                               leading_sectors=leading_sectors,
                               pattern_counts=pattern_counts),
+        format_limit_up_followup(followup_data or []),
     ]
     link_str = _format_dashboard_links(dashboard_links)
     if link_str:
@@ -554,6 +605,7 @@ def build_second_alert(
     leading_sectors: list | None = None,
     watch_candidates: list = [],
     run_type: str = "2차",
+    followup_data: list | None = None,
 ) -> str:
     ex = market_summary_extra or {}
     pattern_counts = _count_by_pattern(list(key_candidates) + list(watch_candidates))
@@ -561,6 +613,7 @@ def build_second_alert(
         format_market_summary(market_totals, run_time, run_type, extra=ex,
                               leading_sectors=leading_sectors,
                               pattern_counts=pattern_counts),
+        format_limit_up_followup(followup_data or []),
     ]
     link_str = _format_dashboard_links(dashboard_links)
     if link_str:
