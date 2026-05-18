@@ -1103,7 +1103,7 @@ def _section_cumulative_stats(stats: dict) -> str:
             )
         return rows
 
-    avg_head = "<tr><th>패턴</th><th>N</th><th>평균</th></tr>"
+    avg_head = "<tr><th>패턴</th><th>종목수</th><th>평균</th></tr>"
     html += (
         f'<div class="section-title">📈 멀티데이 수익률 통계</div>'
         f'<div style="display:flex;gap:24px;flex-wrap:wrap;margin-bottom:16px">'
@@ -1167,7 +1167,7 @@ def _section_cumulative_stats(stats: dict) -> str:
                 '<div style="flex:1;min-width:200px">'
                 '<div style="font-size:12px;color:var(--muted);margin-bottom:6px">교집합 성과 비교</div>'
                 '<div class="tbl-wrap"><table>'
-                "<thead><tr><th>구분</th><th>N</th><th>평균</th></tr></thead>"
+                "<thead><tr><th>구분</th><th>종목수</th><th>평균</th></tr></thead>"
                 f"<tbody>{ic_html}</tbody>"
                 "</table></div></div>"
             )
@@ -1207,7 +1207,7 @@ def _section_cumulative_stats(stats: dict) -> str:
                 rows += f"<tr><td>{_e(label)}</td>{_st_cell(grp.get(field))}</tr>"
             return rows
 
-        tbl_head = "<thead><tr><th>항목</th><th>N</th><th>평균</th><th>중앙</th><th>승률</th></tr></thead>"
+        tbl_head = "<thead><tr><th>항목</th><th>측정수</th><th>평균</th><th>중앙</th><th>승률</th></tr></thead>"
         inter_g  = ifs.get("inter",  {})
         ninter_g = ifs.get("ninter", {})
         html += (
@@ -1260,7 +1260,7 @@ def _section_cumulative_stats(stats: dict) -> str:
             '<div style="margin-bottom:16px">'
             '<div class="tbl-wrap"><table>'
             '<thead>'
-            '<tr><th rowspan="2">구간</th><th rowspan="2">N</th>'
+            '<tr><th rowspan="2">구간</th><th rowspan="2">종목수</th>'
             '<th colspan="3">D+1 시가</th>'
             '<th colspan="3">D+3 종가</th>'
             '<th colspan="3">MFE</th></tr>'
