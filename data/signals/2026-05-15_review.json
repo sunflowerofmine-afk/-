@@ -4,9 +4,9 @@
     "name": "두산로보틱스",
     "signal_price": 132100.0,
     "t1_open": 132100.0,
-    "t1_close": 118200.0,
+    "t1_close": 117900.0,
     "gap_pct": 0.0,
-    "hold_pct": -10.52,
+    "hold_pct": -10.75,
     "result": "성공",
     "fail_reason": null,
     "pattern_type": "당일돌파형",
@@ -19,7 +19,7 @@
     "base_high_gap_pct": NaN,
     "d1_open_pct": 0.0,
     "d1_high_pct": 0.0,
-    "d1_close_pct": -10.52,
+    "d1_close_pct": -10.75,
     "d2_high_pct": null,
     "d2_close_pct": null,
     "d3_high_pct": null,
@@ -34,18 +34,18 @@
     "final_result_type": null,
     "alive_pullback": false,
     "failed_structure": false,
-    "sector_still_active": null
+    "sector_still_active": false
   },
   {
     "code": "067310",
     "name": "하나마이크론",
     "signal_price": 52900.0,
     "t1_open": 51500.0,
-    "t1_close": 49550.0,
+    "t1_close": 48950.0,
     "gap_pct": -2.65,
-    "hold_pct": -6.33,
+    "hold_pct": -7.47,
     "result": "실패",
-    "fail_reason": "개별약세",
+    "fail_reason": "혼조",
     "pattern_type": "없음",
     "sector": "반도체와반도체장비",
     "total_score": 9,
@@ -56,7 +56,7 @@
     "base_high_gap_pct": NaN,
     "d1_open_pct": -2.65,
     "d1_high_pct": 1.13,
-    "d1_close_pct": -6.33,
+    "d1_close_pct": -7.47,
     "d2_high_pct": null,
     "d2_close_pct": null,
     "d3_high_pct": null,
@@ -71,6 +71,6 @@
     "final_result_type": null,
     "alive_pullback": false,
     "failed_structure": false,
-    "sector_still_active": null
+    "sector_still_active": false
   }
 ]
