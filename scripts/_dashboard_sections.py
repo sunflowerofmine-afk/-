@@ -497,6 +497,7 @@ def _section_watch_panel(watch_candidates: list, market_regime: str = "중립") 
             f'<td style="color:{_PATTERN_CARD_COLOR.get(pat_label,"#8b949e")};font-weight:600">{_e(pat_label)}</td>'
             f'<td class="{chg_cls}">{_sign(chg)}</td>'
             f"<td>{_tv_eok(tv)}</td>"
+            f'<td style="color:var(--blue);font-weight:700">{_score_val(c.get("score"))}점</td>'
             f'<td style="color:var(--muted);font-size:12px">{sector}</td>'
             f"</tr>"
         )
@@ -508,7 +509,7 @@ def _section_watch_panel(watch_candidates: list, market_regime: str = "중립") 
         f'(시장 {market_regime} → 핵심후보 상한 {max_n}개 초과분)</span>'
         f'</summary>\n'
         f'<div class="tbl-wrap"><table>'
-        f'<thead><tr><th>종목</th><th>등급</th><th>패턴</th><th>등락률</th><th>거래대금</th><th>섹터</th></tr></thead>'
+        f'<thead><tr><th>종목</th><th>등급</th><th>패턴</th><th>등락률</th><th>거래대금</th><th>점수</th><th>섹터</th></tr></thead>'
         f'<tbody>{rows_html}</tbody>'
         f'</table></div></details>'
     )
@@ -654,16 +655,17 @@ def _section_stock_panel(candidates: list, rejected: list, market_regime: str = 
         if prog_net is not None and prog_net > 0: tags.append("💹프로그램매수")
         tags_str = "  ".join(tags)
 
-        pri_html  = _status_badge_html(status)
+        pri_html   = _status_badge_html(status)
         pat_cls    = _PAT_CLS.get(pat_label, "")
         active_cls = " active" if idx == 0 else ""
+        score_str  = _score_val(c.get("score"))
 
         list_cards.append(f"""<div class="list-card {pat_cls}{active_cls}" data-idx="{idx}" onclick="renderDetail({idx})">
   <div class="lc-head">
     <div><span class="lc-name">{_e(c.get('name',''))}</span><span class="lc-code">{_e(c.get('code',''))}</span></div>
     {pri_html}
   </div>
-  <div class="lc-stats"><span class="{chg_cls}">{chg_str}</span> · {tv_str} · {_e(pat_str)}{'  ' + _e(tags_str) if tags_str else ''}</div>
+  <div class="lc-stats"><span class="{chg_cls}">{chg_str}</span> · {tv_str} · {_e(pat_str)} · <span style="color:var(--blue);font-weight:700">{score_str}점</span>{'  ' + _e(tags_str) if tags_str else ''}</div>
   <span class="lc-summary">{_e(summary)}</span>
 </div>""")
 
@@ -759,6 +761,7 @@ function renderDetail(idx) {{
   h += '<div class="detail-kv"><span class="k">등락률</span><span class="v ' + chgCls + '">' + c.chg_str + '</span></div>';
   h += '<div class="detail-kv"><span class="k">거래대금</span><span class="v">' + c.tv_str + '</span></div>';
   h += '<div class="detail-kv"><span class="k">패턴</span><span class="v">' + c.pat_str + '</span></div>';
+  h += '<div class="detail-kv"><span class="k">점수</span><span class="v" style="color:var(--blue);font-weight:700">' + c.score + '점</span></div>';
   h += '<div class="detail-kv"><span class="k">신호가</span><span class="v">' + c.entry_ref_str + (c.price_src ? ' <span style="color:var(--muted);font-size:11px">(' + c.price_src + ')</span>' : '') + '</span></div>';
   h += '</div></div>';
   h += '<div class="detail-section"><div class="detail-section-title">강점</div>' + strHtml + '</div>';
