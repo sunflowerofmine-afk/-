@@ -22,6 +22,7 @@ from config.settings import (
     PULLBACK_RESISTANCE_LOOKBACK_DAYS,
     PULLBACK_RESISTANCE_RECENT_DAYS,
     PULLBACK_RETEST_MARGIN_PCT,
+    HTC_BASE_LOOKBACK_DAYS,
     HTC_POST_AVG_TV_RATIO_MAX,
     HTC_TODAY_TV_RATIO_MAX,
     HTC_MIN_TODAY_TV_EOK,
@@ -454,7 +455,7 @@ def detect_patterns(
     p1 = is_base_today and tv_ok
 
     # ── 최근 1~3일 내 기준봉 탐지 ──────────────────────────
-    base_idx = _find_recent_big_candle(daily_df, start_idx=1, lookback=3)
+    base_idx = _find_recent_big_candle(daily_df, start_idx=1, lookback=HTC_BASE_LOOKBACK_DAYS)
 
     # ── 최근 3일 거래대금 흐름 (1일전 ~ 3일전) — 대시보드 표시용 ─
     tv_3d_flow = [

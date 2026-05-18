@@ -68,7 +68,7 @@ HIGH_RANGE_HOLD_DAYS                = 3
 STRUCTURE_BREAK_MAX_GAP_PCT         = 8.0   # 구조 붕괴 기준: 기준봉 고가 대비 -8% 초과
 INTRADAY_CLOSE_FROM_HIGH_MIN_PCT    = -5.0  # 당일 고가 대비 종가 최소값 (이격 초과 시 탈락)
 TV_RATIO_OK_MIN                     = 0.4   # 거래대금 ratio 정상 감소 기준 (기준봉 대비 40% 이상)
-TV_RATIO_WATCH_MIN                  = 0.2   # 당일돌파형 거래대금 ratio 최소값
+TV_RATIO_WATCH_MIN                  = 0.3   # 고가횡보형 거래대금 ratio 최소값
 TV_RATIO_P2P3_MIN                   = 0.05  # 고가횡보형/고가수축형 거래대금 ratio 최소값 (수축/횡보 = 적은 거래대금이 건강)
 BIG_CANDLE_CLOSE_FROM_HIGH_MIN_PCT       = -5.0  # 장대양봉 고가 대비 종가 최소값 (%)
 LOOSE_BIG_CANDLE_CLOSE_FROM_HIGH_MIN_PCT = -5.0  # 준장대양봉 고가 대비 종가 최소값 (%)
@@ -121,18 +121,18 @@ CANDIDATES_MAX_BEAR               = 2   # 약세 (전체하락형·혼조형)
 CANDIDATES_MAX_CONCENTRATED_BEAR  = 3   # 약세 + 자금집중형 (지수 강세 & ADL 약세)
 
 # ── 고가수축형(HTC) 패턴 파라미터 ─────────────────────────────
-HTC_BASE_LOOKBACK_DAYS                   = 3      # 기준봉 탐색 범위 (일)
+HTC_BASE_LOOKBACK_DAYS                   = 5      # 기준봉 탐색 범위 (일) — OBS pool 추적 5일과 일치
 HTC_POST_AVG_TV_RATIO_MAX                = 0.5    # 기준봉 이후 평균 거래대금 ≤ 기준봉 × 0.5
 HTC_TODAY_TV_RATIO_MAX                   = 0.4    # 오늘 거래대금 ≤ 기준봉 × 0.4
 HTC_MIN_TODAY_TV_EOK                     = 300    # 오늘 거래대금 최소값 (억)
 HTC_CLOSE_FROM_BASE_HIGH_MIN_PCT         = -5.0   # 오늘 종가 ≥ 기준봉 고가 × (1 - 5%)
-HTC_CLOSE_FROM_BASE_CLOSE_MIN_PCT        = -3.0   # 오늘 종가 ≥ 기준봉 종가 × (1 - 3%)
+HTC_CLOSE_FROM_BASE_CLOSE_MIN_PCT        = -5.0   # 오늘 종가 ≥ 기준봉 종가 × (1 - 5%)
 HTC_LOWEST_CLOSE_FROM_BASE_CLOSE_MIN_PCT = -5.0   # 기준봉 이후 최저 종가 ≥ 기준봉 종가 × (1 - 5%)
-HTC_RANGE_MAX_PCT                        = 8.0    # 기준봉 이후 고가~저가 변동폭 ≤ 8%
-HTC_CLOSE_RANGE_MAX_PCT                  = 5.0    # 기준봉 이후 종가 변동폭 ≤ 5%
+HTC_RANGE_MAX_PCT                        = 10.0   # 기준봉 이후 고가~저가 변동폭 ≤ 10%
+HTC_CLOSE_RANGE_MAX_PCT                  = 7.0    # 기준봉 이후 종가 변동폭 ≤ 7%
 HTC_STRUCTURE_BREAK_FROM_BASE_HIGH_PCT   = -8.0   # 중간 거래일 종가 기준봉 고가 대비 -8% 초과 시 구조 붕괴
 HTC_BREAKDOWN_CANDLE_CHANGE_MIN_PCT      = -5.0   # 구조붕괴 장대음봉 등락률 기준
-HTC_BREAKDOWN_CANDLE_TV_RATIO_MIN        = 0.3    # 구조붕괴 장대음봉 거래대금 기준 (기준봉 대비)
+HTC_BREAKDOWN_CANDLE_TV_RATIO_MIN        = 0.5    # 구조붕괴 장대음봉 거래대금 기준 (기준봉 대비)
 
 # ── 김형준 기법 (KH) 파라미터 ─────────────────────────────────
 KH_BASE_TV_EXPLOSION_MULT       = 3.0    # 기준봉 거래대금 폭발 배수 (이전 20일 평균 대비). 표본 부족 시 2.5→2.0으로 완화 검토.
