@@ -22,6 +22,7 @@ from config.settings import (
     MARKET_REGIME_BULL_ADL, MARKET_REGIME_BEAR_ADL, MARKET_REGIME_BULL_TV1500,
     CANDIDATES_MAX_BULL, CANDIDATES_MAX_NEUTRAL, CANDIDATES_MAX_BEAR, CANDIDATES_MAX_CONCENTRATED_BEAR,
     KH_CRAWL_MIN_TV_EOK,
+    OBS_CRAWL_MIN_TV_EOK,
     INTRADAY_CLOSE_FROM_HIGH_MIN_PCT,
 )
 from scripts.market_calendar import get_now_kst, is_trading_day, get_run_type
@@ -926,7 +927,7 @@ def run(preview: bool = False):
     obs_candidates: list[dict] = []
     if run_type != "1차":
         _all_crawled = set(crawl_codes) | set(kh_extra_codes)
-        _OBS_MIN_TV_WON = KH_CRAWL_MIN_TV_EOK * 100_000_000
+        _OBS_MIN_TV_WON = OBS_CRAWL_MIN_TV_EOK * 100_000_000
         _obs_code_map = _build_recent_base_pool(
             signals_dir=SIGNALS_DIR,
             run_date=report_date,

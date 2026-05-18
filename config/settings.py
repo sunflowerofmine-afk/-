@@ -142,6 +142,7 @@ KH_CLOSE_FROM_BASE_HIGH_MIN_PCT = -5.0   # 오늘 종가 ≥ 기준봉 고가 ×
 KH_BASE_LOOKBACK_DAYS           = 3      # 기준봉 탐색 범위 (거래일). _find_recent_big_candle lookback과 일치.
 KH_VOLUME_UP_BEARISH_RATIO      = 0.7    # 거래량 증가 음봉 판정 기준 (기준봉 대비 비율)
 KH_CRAWL_MIN_TV_EOK             = 300    # KH 전용 크롤링 최소 거래대금 (억원, B안)
+OBS_CRAWL_MIN_TV_EOK            = 100    # 기준봉 관찰 풀(recent_base_pool) 최소 거래대금 (억원)
 
 # ── 매매 분석 (trade_analyzer) ──────────────────────────────
 TRADE_ANALYZER_BASE_CAPITAL             = 0      # 포지션 비중 산정 기준 자본 (0=해당 기간 총 매수대금)
