@@ -695,6 +695,11 @@ def _section_stock_panel(candidates: list, rejected: list, market_regime: str = 
             "status":       status,
             "llm_summary":  llm_summary,
             "score":        _score_val(c.get("score")),
+            "score_news":   getattr(c.get("score"), "news_score",          "-"),
+            "score_tv":     getattr(c.get("score"), "trading_value_score", "-"),
+            "score_candle": getattr(c.get("score"), "candle_score",        "-"),
+            "score_supply": getattr(c.get("score"), "supply_score",        "-"),
+            "score_bonus":  getattr(c.get("score"), "bonus_score",         "-"),
             "tv_ratio":     f"{pat.get('tv_ratio'):.2f}" if pat.get("tv_ratio") is not None else "-",
             "inst_str":     f"{sup_inst/1e8:+.0f}억" if sup_inst is not None else "-",
             "frgn_str":     f"{sup_frgn/1e8:+.0f}억" if sup_frgn is not None else "-",
@@ -761,7 +766,7 @@ function renderDetail(idx) {{
   h += '<div class="detail-kv"><span class="k">등락률</span><span class="v ' + chgCls + '">' + c.chg_str + '</span></div>';
   h += '<div class="detail-kv"><span class="k">거래대금</span><span class="v">' + c.tv_str + '</span></div>';
   h += '<div class="detail-kv"><span class="k">패턴</span><span class="v">' + c.pat_str + '</span></div>';
-  h += '<div class="detail-kv"><span class="k">점수</span><span class="v" style="color:var(--blue);font-weight:700">' + c.score + '점</span></div>';
+  h += '<div class="detail-kv"><span class="k">점수</span><span class="v" style="color:var(--blue);font-weight:700">' + c.score + '점</span><div style="font-size:11px;color:var(--muted);margin-top:2px">뉴스 ' + c.score_news + ' · 대금 ' + c.score_tv + ' · 캔들 ' + c.score_candle + ' · 수급 ' + c.score_supply + ' · 보너스 ' + c.score_bonus + '</div></div>';
   h += '<div class="detail-kv"><span class="k">신호가</span><span class="v">' + c.entry_ref_str + (c.price_src ? ' <span style="color:var(--muted);font-size:11px">(' + c.price_src + ')</span>' : '') + '</span></div>';
   h += '</div></div>';
   h += '<div class="detail-section"><div class="detail-section-title">강점</div>' + strHtml + '</div>';
