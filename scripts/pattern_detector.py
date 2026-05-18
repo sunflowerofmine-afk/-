@@ -65,8 +65,8 @@ def _find_recent_big_candle(daily_df: pd.DataFrame, start_idx: int, lookback: in
                 high=float(row.get("high", 0) or 0),
                 low=float(row.get("low", 0) or 0),
                 close=float(row.get("close", 0) or 0),
-                change_pct=float(row.get("change", 0) or 0),
-                trading_value=base_tv if base_tv > 0 else MIN_TV_WON,
+                change_pct=float(row.get("change_pct", row.get("change", 0)) or 0),
+                trading_value=MIN_TV_WON,  # 형태만 판단; TV 품질은 MULT 조건으로 검증
             )
             if bc["big_candle"] or bc["loose_big_candle"]:
                 past = daily_df.iloc[i + 1 : i + 21]["trading_value"].replace(0, float("nan"))

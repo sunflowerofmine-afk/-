@@ -85,4 +85,8 @@ def fetch_daily_history(code: str, pages: int = 7) -> pd.DataFrame:
     # 네이버 sise_day에는 거래대금 컬럼이 없으므로 close×volume으로 근사
     df["trading_value"] = df["close"] * df["volume"]
 
+    # change(전일비)는 ▲/▼ 기호로 NaN이 됨 — close 기반 등락률 직접 계산
+    # 내림차순 정렬이므로 pct_change(-1) = (today - yesterday) / yesterday
+    df["change_pct"] = df["close"].pct_change(-1) * 100
+
     return df
