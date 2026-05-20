@@ -20,6 +20,7 @@ from config.settings import (
     ENABLE_SECTOR_FETCH, SECTOR_TOP_N,
     ENABLE_NXT_FETCH,
     ENABLE_DART_FETCH,
+    ENABLE_SHORT_BALANCE,
     MARKET_REGIME_BULL_ADL, MARKET_REGIME_BEAR_ADL, MARKET_REGIME_BULL_TV1500,
     CANDIDATES_MAX_BULL, CANDIDATES_MAX_NEUTRAL, CANDIDATES_MAX_BEAR, CANDIDATES_MAX_CONCENTRATED_BEAR,
     KH_CRAWL_MIN_TV_EOK,
@@ -1123,6 +1124,18 @@ def run(preview: bool = False):
     # dart_data를 각 후보 dict에 주입
     for c in key_candidates:
         c["dart_notices"] = dart_data.get(c["code"], [])
+
+    # ── 공매도 잔고 수집 (2차/수동, pykrx T+2) ──────────────────────────
+    if run_type != "1차" and ENABLE_SHORT_BALANCE:
+        try:
+            from scripts.fetch_short_balance import fetch_short_balance_bulk
+            short_bulk = fetch_short_balance_bulk()
+            for c in key_candidates:
+                sb = short_bulk.get(c["code"], {})
+                c["short_ratio"] = sb.get("ratio")  # 공매도 잔고율 (%)
+                c["short_qty"]   = sb.get("qty")    # 공매도 잔고 수량
+        except Exception as e:
+            logger.warning(f"공매도 잔고 수집 실패 (무시): {e}")
 
     # ── daily_summary.json 저장 (복기 대시보드 크로스레퍼런스용) ────────────
     import json as _json_daily

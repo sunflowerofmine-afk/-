@@ -467,9 +467,16 @@ def _format_candidate_card(seq: int, c: dict) -> str:
     dart_notices = c.get("dart_notices", [])
     dart_line = ""
     if dart_notices:
-        dart_line = "\n  " + "\n  ".join(dart_notices[:3])  # 최대 3건
-    elif c.get("dart_notices") is not None:  # 조회는 됐으나 공시 없음
+        dart_line = "\n  " + "\n  ".join(dart_notices[:3])
+    elif c.get("dart_notices") is not None:
         dart_line = "\n  📋 공시: 없음"
+
+    # ── Line 7: 공매도 잔고 ────────────────────────────────
+    short_ratio = c.get("short_ratio")
+    short_line  = ""
+    if short_ratio is not None:
+        flag = " ⚠" if short_ratio >= 5 else ""
+        short_line = f"\n  공매도잔고(T+2): {short_ratio:.2f}%{flag}"
 
     return (
         f"\n{seq}) <b>{c.get('name','')}({c.get('code','')})</b>"
@@ -480,6 +487,7 @@ def _format_candidate_card(seq: int, c: dict) -> str:
         f"{supply_line}"
         f"{checklist_line}"
         f"{dart_line}"
+        f"{short_line}"
     )
 
 

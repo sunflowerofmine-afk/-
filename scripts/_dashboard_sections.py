@@ -807,6 +807,18 @@ def _section_summary_cards(data: dict) -> str:
     return f'<div class="summary-grid">{items}</div>'
 
 
+def _short_html(c: dict) -> str:
+    """공매도 잔고율 행 — 없으면 빈 문자열"""
+    ratio = c.get("short_ratio")
+    if ratio is None:
+        return ""
+    cls = "val neg" if ratio >= 5 else "val warn" if ratio >= 2 else "val"
+    return (
+        f'<div class="card-row"><span class="lbl">공매도 잔고율(T+2)</span>'
+        f'<span class="{cls}">{ratio:.2f}%</span></div>'
+    )
+
+
 def _dart_html(c: dict) -> str:
     """DART 공시 섹션 HTML — 없으면 빈 문자열"""
     notices = c.get("dart_notices")
@@ -948,6 +960,7 @@ def _candidate_card_html(c: dict) -> str:
       <span class="val">{inst_str if sup_ok else '확인불가'}</span></div>
     <div class="card-row"><span class="lbl">외국인 순매수</span>
       <span class="val">{frgn_str if sup_ok else '확인불가'}</span></div>
+    {_short_html(c)}
     <div style="margin-top:8px;">{news_html}{llm_html}</div>
     {_dart_html(c)}
   </div>

@@ -97,7 +97,11 @@ def fetch_investor_breakdown(code: str, date_str: str | None = None) -> dict:
             logger.debug(f"[{code}] KIS investor API 응답 오류: {data.get('msg1', '')}")
             return {}
 
-        row = data.get("output")
+        outputs = data.get("output") or []
+        if isinstance(outputs, list):
+            row = outputs[0] if outputs else None
+        else:
+            row = outputs  # dict로 온 경우 그대로 사용
         if not row:
             return {}
 

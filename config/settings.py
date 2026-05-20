@@ -123,6 +123,7 @@ ENABLE_DART_FETCH                   = True   # 2차/수동 실행 시 후보 종
 KIS_APP_KEY                         = os.getenv("KIS_APP_KEY", "")
 KIS_APP_SECRET                      = os.getenv("KIS_APP_SECRET", "")
 ENABLE_KIS_INVESTOR                 = True   # 연기금/투신/사모 세분화 조회
+ENABLE_SHORT_BALANCE                = True   # 공매도 잔고 추적 (pykrx, T+2)
 
 # ── 장세별 핵심 후보 상한선 ──────────────────────────────────
 CANDIDATES_MAX_BULL               = 5   # 강세
