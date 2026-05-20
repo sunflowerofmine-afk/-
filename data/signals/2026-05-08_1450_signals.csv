@@ -1,4 +1,0 @@
-﻿종목명,종목코드,시장,등락률,거래대금,signal_price,sector,패턴,pattern_type_label,base_candle_offset,base_high_gap_pct,tv_ratio,status_summary,total_score,checklist_pass,in_inter,supply_label,run_time,run_type
-현대무벡스,319400,KOSDAQ,19.35,672092864000.0,37000.0,로봇(산업용/협동로봇 등),없음,없음,,,,약화,9,2,True,기관매수,2026-05-08 14:50,1차
-레인보우로보틱스,277810,KOSDAQ,11.48,528443139000.0,777000.0,로봇(산업용/협동로봇 등),당일돌파형,당일돌파형,0.0,,,고가 유지,8,3,False,기관매수,2026-05-08 14:50,1차
-대한전선,001440,KOSPI,15.91,1323312125600.0,74300.0,전선,당일돌파형,당일돌파형,0.0,,,고가 유지,7,4,False,혼조,2026-05-08 14:50,1차
