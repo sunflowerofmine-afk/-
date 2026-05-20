@@ -35,11 +35,6 @@ class SupplyData:
     supply_label:       str = ""                 # 쌍매수/기관매수/외인매수/혼조/확인불가
     status:             str = "failed"           # "ok" / "failed"
     supply_date:        Optional[str]  = None    # 수급 기준 날짜 (YYYY.MM.DD)
-    # 투자자 유형 세분화 (원 단위, 당일)
-    pension_net:        Optional[float] = None   # 연기금
-    invest_trust_net:   Optional[float] = None   # 투신 (투자신탁/펀드)
-    private_fund_net:   Optional[float] = None   # 사모펀드
-    fin_invest_net:     Optional[float] = None   # 금융투자 (증권사 자기매매)
 
 
 @dataclass

@@ -131,16 +131,6 @@ def _supply_str(supply) -> str:
     label_s = f"[{label}] " if label else ""
     base    = f"{label_s}{inst_s} / {frgn_s}{date_s}"
 
-    # 투자자 유형 세분화 (있을 때만)
-    if isinstance(supply, SupplyData):
-        parts = []
-        def _eok(v): return f"{v/100_000_000:+.0f}억" if v is not None else None
-        if supply.pension_net is not None:      parts.append(f"연기금{_eok(supply.pension_net)}")
-        if supply.invest_trust_net is not None: parts.append(f"투신{_eok(supply.invest_trust_net)}")
-        if supply.private_fund_net is not None: parts.append(f"사모{_eok(supply.private_fund_net)}")
-        if parts:
-            base += f"\n     └ {' / '.join(parts)}"
-
     return base
 
 

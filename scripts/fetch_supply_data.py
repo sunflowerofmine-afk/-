@@ -91,26 +91,4 @@ def fetch_supply(code: str) -> SupplyData:
     except Exception as e:
         logger.warning(f"[{code}] 수급 수집 실패: {e}")
 
-    # 투자자 유형 세분화 (성공 여부와 무관하게 시도, 실패 시 무시)
-    if result.status == "ok":
-        _fetch_investor_breakdown(code, result)
-
     return result
-
-
-def _fetch_investor_breakdown(code: str, supply: SupplyData) -> None:
-    """KIS OpenAPI로 연기금/투신/사모/금융투자 세분화 수집."""
-    try:
-        from config.settings import ENABLE_KIS_INVESTOR
-        if not ENABLE_KIS_INVESTOR:
-            return
-        from scripts.fetch_kis_investor import fetch_investor_breakdown
-        breakdown = fetch_investor_breakdown(code)
-        if not breakdown:
-            return
-        supply.pension_net      = breakdown.get("pension_net")
-        supply.invest_trust_net = breakdown.get("invest_trust_net")
-        supply.private_fund_net = breakdown.get("private_fund_net")
-        supply.fin_invest_net   = breakdown.get("fin_invest_net")
-    except Exception as e:
-        logger.debug(f"[{code}] 투자자 세분화 조회 실패 (무시): {e}")
