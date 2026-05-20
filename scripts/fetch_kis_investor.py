@@ -24,6 +24,9 @@ _TOKEN_URL     = f"{_KIS_BASE}/oauth2/tokenP"
 _INVESTOR_URL  = f"{_KIS_BASE}/uapi/domestic-stock/v1/quotations/inquire-investor"
 
 _cached_token: dict = {"token": "", "expires_at": 0.0}
+_circuit: dict = {"failures": 0, "disabled_until": 0.0}  # 연속 실패 시 일시 비활성화
+_CIRCUIT_THRESHOLD = 3   # 연속 N회 실패 시 차단
+_CIRCUIT_COOLDOWN  = 300 # 5분간 비활성화
 
 
 def _get_access_token() -> str:
@@ -39,7 +42,7 @@ def _get_access_token() -> str:
             "appkey":     KIS_APP_KEY,
             "appsecret":  KIS_APP_SECRET,
         },
-        timeout=10,
+        timeout=5,
     )
     resp.raise_for_status()
     data = resp.json()
@@ -66,6 +69,12 @@ def fetch_investor_breakdown(code: str, date_str: str | None = None) -> dict:
     if not KIS_APP_KEY or not KIS_APP_SECRET:
         return {}
 
+    # 회로차단기 — 연속 실패 시 5분간 건너뜀
+    now_ts = time.time()
+    if _circuit["failures"] >= _CIRCUIT_THRESHOLD and now_ts < _circuit["disabled_until"]:
+        logger.debug(f"[{code}] KIS circuit open — 건너뜀 ({int(_circuit['disabled_until']-now_ts)}초 남음)")
+        return {}
+
     today = date_str or datetime.now().strftime("%Y%m%d")
 
     try:
@@ -80,7 +89,7 @@ def fetch_investor_breakdown(code: str, date_str: str | None = None) -> dict:
             "FID_COND_MRKT_DIV_CODE": "J",
             "FID_INPUT_ISCD":         code,
         }
-        resp = requests.get(_INVESTOR_URL, headers=headers, params=params, timeout=10)
+        resp = requests.get(_INVESTOR_URL, headers=headers, params=params, timeout=5)
         resp.raise_for_status()
         data = resp.json()
 
@@ -106,6 +115,7 @@ def fetch_investor_breakdown(code: str, date_str: str | None = None) -> dict:
             "private_fund_net": _v("samo_fund_ntby_qty"),    # 사모펀드
             "fin_invest_net":   _v("fnnc_invt_ntby_qty"),    # 금융투자
         }
+        _circuit["failures"] = 0  # 성공 시 초기화
         logger.info(
             f"[{code}] KIS 투자자 세분화 — "
             f"연기금:{result['pension_net']} 투신:{result['invest_trust_net']} "
@@ -114,5 +124,10 @@ def fetch_investor_breakdown(code: str, date_str: str | None = None) -> dict:
         return result
 
     except Exception as e:
-        logger.warning(f"[{code}] KIS investor 조회 실패: {e}")
+        _circuit["failures"] += 1
+        if _circuit["failures"] >= _CIRCUIT_THRESHOLD:
+            _circuit["disabled_until"] = time.time() + _CIRCUIT_COOLDOWN
+            logger.warning(f"KIS investor 연속 {_circuit['failures']}회 실패 — 5분간 비활성화: {e}")
+        else:
+            logger.warning(f"[{code}] KIS investor 조회 실패 ({_circuit['failures']}/{_CIRCUIT_THRESHOLD}): {e}")
         return {}
