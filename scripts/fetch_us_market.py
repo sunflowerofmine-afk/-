@@ -21,8 +21,8 @@ _SYMBOLS = {
 }
 
 _RSS_URLS = [
-    "https://feeds.marketwatch.com/marketwatch/topstories/",
     "https://www.cnbc.com/id/100003114/device/rss/rss.html",
+    "https://feeds.marketwatch.com/marketwatch/topstories/",
 ]
 
 
