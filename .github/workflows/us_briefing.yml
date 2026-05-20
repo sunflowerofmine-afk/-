@@ -1,0 +1,30 @@
+name: US Market Briefing
+
+on:
+  schedule:
+    - cron: "50 22 * * 0-4"  # 07:50 KST 월-금 (UTC 기준 전일 22:50)
+  workflow_dispatch:
+
+jobs:
+  briefing:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run US briefing
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_CHAT_ID_2: ${{ secrets.TELEGRAM_CHAT_ID_2 }}
+          TELEGRAM_CHAT_ID_3: ${{ secrets.TELEGRAM_CHAT_ID_3 }}
+          GEMINI_API_KEY:     ${{ secrets.GEMINI_API_KEY }}
+          TZ: Asia/Seoul
+        run: python -m scripts.us_briefing

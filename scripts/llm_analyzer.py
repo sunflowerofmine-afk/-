@@ -156,3 +156,48 @@ def analyze_news(
     if line:
         logger.info(f"[{code}] LLM 완료: {line}")
     return line
+
+
+def summarize_us_market(indices: dict, headlines: list[str]) -> str:
+    """미국 지수 + 뉴스 헤드라인 → 2~3줄 한국어 브리핑 요약."""
+    client = _get_client()
+    if not client:
+        return "[요약 불가 - Gemini 미설정]"
+
+    idx_text = ", ".join(
+        f"{name} {d['chg_pct']:+.2f}%"
+        for name, d in indices.items()
+        if d.get("chg_pct") is not None
+    )
+    news_text = "\n".join(f"- {h}" for h in headlines) if headlines else "(뉴스 없음)"
+
+    prompt = f"""당신은 한국 주식 단기 매매 전문가입니다.
+아래 전일 미국 시장 데이터를 보고 오늘 한국 장 시가 대응에 필요한 핵심만 한국어로 요약하세요.
+
+지수: {idx_text}
+
+주요 뉴스:
+{news_text}
+
+출력 형식 (정확히 아래 형식 준수):
+[요약] (핵심 이슈 1~2문장)
+→ (한국 시장 시가 영향 한 줄)
+
+규칙:
+- 불확실한 예측 금지, 사실 기반으로만 작성
+- 전체 3줄 이내"""
+
+    try:
+        from google.genai import types as _gtypes
+        resp = client.models.generate_content(
+            model=GEMINI_MODEL,
+            contents=prompt,
+            config=_gtypes.GenerateContentConfig(
+                temperature=0.3,
+                thinking_config=_gtypes.ThinkingConfig(thinking_budget=0),
+            ),
+        )
+        return resp.text.strip()
+    except Exception as e:
+        logger.warning(f"미국장 요약 실패: {e}")
+        return "[요약] " + " / ".join(headlines[:2]) if headlines else "[요약 실패]"
