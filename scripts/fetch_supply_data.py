@@ -15,7 +15,8 @@ from scripts.models import SupplyData
 
 logger = logging.getLogger(__name__)
 
-FRGN_URL = "https://finance.naver.com/item/frgn.naver"
+FRGN_URL     = "https://finance.naver.com/item/frgn.naver"
+INVESTOR_URL = "https://finance.naver.com/item/sise_investor.naver"
 
 
 def _parse_shares(text: str) -> float | None:
@@ -90,4 +91,20 @@ def fetch_supply(code: str) -> SupplyData:
     except Exception as e:
         logger.warning(f"[{code}] 수급 수집 실패: {e}")
 
+    # 투자자 유형 세분화 (성공 여부와 무관하게 시도, 실패 시 무시)
+    if result.status == "ok":
+        _fetch_investor_breakdown(code, result)
+
     return result
+
+
+def _fetch_investor_breakdown(code: str, supply: SupplyData) -> None:
+    """
+    연기금/투신/사모/금융투자 세분화 수집.
+    현재 네이버 sise_investor 페이지가 404 처리되어 데이터 소스 미확보.
+    모델 필드(pension_net/invest_trust_net/private_fund_net/fin_invest_net)는
+    준비 완료 — 데이터 소스 확보 시 여기에 구현할 것.
+    """
+    # TODO: 데이터 소스 확보 후 구현
+    # 후보 소스: KRX OpenAPI(인증 필요), 증권사 API, 유료 데이터
+    logger.debug(f"[{code}] 투자자 유형 세분화: 데이터 소스 미확보 (기관/외국인 합계만 사용)")
