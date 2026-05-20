@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 _KIS_BASE      = "https://openapi.koreainvestment.com:9443"
 _TOKEN_URL     = f"{_KIS_BASE}/oauth2/tokenP"
-_INVESTOR_URL  = f"{_KIS_BASE}/uapi/domestic-stock/v1/quotations/investor"
+_INVESTOR_URL  = f"{_KIS_BASE}/uapi/domestic-stock/v1/quotations/inquire-investor"
 
 _cached_token: dict = {"token": "", "expires_at": 0.0}
 
@@ -74,14 +74,11 @@ def fetch_investor_breakdown(code: str, date_str: str | None = None) -> dict:
             "authorization": f"Bearer {token}",
             "appkey":        KIS_APP_KEY,
             "appsecret":     KIS_APP_SECRET,
-            "tr_id":         "FHKST130040C0",
+            "tr_id":         "FHKST01010300",
         }
         params = {
             "FID_COND_MRKT_DIV_CODE": "J",
             "FID_INPUT_ISCD":         code,
-            "FID_INPUT_DATE_1":       today,
-            "FID_INPUT_DATE_2":       today,
-            "FID_PERIOD_DIV_CODE":    "D",
         }
         resp = requests.get(_INVESTOR_URL, headers=headers, params=params, timeout=10)
         resp.raise_for_status()
@@ -91,11 +88,9 @@ def fetch_investor_breakdown(code: str, date_str: str | None = None) -> dict:
             logger.debug(f"[{code}] KIS investor API 응답 오류: {data.get('msg1', '')}")
             return {}
 
-        rows = data.get("output2") or []
-        if not rows:
+        row = data.get("output")
+        if not row:
             return {}
-
-        row = rows[0]  # 최신 1거래일
 
         def _v(key: str) -> float | None:
             val = row.get(key, "")
@@ -106,10 +101,10 @@ def fetch_investor_breakdown(code: str, date_str: str | None = None) -> dict:
                 return None
 
         result = {
-            "pension_net":      _v("pnsn_fund_ntby_vol"),   # 연기금
-            "invest_trust_net": _v("mrbn_ntby_vol"),         # 투신
-            "private_fund_net": _v("samo_fund_ntby_vol"),    # 사모펀드
-            "fin_invest_net":   _v("fnnc_invt_ntby_vol"),    # 금융투자
+            "pension_net":      _v("pnsn_fund_ntby_qty"),   # 연기금
+            "invest_trust_net": _v("mrbn_ntby_qty"),         # 투신
+            "private_fund_net": _v("samo_fund_ntby_qty"),    # 사모펀드
+            "fin_invest_net":   _v("fnnc_invt_ntby_qty"),    # 금융투자
         }
         logger.info(
             f"[{code}] KIS 투자자 세분화 — "
