@@ -1107,7 +1107,7 @@ def _section_cumulative_stats(stats: dict) -> str:
     html += (
         f'<div class="section-title">📈 멀티데이 수익률 통계</div>'
         f'<div style="display:flex;gap:24px;flex-wrap:wrap;margin-bottom:16px">'
-        f'{_tbl(f"D+1 시가 평균 ({d1c}개)", md.get("d1_open_by_pattern", {}), avg_head, _avg_rows)}'
+        f'{_tbl(f"D+1 시가 평균 ({d1c}개) ★09:30 이전 매도 기준", md.get("d1_open_by_pattern", {}), avg_head, _avg_rows)}'
         f'{_tbl(f"D+3 고가 평균 ({d3c}개)", md.get("d3_mfe_by_pattern",  {}), avg_head, _avg_rows)}'
         f'{_tbl(f"D+5 MFE 평균 ({d5c}개)",  md.get("d5_mfe_by_pattern",  {}), avg_head, _avg_rows)}'
         f"</div>"
