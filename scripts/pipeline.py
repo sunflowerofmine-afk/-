@@ -1109,9 +1109,9 @@ def run(preview: bool = False):
         except Exception as e:
             logger.warning(f"LLM 분석 전체 실패 (무시): {e}")
 
-    # ── DART 공시 수집 (2차/수동 실행 시) ─────────────────────────
+    # ── DART 공시 수집 (1차/2차/수동 모두 실행) ─────────────────────
     dart_data: dict[str, list[str]] = {}
-    if run_type in ("2차", "수동") and ENABLE_DART_FETCH:
+    if ENABLE_DART_FETCH:
         try:
             from scripts.fetch_dart import fetch_dart_for_candidates
             _dart_codes = [c["code"] for c in key_candidates]

@@ -157,6 +157,7 @@ body {
 .badge.ng { background: var(--red-bg);    color: var(--red); }
 .badge.na { background: var(--bg3);       color: var(--muted); }
 .badge.inter { background: transparent; color: var(--muted); border: 1px solid var(--border); font-size: 10px; font-weight: 400; }
+.badge.nxt { background: #1a3a5c; color: #58a6ff; border: 1px solid #58a6ff; font-size: 10px; font-weight: 600; }
 
 /* ── 테이블 ── */
 .tbl-wrap { overflow-x: auto; margin-bottom: 8px; }

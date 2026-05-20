@@ -807,6 +807,20 @@ def _section_summary_cards(data: dict) -> str:
     return f'<div class="summary-grid">{items}</div>'
 
 
+def _dart_html(c: dict) -> str:
+    """DART 공시 섹션 HTML — 없으면 빈 문자열"""
+    notices = c.get("dart_notices")
+    if notices is None:          # 조회 안 된 상태 (1차 등)
+        return ""
+    if not notices:              # 조회됐으나 공시 없음
+        return '<div style="margin-top:6px;font-size:11px;color:var(--muted)">📋 공시: 없음</div>'
+    rows = "".join(
+        f'<div style="font-size:11px;padding:2px 0">📋 {_e(n)}</div>'
+        for n in notices[:3]
+    )
+    return f'<div style="margin-top:6px;padding:6px 8px;background:var(--bg3);border-radius:4px">{rows}</div>'
+
+
 def _candidate_card_html(c: dict) -> str:
     ind  = c.get("indicators", {})
     pat  = c.get("patterns",   {})
@@ -836,6 +850,7 @@ def _candidate_card_html(c: dict) -> str:
     elif has_pat: card_cls += " has-pattern"
 
     inter_badge = '<span class="badge inter">교집합</span> ' if in_inter else ""
+    nxt_badge   = '<span class="badge nxt">🔵NXT</span> ' if c.get("is_nxt") else ""
 
     chg_cls  = "val pos" if chg >= 0 else "val neg"
     inst_str = _net_str(sup.get("institution_net"))
@@ -896,7 +911,7 @@ def _candidate_card_html(c: dict) -> str:
 <div class="{card_cls}" style="border-top: 3px solid {card_color}">
   <div class="card-head">
     <div>
-      <div class="name">{inter_badge}{_e(c.get('name',''))}</div>
+      <div class="name">{inter_badge}{nxt_badge}{_e(c.get('name',''))}</div>
       <div class="code">{_e(c.get('code',''))} &middot; {_e(c.get('market',''))}</div>
     </div>
     <div class="score-badge">점수 {_e(score)}</div>
@@ -934,6 +949,7 @@ def _candidate_card_html(c: dict) -> str:
     <div class="card-row"><span class="lbl">외국인 순매수</span>
       <span class="val">{frgn_str if sup_ok else '확인불가'}</span></div>
     <div style="margin-top:8px;">{news_html}{llm_html}</div>
+    {_dart_html(c)}
   </div>
 </div>"""
 
