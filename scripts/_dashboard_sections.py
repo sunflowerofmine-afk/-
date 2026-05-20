@@ -819,6 +819,19 @@ def _short_html(c: dict) -> str:
     )
 
 
+def _pension_html(c: dict) -> str:
+    """연기금 순매수 행 — 없으면 빈 문자열"""
+    net = c.get("pension_net")
+    if net is None:
+        return ""
+    eok = net / 1e8
+    cls = "val pos" if eok > 0 else "val neg"
+    return (
+        f'<div class="card-row"><span class="lbl">연기금 순매수(T-1)</span>'
+        f'<span class="{cls}">{eok:+.0f}억</span></div>'
+    )
+
+
 def _dart_html(c: dict) -> str:
     """DART 공시 섹션 HTML — 없으면 빈 문자열"""
     notices = c.get("dart_notices")
@@ -961,6 +974,7 @@ def _candidate_card_html(c: dict) -> str:
     <div class="card-row"><span class="lbl">외국인 순매수</span>
       <span class="val">{frgn_str if sup_ok else '확인불가'}</span></div>
     {_short_html(c)}
+    {_pension_html(c)}
     <div style="margin-top:8px;">{news_html}{llm_html}</div>
     {_dart_html(c)}
   </div>

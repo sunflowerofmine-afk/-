@@ -21,6 +21,7 @@ from config.settings import (
     ENABLE_NXT_FETCH,
     ENABLE_DART_FETCH,
     ENABLE_SHORT_BALANCE,
+    ENABLE_PENSION_FETCH,
     MARKET_REGIME_BULL_ADL, MARKET_REGIME_BEAR_ADL, MARKET_REGIME_BULL_TV1500,
     CANDIDATES_MAX_BULL, CANDIDATES_MAX_NEUTRAL, CANDIDATES_MAX_BEAR, CANDIDATES_MAX_CONCENTRATED_BEAR,
     KH_CRAWL_MIN_TV_EOK,
@@ -1136,6 +1137,16 @@ def run(preview: bool = False):
                 c["short_qty"]   = sb.get("qty")    # 공매도 잔고 수량
         except Exception as e:
             logger.warning(f"공매도 잔고 수집 실패 (무시): {e}")
+
+    # ── 연기금 순매수 수집 (pykrx T-1, 1차/2차 공통) ─────────────────────
+    if ENABLE_PENSION_FETCH:
+        try:
+            from scripts.fetch_pension_data import fetch_pension_bulk
+            pension_bulk = fetch_pension_bulk()
+            for c in key_candidates:
+                c["pension_net"] = pension_bulk.get(c["code"])  # None이면 데이터 없음
+        except Exception as e:
+            logger.warning(f"연기금 순매수 수집 실패 (무시): {e}")
 
     # ── daily_summary.json 저장 (복기 대시보드 크로스레퍼런스용) ────────────
     import json as _json_daily

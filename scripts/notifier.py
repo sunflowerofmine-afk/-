@@ -468,6 +468,14 @@ def _format_candidate_card(seq: int, c: dict) -> str:
         flag = " ⚠" if short_ratio >= 5 else ""
         short_line = f"\n  공매도잔고(T+2): {short_ratio:.2f}%{flag}"
 
+    # ── Line 8: 연기금 순매수 ──────────────────────────────
+    pension_net  = c.get("pension_net")
+    pension_line = ""
+    if pension_net is not None:
+        eok  = pension_net / 1e8
+        flag = " 🟢" if eok > 0 else " 🔴"
+        pension_line = f"\n  연기금(T-1): {eok:+.0f}억{flag}"
+
     return (
         f"\n{seq}) <b>{c.get('name','')}({c.get('code','')})</b>"
         f" [{c.get('market','')}]{tag_str}\n"
@@ -478,6 +486,7 @@ def _format_candidate_card(seq: int, c: dict) -> str:
         f"{checklist_line}"
         f"{dart_line}"
         f"{short_line}"
+        f"{pension_line}"
     )
 
 

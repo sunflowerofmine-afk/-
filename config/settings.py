@@ -120,6 +120,7 @@ DART_API_KEY                        = os.getenv("DART_API_KEY", "")
 ENABLE_DART_FETCH                   = True   # 2차/수동 실행 시 후보 종목 당일 공시 조회
 
 ENABLE_SHORT_BALANCE                = True   # 공매도 잔고 추적 (pykrx, T+2)
+ENABLE_PENSION_FETCH                = True   # 연기금 순매수 추적 (pykrx, T-1)
 
 # ── 장세별 핵심 후보 상한선 ──────────────────────────────────
 CANDIDATES_MAX_BULL               = 5   # 강세
