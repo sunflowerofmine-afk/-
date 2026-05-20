@@ -511,12 +511,14 @@ def run(preview: bool = False):
     all_df = pd.concat(raw_data.values(), ignore_index=True)
 
     # ── 1-1. NXT 데이터 합산 (2차/수동 실행 시) ─────────────────
+    nxt_codes: set[str] = set()  # NXT 거래 확인된 종목코드
     if run_type in ("2차", "수동") and ENABLE_NXT_FETCH:
         try:
             from scripts.fetch_nxt_data import fetch_nxt_quant, merge_nxt_into_df
             logger.info("NXT 거래상위 수집 시작...")
             nxt_dict = fetch_nxt_quant()
             if nxt_dict:
+                nxt_codes = set(nxt_dict.keys())
                 all_df = merge_nxt_into_df(all_df, nxt_dict)
             else:
                 logger.warning("NXT 수집 결과 없음 — KRX 데이터만 사용")
@@ -861,6 +863,7 @@ def run(preview: bool = False):
             "regular_close_price_available": bool(_regular_close),
             "entry_reference_price":         _entry_ref,
             "price_source":                  _price_src,
+            "is_nxt":                        code in nxt_codes,
         })
 
     # 정렬: 교집합 > 패턴타입 > score > supply_ok > 거래대금 > 상승률
@@ -919,6 +922,7 @@ def run(preview: bool = False):
             "in_inter":               _kh_code in inter_codes,
             "sector":                 code_to_sector.get(_kh_code, ""),
             "kim_hyungjun_supply_ok": _kh_sup_ok,
+            "is_nxt":                 _kh_code in nxt_codes,
         })
     if kh_only_candidates:
         logger.info(f"KH 전용 후보: {len(kh_only_candidates)}개")
@@ -1062,6 +1066,7 @@ def run(preview: bool = False):
             "price_source":                  "regular_close_price" if _obs_regular_close else "signal_price",
             "source_pool":                   "recent_base_pool",
             "kim_hyungjun_supply_ok":        _obs_kh_sup_ok,
+            "is_nxt":                        _obs_code in nxt_codes,
         })
 
     obs_candidates = _obs_remaining

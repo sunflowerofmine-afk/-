@@ -385,6 +385,8 @@ def _format_candidate_card(seq: int, c: dict) -> str:
     htc_flag    = pat.get("high_tight_consolidation_flag", False)
     htc_reignite = pat.get("high_tight_reignite_flag", False)
 
+    is_nxt = c.get("is_nxt", False)
+
     tags = []
     if in_inter:    tags.append("★교집합")
     if new_high:    tags.append("🔺신고가")
@@ -396,6 +398,7 @@ def _format_candidate_card(seq: int, c: dict) -> str:
     if is_danbal:   tags.append("⚡단발")
     prog_net = c.get("prog_net_eok")
     if prog_net is not None and prog_net > 0: tags.append("💹프로그램매수")
+    if is_nxt:      tags.append("🔵NXT")
     tag_str = "  " + "  ".join(tags) if tags else ""
 
     # ── Line 2: 등락률 / 거래대금 / 섹터 / 패턴 ──────────────
@@ -496,9 +499,10 @@ def format_watch_candidates(candidates: list[dict]) -> str:
             sec_s = f"[{sector}✓] "
         else:
             sec_s = f"[{sector}] " if sector else ""
+        nxt_tag = " 🔵NXT" if c.get("is_nxt") else ""
         lines.append(
             f"  • {c['name']}({c['code']}) "
-            f"{sign}{pct:.1f}% | {tv/100_000_000:.0f}억 | {sec_s}{pat}"
+            f"{sign}{pct:.1f}% | {tv/100_000_000:.0f}억 | {sec_s}{pat}{nxt_tag}"
         )
     return "\n".join(lines) + "\n"
 
