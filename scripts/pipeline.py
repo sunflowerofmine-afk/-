@@ -19,6 +19,7 @@ from config.settings import (
     TV_RATIO_WATCH_MIN, TV_RATIO_P2P3_MIN,
     ENABLE_SECTOR_FETCH, SECTOR_TOP_N,
     ENABLE_NXT_FETCH,
+    ENABLE_DART_FETCH,
     MARKET_REGIME_BULL_ADL, MARKET_REGIME_BEAR_ADL, MARKET_REGIME_BULL_TV1500,
     CANDIDATES_MAX_BULL, CANDIDATES_MAX_NEUTRAL, CANDIDATES_MAX_BEAR, CANDIDATES_MAX_CONCENTRATED_BEAR,
     KH_CRAWL_MIN_TV_EOK,
@@ -1107,6 +1108,21 @@ def run(preview: bool = False):
                         news.llm_summary = result
         except Exception as e:
             logger.warning(f"LLM 분석 전체 실패 (무시): {e}")
+
+    # ── DART 공시 수집 (2차/수동 실행 시) ─────────────────────────
+    dart_data: dict[str, list[str]] = {}
+    if run_type in ("2차", "수동") and ENABLE_DART_FETCH:
+        try:
+            from scripts.fetch_dart import fetch_dart_for_candidates
+            _dart_codes = [c["code"] for c in key_candidates]
+            dart_data = fetch_dart_for_candidates(_dart_codes, date_str=report_date.replace("-", ""))
+            logger.info(f"DART 공시 수집 완료: {len([v for v in dart_data.values() if v])}개 종목 공시 있음")
+        except Exception as e:
+            logger.warning(f"DART 공시 수집 실패 (무시): {e}")
+
+    # dart_data를 각 후보 dict에 주입
+    for c in key_candidates:
+        c["dart_notices"] = dart_data.get(c["code"], [])
 
     # ── daily_summary.json 저장 (복기 대시보드 크로스레퍼런스용) ────────────
     import json as _json_daily

@@ -115,6 +115,10 @@ SECTOR_TOP_N                        = 5   # 거래대금 상위 N개 섹터
 # ── NXT 수집 (2차/수동 실행 시 KRX 데이터에 합산) ─────────────
 ENABLE_NXT_FETCH                    = True
 
+# ── DART 공시 수집 ──────────────────────────────────────────
+DART_API_KEY                        = os.getenv("DART_API_KEY", "")
+ENABLE_DART_FETCH                   = True   # 2차/수동 실행 시 후보 종목 당일 공시 조회
+
 # ── 장세별 핵심 후보 상한선 ──────────────────────────────────
 CANDIDATES_MAX_BULL               = 5   # 강세
 CANDIDATES_MAX_NEUTRAL            = 3   # 중립

@@ -451,6 +451,14 @@ def _format_candidate_card(seq: int, c: dict) -> str:
             f" | {_c(cl.volume_peak_ok,'Peak')} {_c(cl.supply_ok,'수급')}"
         )
 
+    # ── Line 6: DART 공시 ──────────────────────────────────
+    dart_notices = c.get("dart_notices", [])
+    dart_line = ""
+    if dart_notices:
+        dart_line = "\n  " + "\n  ".join(dart_notices[:3])  # 최대 3건
+    elif c.get("dart_notices") is not None:  # 조회는 됐으나 공시 없음
+        dart_line = "\n  📋 공시: 없음"
+
     return (
         f"\n{seq}) <b>{c.get('name','')}({c.get('code','')})</b>"
         f" [{c.get('market','')}]{tag_str}\n"
@@ -459,6 +467,7 @@ def _format_candidate_card(seq: int, c: dict) -> str:
         f"{htc_line}"
         f"{supply_line}"
         f"{checklist_line}"
+        f"{dart_line}"
     )
 
 
