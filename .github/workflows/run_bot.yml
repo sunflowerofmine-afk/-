@@ -41,6 +41,8 @@ jobs:
           PAGES_BASE_URL:        ${{ secrets.PAGES_BASE_URL }}
           GEMINI_API_KEY:        ${{ secrets.GEMINI_API_KEY }}
           DART_API_KEY:          ${{ secrets.DART_API_KEY }}
+          KIS_APP_KEY:           ${{ secrets.KIS_APP_KEY }}
+          KIS_APP_SECRET:        ${{ secrets.KIS_APP_SECRET }}
           FORCE_RUN:             ${{ github.event.inputs.force_run }}
           TZ: Asia/Seoul
         run: python -m scripts.pipeline

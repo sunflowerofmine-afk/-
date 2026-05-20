@@ -99,12 +99,18 @@ def fetch_supply(code: str) -> SupplyData:
 
 
 def _fetch_investor_breakdown(code: str, supply: SupplyData) -> None:
-    """
-    연기금/투신/사모/금융투자 세분화 수집.
-    현재 네이버 sise_investor 페이지가 404 처리되어 데이터 소스 미확보.
-    모델 필드(pension_net/invest_trust_net/private_fund_net/fin_invest_net)는
-    준비 완료 — 데이터 소스 확보 시 여기에 구현할 것.
-    """
-    # TODO: 데이터 소스 확보 후 구현
-    # 후보 소스: KRX OpenAPI(인증 필요), 증권사 API, 유료 데이터
-    logger.debug(f"[{code}] 투자자 유형 세분화: 데이터 소스 미확보 (기관/외국인 합계만 사용)")
+    """KIS OpenAPI로 연기금/투신/사모/금융투자 세분화 수집."""
+    try:
+        from config.settings import ENABLE_KIS_INVESTOR
+        if not ENABLE_KIS_INVESTOR:
+            return
+        from scripts.fetch_kis_investor import fetch_investor_breakdown
+        breakdown = fetch_investor_breakdown(code)
+        if not breakdown:
+            return
+        supply.pension_net      = breakdown.get("pension_net")
+        supply.invest_trust_net = breakdown.get("invest_trust_net")
+        supply.private_fund_net = breakdown.get("private_fund_net")
+        supply.fin_invest_net   = breakdown.get("fin_invest_net")
+    except Exception as e:
+        logger.debug(f"[{code}] 투자자 세분화 조회 실패 (무시): {e}")
