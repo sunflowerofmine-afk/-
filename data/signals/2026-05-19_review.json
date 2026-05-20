@@ -4,11 +4,11 @@
     "name": "엑스게이트",
     "signal_price": 18820.0,
     "t1_open": 17120.0,
-    "t1_close": 15950.0,
+    "t1_close": 16460.0,
     "gap_pct": -9.03,
-    "hold_pct": -15.25,
+    "hold_pct": -12.54,
     "result": "실패",
-    "fail_reason": "시황하락",
+    "fail_reason": "혼조",
     "pattern_type": "당일돌파형",
     "sector": "양자암호/양자컴퓨팅",
     "total_score": 12,
@@ -19,7 +19,7 @@
     "base_high_gap_pct": NaN,
     "d1_open_pct": -9.03,
     "d1_high_pct": -7.97,
-    "d1_close_pct": -15.25,
+    "d1_close_pct": -12.54,
     "d2_high_pct": null,
     "d2_close_pct": null,
     "d3_high_pct": null,
@@ -34,6 +34,6 @@
     "final_result_type": null,
     "alive_pullback": false,
     "failed_structure": false,
-    "sector_still_active": null
+    "sector_still_active": false
   }
 ]
