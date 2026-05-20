@@ -105,6 +105,9 @@ def fetch_investor_breakdown(code: str, date_str: str | None = None) -> dict:
         if not row:
             return {}
 
+        # 실제 응답 필드명 확인용 (필드명 불일치 디버깅)
+        logger.debug(f"[{code}] KIS response keys: {list(row.keys())}")
+
         def _v(key: str) -> float | None:
             val = row.get(key, "")
             try:
