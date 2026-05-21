@@ -129,6 +129,11 @@ def build_message(df: pd.DataFrame, signal_date: str) -> str:
     except Exception as e:
         logger.debug(f"지수 조회 실패: {e}")
 
+    # 복기 링크
+    lines.append(
+        '\n📝 <a href="https://docs.google.com/forms/d/e/1FAIpQLSdBJ9Nel88ILckZzCqTVuROPACKaFYaBz8wAlRzZ22MKl_pWA/viewform">어제 복기하기</a>'
+    )
+
     return "\n".join(lines)
 
 
