@@ -45,22 +45,29 @@ def fetch_short_balance_bulk(date_str: str | None = None) -> dict[str, dict]:
         from pykrx import stock as krx
 
         logger.info(f"공매도 잔고 조회 시작 ({target_date})")
-        df = krx.get_shorting_balance_status(target_date)
+        df = krx.get_shorting_balance_by_ticker(target_date, market="ALL")
 
         if df is None or df.empty:
             logger.warning(f"공매도 잔고 데이터 없음 ({target_date}) — 전일로 재시도")
             target_date = _latest_trading_day(3)
-            df = krx.get_shorting_balance_status(target_date)
+            df = krx.get_shorting_balance_by_ticker(target_date, market="ALL")
 
         if df is None or df.empty:
             logger.warning("공매도 잔고 데이터 없음 — 건너뜀")
             return {}
 
+        # 컬럼명 탐색 (pykrx 버전별 차이 대응)
+        ratio_col = next((c for c in df.columns if "비율" in c), None)
+        qty_col   = next((c for c in df.columns if "수량" in c), None)
+        if ratio_col is None:
+            logger.warning(f"공매도 잔고 컬럼 없음 (columns={list(df.columns)})")
+            return {}
+
         result: dict[str, dict] = {}
         for code, row in df.iterrows():
             try:
-                ratio = float(row.get("공매도잔고율", 0) or 0)
-                qty   = int(row.get("공매도잔고", 0) or 0)
+                ratio = float(row.get(ratio_col, 0) or 0)
+                qty   = int(row.get(qty_col, 0) or 0) if qty_col else 0
                 if ratio > 0 or qty > 0:
                     result[str(code).zfill(6)] = {"ratio": ratio, "qty": qty}
             except Exception:

@@ -45,14 +45,14 @@ def fetch_pension_bulk(date_str: str | None = None) -> dict[str, float]:
         from pykrx import stock as krx
 
         logger.info(f"연기금 순매수 조회 시작 ({target_date})")
-        df = krx.get_market_net_purchases_of_equities_by_investor(
+        df = krx.get_market_net_purchases_of_equities(
             target_date, target_date, "연기금"
         )
 
         if df is None or df.empty:
             logger.warning(f"연기금 데이터 없음 ({target_date}) — 전전일로 재시도")
             target_date = _prev_trading_day(2)
-            df = krx.get_market_net_purchases_of_equities_by_investor(
+            df = krx.get_market_net_purchases_of_equities(
                 target_date, target_date, "연기금"
             )
 
