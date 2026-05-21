@@ -1,9 +1,7 @@
 name: US Market Briefing
 
 on:
-  schedule:
-    - cron: "50 22 * * 0-4"  # 07:50 KST 월-금 (UTC 기준 전일 22:50)
-  workflow_dispatch:
+  workflow_dispatch:           # cron-job.org → POST /dispatches 로 트리거
 
 jobs:
   briefing:
