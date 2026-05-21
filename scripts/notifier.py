@@ -364,6 +364,22 @@ _OFFSET_LABEL = {0: "당일", 1: "1일전", 2: "2일전", 3: "3일전"}
 _PATTERN_TYPE_ORDER = ["당일돌파형", "고가수축형", "고가횡보형", "없음"]
 
 
+def _position_guide(c: dict) -> str:
+    """손절남 기준 비중 가이드 한 줄."""
+    chg   = float(c.get("change_pct", 0))
+    score = int(c.get("total_score") or 0)
+    inter = c.get("in_inter", False)
+    if chg >= 25:
+        return "\n  💼 비중: ⚠ 축소 권고 (급등25%↑ · 승률 50%)"
+    if score >= 13 or (score >= 10 and inter):
+        return "\n  💼 비중: 강한 후보 (30~50%)"
+    if score >= 10:
+        return "\n  💼 비중: 일반 후보 (20~30%)"
+    if score >= 7:
+        return "\n  💼 비중: 소액 테스트 (10~20%)"
+    return ""
+
+
 def _format_candidate_card(seq: int, c: dict) -> str:
     """단일 종목 카드 — 실전 매매용"""
     pat  = c.get("patterns", {})
@@ -401,6 +417,17 @@ def _format_candidate_card(seq: int, c: dict) -> str:
     prog_net = c.get("prog_net_eok")
     if prog_net is not None and prog_net > 0: tags.append("💹프로그램매수")
     if is_nxt:      tags.append("🔵NXT")
+
+    # ── 리스크 태그 ────────────────────────────────────────
+    change_pct_val = float(c.get("change_pct", 0))
+    score_val      = int(c.get("total_score") or 0)
+    if change_pct_val >= 25:
+        tags.append("⚠급등25%↑")
+    if 0 < score_val <= 9:
+        tags.append("⚠저스코어")
+    if 0 < tv < 250_000_000_000:
+        tags.append("⚠대금근접")
+
     tag_str = "  " + "  ".join(tags) if tags else ""
 
     # ── Line 2: 등락률 / 거래대금 / 섹터 / 패턴 ──────────────
@@ -476,6 +503,8 @@ def _format_candidate_card(seq: int, c: dict) -> str:
         flag = " 🟢" if eok > 0 else " 🔴"
         pension_line = f"\n  연기금(T-1): {eok:+.0f}억{flag}"
 
+    position_line = _position_guide(c)
+
     return (
         f"\n{seq}) <b>{c.get('name','')}({c.get('code','')})</b>"
         f" [{c.get('market','')}]{tag_str}\n"
@@ -487,6 +516,7 @@ def _format_candidate_card(seq: int, c: dict) -> str:
         f"{dart_line}"
         f"{short_line}"
         f"{pension_line}"
+        f"{position_line}"
     )
 
 

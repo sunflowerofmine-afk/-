@@ -832,6 +832,53 @@ def _pension_html(c: dict) -> str:
     )
 
 
+def _position_guide_html(c: dict) -> str:
+    """손절남 기준 비중 가이드 행 HTML"""
+    chg   = float(c.get("change_pct", 0))
+    score = int(c.get("total_score") or c.get("score", {}).get("total", 0) or 0)
+    inter = c.get("in_inter", False)
+    if chg >= 25:
+        txt = "⚠ 축소 권고 (급등25%↑ · 승률 50%)"
+        cls = "val neg"
+    elif score >= 13 or (score >= 10 and inter):
+        txt = "강한 후보 (30~50%)"
+        cls = "val pos"
+    elif score >= 10:
+        txt = "일반 후보 (20~30%)"
+        cls = "val"
+    elif score >= 7:
+        txt = "소액 테스트 (10~20%)"
+        cls = "val warn"
+    else:
+        return ""
+    return (
+        f'<div class="card-row"><span class="lbl">💼 비중 가이드</span>'
+        f'<span class="{cls}">{txt}</span></div>'
+    )
+
+
+def _risk_tags_html(c: dict) -> str:
+    """리스크 경고 뱃지 HTML — 해당 없으면 빈 문자열"""
+    chg   = float(c.get("change_pct", 0))
+    score = int(c.get("total_score") or c.get("score", {}).get("total", 0) or 0)
+    tv    = float(c.get("trading_value", 0))
+    tags  = []
+    if chg >= 25:
+        tags.append("⚠ 급등25%↑")
+    if 0 < score <= 9:
+        tags.append("⚠ 저스코어")
+    if 0 < tv < 250_000_000_000:
+        tags.append("⚠ 대금근접")
+    if not tags:
+        return ""
+    badges = "".join(
+        f'<span style="background:#fff3cd;color:#856404;border-radius:3px;'
+        f'padding:1px 5px;font-size:10px;margin-right:4px">{t}</span>'
+        for t in tags
+    )
+    return f'<div style="margin:4px 0">{badges}</div>'
+
+
 def _dart_html(c: dict) -> str:
     """DART 공시 섹션 HTML — 없으면 빈 문자열"""
     notices = c.get("dart_notices")
@@ -975,6 +1022,8 @@ def _candidate_card_html(c: dict) -> str:
       <span class="val">{frgn_str if sup_ok else '확인불가'}</span></div>
     {_short_html(c)}
     {_pension_html(c)}
+    {_position_guide_html(c)}
+    {_risk_tags_html(c)}
     <div style="margin-top:8px;">{news_html}{llm_html}</div>
     {_dart_html(c)}
   </div>
