@@ -8,6 +8,7 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 _SIGNALS_DIR = Path("data/signals")
+_CACHED_STATS_PATH = Path("reports/cumulative_stats.json")
 
 _SCORE_BANDS = [
     ("0~5",   0,  5),
@@ -250,13 +251,38 @@ def _calc_change_band_stats(reviews: list[dict]) -> list[dict]:
     return results
 
 
+# ── 캐시 I/O ─────────────────────────────────────────────────────────
+
+def _load_cached_stats() -> dict:
+    """reports/cumulative_stats.json 에서 캐시 로드 (GitHub Actions 폴백용)."""
+    try:
+        if _CACHED_STATS_PATH.exists():
+            return json.loads(_CACHED_STATS_PATH.read_text(encoding="utf-8"))
+    except Exception as e:
+        logger.warning(f"누적 통계 캐시 로드 실패: {e}")
+    return {}
+
+
+def _save_cached_stats(data: dict) -> None:
+    """reports/cumulative_stats.json 에 캐시 저장."""
+    try:
+        _CACHED_STATS_PATH.parent.mkdir(parents=True, exist_ok=True)
+        _CACHED_STATS_PATH.write_text(
+            json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        logger.info(f"누적 통계 캐시 저장: {_CACHED_STATS_PATH}")
+    except Exception as e:
+        logger.warning(f"누적 통계 캐시 저장 실패: {e}")
+
+
 # ── 메인 ────────────────────────────────────────────────────────────
 
 def run() -> dict:
     reviews = _load_all_reviews()
     measured = [r for r in reviews if r.get("result") in ("성공", "실패")]
     if not measured:
-        return {}
+        # GitHub Actions: data/signals/ 없음 → 커밋된 캐시 사용
+        return _load_cached_stats()
 
     result: dict = {
         "total_measured": len(measured),
@@ -279,4 +305,6 @@ def run() -> dict:
     if chg_reviews:
         result["change_band_stats"] = _calc_change_band_stats(chg_reviews)
 
+    # GitHub Actions에서 읽을 수 있도록 캐시 저장
+    _save_cached_stats(result)
     return result

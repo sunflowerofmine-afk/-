@@ -835,7 +835,8 @@ def _pension_html(c: dict) -> str:
 def _position_guide_html(c: dict) -> str:
     """손절남 기준 비중 가이드 행 HTML"""
     chg   = float(c.get("change_pct", 0))
-    score = int(c.get("total_score") or c.get("score", {}).get("total", 0) or 0)
+    _sc   = c.get("score")
+    score = int(_sc.total_score) if _sc and hasattr(_sc, "total_score") else int(c.get("total_score") or 0)
     inter = c.get("in_inter", False)
     if chg >= 25:
         txt = "⚠ 축소 권고 (급등25%↑ · 승률 50%)"
@@ -860,7 +861,8 @@ def _position_guide_html(c: dict) -> str:
 def _risk_tags_html(c: dict) -> str:
     """리스크 경고 뱃지 HTML — 해당 없으면 빈 문자열"""
     chg   = float(c.get("change_pct", 0))
-    score = int(c.get("total_score") or c.get("score", {}).get("total", 0) or 0)
+    _sc   = c.get("score")
+    score = int(_sc.total_score) if _sc and hasattr(_sc, "total_score") else int(c.get("total_score") or 0)
     tv    = float(c.get("trading_value", 0))
     tags  = []
     if chg >= 25:
