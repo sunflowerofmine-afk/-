@@ -49,9 +49,9 @@ def _load_prev_signals() -> tuple[pd.DataFrame | None, str]:
     # 최신 파일
     try:
         try:
-            df = pd.read_csv(files[-1], encoding="utf-8-sig")
+            df = pd.read_csv(files[-1], encoding="utf-8-sig", dtype={"종목코드": str})
         except Exception:
-            df = pd.read_csv(files[-1], encoding="cp949")
+            df = pd.read_csv(files[-1], encoding="cp949", dtype={"종목코드": str})
         fname = Path(files[-1]).stem   # e.g. "2026-05-20_1750"
         date_part = fname[:10]
         return df, date_part

@@ -935,6 +935,7 @@ def run(preview: bool = False):
 
     # ── recent_base_pool 관찰 풀 (2차/수동 실행 시) ─────────────────
     obs_candidates: list[dict] = []
+    _obs_enriched:  dict       = {}   # if _obs_code_map 블록 미진입 시 NameError 방지
     if run_type != "1차":
         _all_crawled = set(crawl_codes) | set(kh_extra_codes)
         _OBS_MIN_TV_WON = OBS_CRAWL_MIN_TV_EOK * 100_000_000
@@ -1117,18 +1118,21 @@ def run(preview: bool = False):
 
     # ── DART 공시 수집 (1차/2차/수동 모두 실행) ─────────────────────
     dart_data: dict[str, list[str]] = {}
+    _dart_fetch_ok = False
     if ENABLE_DART_FETCH:
         try:
             from scripts.fetch_dart import fetch_dart_for_candidates
             _dart_codes = [c["code"] for c in key_candidates]
             dart_data = fetch_dart_for_candidates(_dart_codes, date_str=report_date.replace("-", ""))
+            _dart_fetch_ok = True
             logger.info(f"DART 공시 수집 완료: {len([v for v in dart_data.values() if v])}개 종목 공시 있음")
         except Exception as e:
             logger.warning(f"DART 공시 수집 실패 (무시): {e}")
 
     # dart_data를 각 후보 dict에 주입
+    # _dart_fetch_ok=False(비활성/실패) → None(미조회), True → [](없음) or [공시들]
     for c in key_candidates:
-        c["dart_notices"] = dart_data.get(c["code"], [])
+        c["dart_notices"] = dart_data.get(c["code"], []) if _dart_fetch_ok else None
 
     # ── 공매도 잔고 수집 (2차/수동, pykrx T+2) ──────────────────────────
     if run_type != "1차" and ENABLE_SHORT_BALANCE:

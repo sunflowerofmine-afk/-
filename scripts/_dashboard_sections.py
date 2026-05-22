@@ -308,7 +308,7 @@ def _section_env_and_signals(data: dict) -> str:
     inter_n        = m.get("intersection_count", 0)
     limit_up_n     = m.get("limit_up_count", 0)
     core_n         = len(core)
-    watch_n        = len([r for r in rejected if "패턴 없음" in r.get("reason", "")])
+    watch_n        = len(data.get("watch_candidates", []))
 
     _regime_cfg   = {"강세": ("regime-bull", "🟢 강세"), "약세": ("regime-bear", "🔴 약세"), "중립": ("regime-neutral", "⚪ 중립")}
     _subtype_icon = {"자금집중형": "💰", "전체하락형": "⬇", "혼조형": "↔"}
