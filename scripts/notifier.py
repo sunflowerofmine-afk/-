@@ -417,7 +417,10 @@ def _format_candidate_card(seq: int, c: dict) -> str:
     if is_danbal:   tags.append("⚡단발")
     prog_net = c.get("prog_net_eok")
     if prog_net is not None and prog_net > 0: tags.append("💹프로그램매수")
-    if is_nxt:      tags.append("🔵NXT")
+    if is_nxt:
+        tags.append("🔵NXT")
+    elif c.get("nxt_fetch_ran"):
+        tags.append("⚠KRX전용(15:20전)")
 
     # ── 리스크 태그 ────────────────────────────────────────
     change_pct_val = float(c.get("change_pct", 0))

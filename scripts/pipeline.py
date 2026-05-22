@@ -515,6 +515,7 @@ def run(preview: bool = False):
 
     # ── 1-1. NXT 데이터 합산 (2차/수동 실행 시) ─────────────────
     nxt_codes: set[str] = set()  # NXT 거래 확인된 종목코드
+    nxt_fetch_ran = run_type in ("2차", "수동") and ENABLE_NXT_FETCH  # 카드에서 KRX전용 표시 여부 판단용
     if run_type in ("2차", "수동") and ENABLE_NXT_FETCH:
         try:
             from scripts.fetch_nxt_data import fetch_nxt_quant, merge_nxt_into_df
@@ -867,6 +868,7 @@ def run(preview: bool = False):
             "entry_reference_price":         _entry_ref,
             "price_source":                  _price_src,
             "is_nxt":                        code in nxt_codes,
+            "nxt_fetch_ran":                 nxt_fetch_ran,
         })
 
     # 정렬: 교집합 > 패턴타입 > score > supply_ok > 거래대금 > 상승률
@@ -926,6 +928,7 @@ def run(preview: bool = False):
             "sector":                 code_to_sector.get(_kh_code, ""),
             "kim_hyungjun_supply_ok": _kh_sup_ok,
             "is_nxt":                 _kh_code in nxt_codes,
+            "nxt_fetch_ran":          nxt_fetch_ran,
         })
     if kh_only_candidates:
         logger.info(f"KH 전용 후보: {len(kh_only_candidates)}개")
@@ -1070,6 +1073,7 @@ def run(preview: bool = False):
             "source_pool":                   "recent_base_pool",
             "kim_hyungjun_supply_ok":        _obs_kh_sup_ok,
             "is_nxt":                        _obs_code in nxt_codes,
+            "nxt_fetch_ran":                 nxt_fetch_ran,
         })
 
     obs_candidates = _obs_remaining

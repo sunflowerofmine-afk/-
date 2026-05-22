@@ -924,7 +924,12 @@ def _candidate_card_html(c: dict) -> str:
     elif has_pat: card_cls += " has-pattern"
 
     inter_badge = '<span class="badge inter">교집합</span> ' if in_inter else ""
-    nxt_badge   = '<span class="badge nxt">🔵NXT</span> ' if c.get("is_nxt") else ""
+    if c.get("is_nxt"):
+        nxt_badge = '<span class="badge nxt">🔵NXT</span> '
+    elif c.get("nxt_fetch_ran"):
+        nxt_badge = '<span class="badge" style="background:#f0ad4e;color:#5a3e00;font-size:10px">KRX전용 ⚠15:20전</span> '
+    else:
+        nxt_badge = ""
 
     chg_cls  = "val pos" if chg >= 0 else "val neg"
     inst_str = _net_str(sup.get("institution_net"))
