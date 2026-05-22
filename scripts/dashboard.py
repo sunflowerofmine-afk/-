@@ -206,9 +206,10 @@ def build_dashboard_links(report_date: str, snapshot_time: str, base_url: str, l
     base = base_url.rstrip("/")
     if latest_name is None:
         latest_name = f"latest_{snapshot_time}.html"
+    cache_bust = report_date.replace("-", "")
     return {
         "dated_url":  f"{base}/reports/{report_date}_{snapshot_time}.html",
-        "latest_url": f"{base}/reports/{latest_name}",
+        "latest_url": f"{base}/reports/{latest_name}?v={cache_bust}",
     }
 
 
