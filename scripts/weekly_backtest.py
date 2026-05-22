@@ -412,17 +412,18 @@ def generate_html(rows: list[dict], start: date, today: date) -> str:
             idx_html += f' &nbsp;<span class="muted">[{_e(regime)}]</span>'
         detail_html += f'<tr class="date-header"><td colspan="11">{_e(ds)} ({len(day_rows)}종목){idx_html}</td></tr>'
         for r in day_rows:
-            tv_eok = f'{r["trading_value"]/1e8:,.0f}억' if r["trading_value"] > 0 else "-"
-            news_td = f'<span style="font-size:11px;color:#8b949e">{_e(r["news_summary"][:30])}</span>' if r.get("news_summary") else '<span class="muted">-</span>'
+            tv_eok      = f'{r["trading_value"]/1e8:,.0f}억' if r["trading_value"] > 0 else "-"
+            news_td     = f'<span style="font-size:11px;color:#8b949e">{_e(r["news_summary"][:30])}</span>' if r.get("news_summary") else '<span class="muted">-</span>'
+            inter_badge = '&nbsp;<span class="badge b-inter">★</span>' if r["in_inter"] else ""
+            chg_cls     = "pos" if r["change_pct"] > 0 else "neg"
+            chg_sign    = "+" if r["change_pct"] > 0 else ""
             detail_html += (
                 f"<tr>"
-                f'<td class="name-col">{_e(r["name"])}'
-                f'{"&nbsp;<span class=\'badge b-inter\'>★</span>" if r["in_inter"] else ""}'
+                f'<td class="name-col">{_e(r["name"])}{inter_badge}'
                 f'<br><small class="muted">{_e(r["code"])}·{_e(r["market"])}</small></td>'
                 f"<td>{_grade_badge(r['grade'])}</td>"
                 f"<td>{_pattern_badge(r['pattern'])}</td>"
-                f'<td class="{"pos" if r["change_pct"]>0 else "neg"}">'
-                f'{"+" if r["change_pct"]>0 else ""}{r["change_pct"]:.2f}%</td>'
+                f'<td class="{chg_cls}">{chg_sign}{r["change_pct"]:.2f}%</td>'
                 f"<td>{tv_eok}</td>"
                 f"<td>{news_td}</td>"
                 f"<td>{_fmt(r['d1_open_pct'], '%')}</td>"
