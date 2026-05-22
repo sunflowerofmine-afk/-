@@ -46,6 +46,7 @@ jobs:
         run: python -m scripts.pipeline
 
       - name: Run weekly backtest (금요일 자동 실행)
+        continue-on-error: true   # 신호 파일 없어도 대시보드 커밋 차단 방지
         env:
           TZ: Asia/Seoul
         run: |
@@ -61,6 +62,7 @@ jobs:
       # GitHub Pages 소스를 "main 브랜치 / (root)" 또는 "main 브랜치 / docs" 로
       # 설정하면 커밋 즉시 Pages에 반영됩니다.
       - name: Commit dashboard reports
+        if: always()   # weekly_backtest 실패와 무관하게 항상 실행
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
