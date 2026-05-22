@@ -9,15 +9,6 @@
     "buy_review_avg": 8.86
   },
   {
-    "week_start": "2026-05-15",
-    "n": 2,
-    "d1_win_rate": null,
-    "d1_avg": null,
-    "buy_review_n": 0,
-    "buy_review_win_rate": null,
-    "buy_review_avg": null
-  },
-  {
     "week_start": "2026-05-08",
     "n": 18,
     "d1_win_rate": 68.8,
@@ -25,5 +16,14 @@
     "buy_review_n": 4,
     "buy_review_win_rate": 75.0,
     "buy_review_avg": 3.03
+  },
+  {
+    "week_start": "2026-05-15",
+    "n": 5,
+    "d1_win_rate": null,
+    "d1_avg": null,
+    "buy_review_n": 2,
+    "buy_review_win_rate": null,
+    "buy_review_avg": null
   }
 ]
