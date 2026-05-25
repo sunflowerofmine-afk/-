@@ -11,6 +11,8 @@ on:
 jobs:
   run-bot:
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     # reports/ 자동 커밋에 쓰기 권한 필요
     permissions:
