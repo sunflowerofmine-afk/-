@@ -1716,3 +1716,109 @@ def _section_recent_base_pool(obs_candidates: list) -> str:
         + main_table
         + excl_html
     )
+
+
+# ─── 일반 눌림 관찰 섹션 (완전 별도 체계) ──────────────────────────────────────
+
+def _section_pullback_observer(candidates: list) -> str:
+    """일반 눌림 관찰 — 매수 신호 아님. 기존 종가베팅/김형준 기법과 완전 분리."""
+    if not candidates:
+        return ""
+
+    normal = [c for c in candidates if "구조훼손" not in c.get("observation_tags", [])]
+    broken = [c for c in candidates if "구조훼손"     in c.get("observation_tags", [])]
+
+    def _pb_row(c: dict, grayed: bool = False) -> str:
+        tags        = c.get("observation_tags", [])
+        danger_tags = [t for t in tags if "위험" in t or "구조훼손" in t]
+        good_tags   = [t for t in tags if "상대강도 양호" in t or "거래대금건조" in t]
+        deep_tag    = [t for t in tags if "깊은눌림" in t]
+
+        danger_html = "  ".join(
+            f'<span style="color:#f85149;font-size:11px">{_e(t)}</span>' for t in danger_tags
+        )
+        good_html = "  ".join(
+            f'<span style="color:#58a6ff;font-size:11px">{_e(t)}</span>' for t in good_tags
+        )
+        deep_html = "  ".join(
+            f'<span style="color:#e3b341;font-size:11px">{_e(t)}</span>' for t in deep_tag
+        )
+
+        near_badges = []
+        if c.get("near_ma5"):      near_badges.append("5일")
+        if c.get("near_ma10"):     near_badges.append("10일")
+        if c.get("near_ma20"):     near_badges.append("20일")
+        if c.get("near_base_mid"): near_badges.append("기준봉중심")
+        near_html = "  ".join(f'<span class="badge na">{b}</span>' for b in near_badges)
+
+        drawdown     = c.get("drawdown_from_peak_pct")
+        drawdown_str = f"{drawdown:+.1f}%" if drawdown is not None else "-"
+        drawdown_cls = "neg" if (drawdown is not None and drawdown < 0) else "pos"
+
+        tag_html = " ".join(filter(None, [deep_html, danger_html, good_html]))
+        row_style = ' style="opacity:0.5"' if grayed else ""
+
+        return (
+            f"<tr{row_style}>"
+            f'<td class="td-name">{_e(c.get("name",""))}'
+            f'<br><small class="muted">{_e(c.get("code",""))} · {_e(c.get("market",""))}</small></td>'
+            f'<td><small style="color:var(--muted)">{_e(c.get("sector","") or "-")}</small></td>'
+            f'<td class="{drawdown_cls}" style="font-weight:600">{drawdown_str}</td>'
+            f'<td><small>{_e(c.get("base_date","") or "-")}</small>'
+            f'<br><small class="muted">{_sign(c.get("base_change_pct", 0))}</small></td>'
+            f'<td><small>{_tv_eok(c.get("base_trading_value", 0))}</small></td>'
+            f'<td><small>{_tv_eok(c.get("trading_value", 0))}</small></td>'
+            f'<td>{near_html}</td>'
+            f'<td>{tag_html}</td>'
+            f"</tr>"
+        )
+
+    _THEAD = (
+        '<thead><tr>'
+        '<th>종목</th><th>섹터</th><th>고점대비낙폭</th><th>기준봉</th>'
+        '<th>기준봉TV</th><th>현재TV</th><th>지지선근접</th><th>태그</th>'
+        '</tr></thead>'
+    )
+
+    main_html = ""
+    if normal:
+        rows = "".join(_pb_row(c) for c in normal)
+        main_html = f'<div class="tbl-wrap"><table>{_THEAD}<tbody>{rows}</tbody></table></div>'
+    else:
+        main_html = '<p style="color:var(--muted);font-size:13px;padding:8px 0;">해당 없음</p>'
+
+    broken_html = ""
+    if broken:
+        rows = "".join(_pb_row(c, grayed=True) for c in broken)
+        broken_html = (
+            f'<details style="margin-top:8px">'
+            f'<summary style="cursor:pointer;font-size:12px;color:#f85149;user-select:none">'
+            f'⚠️ 구조훼손 {len(broken)}개 (참고용)</summary>'
+            f'<div class="tbl-wrap" style="margin-top:6px">'
+            f'<table>{_THEAD}<tbody>{rows}</tbody></table></div>'
+            f'</details>'
+        )
+
+    n_total  = len(candidates)
+    n_normal = len(normal)
+    n_broken = len(broken)
+
+    return (
+        f'<details style="margin:16px 0">'
+        f'<summary style="cursor:pointer;font-size:15px;font-weight:700;'
+        f'user-select:none;padding:10px 0;list-style:none">'
+        f'🔍 일반 눌림 관찰 후보 ({n_total}개 · 구조양호 {n_normal}개)</summary>'
+        f'<div style="margin-top:8px">'
+        f'<div class="obs-notice">'
+        f'<b>관찰/검증용 · 매수 신호 아님</b> · '
+        f'기존 종가베팅/김형준 기법과 별도 기록 · '
+        f'지지선 근접 후 재상승 여부를 추후 D+수익률로 검증 예정'
+        f'</div>'
+        + main_html
+        + broken_html
+        + f'<p style="font-size:11px;color:var(--muted);margin-top:6px">'
+        f'총 {n_total}개 · 구조양호 {n_normal}개 · 구조훼손(참고) {n_broken}개'
+        f'</p>'
+        f'</div>'
+        f'</details>'
+    )

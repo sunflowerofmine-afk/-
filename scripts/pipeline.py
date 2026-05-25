@@ -1005,6 +1005,56 @@ def run(preview: bool = False):
         else:
             logger.info("recent_base_pool: 과거 신호 데이터 없음 또는 조건 미충족 (정상)")
 
+    # ── KH 관찰 풀 확장 (recent_base_pool 10일 lookback → kh_only_candidates 추가) ──
+    if run_type != "1차":
+        _kh_obs_all_crawled = _all_crawled | set(_obs_code_map.keys())
+        _kh_obs_code_map = _build_recent_base_pool(
+            signals_dir=SIGNALS_DIR,
+            run_date=report_date,
+            filtered_df=filtered_df,
+            exclude_codes=_kh_obs_all_crawled,
+            obs_min_tv_won=KH_CRAWL_MIN_TV_EOK * 100_000_000,
+            lookback_dates=10,
+        )
+        if _kh_obs_code_map:
+            logger.info(f"KH 관찰 풀 크롤링: {len(_kh_obs_code_map)}개 (10일 lookback)...")
+            _kh_obs_enriched = _enrich_candidates(list(_kh_obs_code_map.keys()), filtered_df, run_type)
+            _kh_obs_existing = {c["code"] for c in kh_only_candidates}
+            _kh_obs_added = 0
+            for _ko_code in _kh_obs_code_map:
+                if _ko_code in _kh_obs_existing:
+                    continue
+                _ko_enr = _kh_obs_enriched.get(_ko_code, {})
+                _ko_pat = _ko_enr.get("patterns", {})
+                if not _ko_pat.get("kim_hyungjun_flag", False):
+                    continue
+                _ko_row = filtered_df[filtered_df["종목코드"] == _ko_code]
+                if _ko_row.empty:
+                    continue
+                _ko_row_data = _ko_row.iloc[0]
+                _ko_tv       = float(_ko_row_data.get("거래대금", 0))
+                _ko_supply   = _ko_enr.get("supply", SupplyData(code=_ko_code))
+                _ko_sup_ok   = _calc_kh_supply_ok(_ko_supply)
+                _ko_pat["kim_hyungjun_supply_ok"] = _ko_sup_ok
+                kh_only_candidates.append({
+                    "name":                   _ko_row_data.get("종목명", ""),
+                    "code":                   _ko_code,
+                    "market":                 _ko_row_data.get("시장", ""),
+                    "change_pct":             float(_ko_row_data.get("등락률", 0)),
+                    "trading_value":          _ko_tv,
+                    "signal_price":           float(_ko_row_data.get("현재가", 0)),
+                    "patterns":               _ko_pat,
+                    "supply":                 _ko_supply,
+                    "news":                   _ko_enr.get("news", NewsData(code=_ko_code)),
+                    "in_inter":               _ko_code in inter_codes,
+                    "sector":                 code_to_sector.get(_ko_code, ""),
+                    "kim_hyungjun_supply_ok": _ko_sup_ok,
+                    "is_nxt":                 _ko_code in nxt_codes,
+                    "nxt_fetch_ran":          nxt_fetch_ran,
+                })
+                _kh_obs_added += 1
+            logger.info(f"KH 관찰 풀 → kh_only 추가: {_kh_obs_added}개 / 합산 {len(kh_only_candidates)}개")
+
     # ── obs_candidates → key_candidates 편입 (패턴 통과 종목) ──────────
     _obs_remaining: list[dict] = []
     for _obs_c in obs_candidates:
@@ -1082,6 +1132,23 @@ def run(preview: bool = False):
 
     # ── 정렬: 교집합 > 패턴타입 > score > supply_ok > 거래대금 > 상승률 ──
     key_candidates.sort(key=_priority)
+
+    # ── 일반 눌림 관찰 (2차/수동만, 기존 체계와 완전 분리) ─────────────────────
+    pullback_obs_candidates: list[dict] = []
+    if run_type != "1차":
+        try:
+            from scripts import pullback_observer as _pb_obs
+            pullback_obs_candidates = _pb_obs.run(
+                date=report_date,
+                filtered_df=filtered_df,
+                code_to_sector=code_to_sector,
+                market_regime=market_regime,
+                adl=_market_adl,
+                index_return_1d=_kospi_chg,
+                signals_dir=SIGNALS_DIR,
+            )
+        except Exception as e:
+            logger.warning(f"pullback_observer 실패 (무시): {e}")
 
     # ── 장세별 핵심/관심 분리 ────────────────────────────────
     if market_regime == "강세":
@@ -1262,13 +1329,14 @@ def run(preview: bool = False):
 
     # 대시보드 생성
     report_data["market_summary"]["core_count"] = len(core_candidates)
-    report_data["core_candidates"]     = core_candidates
-    report_data["watch_candidates"]    = watch_candidates
-    report_data["rejected_candidates"] = rejected_list
-    report_data["kh_only_candidates"]  = kh_only_candidates
-    report_data["kh_candidates_scope"] = "top40_only"
-    report_data["obs_candidates"]      = obs_candidates
-    report_data["followup_data"]       = followup_data
+    report_data["core_candidates"]        = core_candidates
+    report_data["watch_candidates"]       = watch_candidates
+    report_data["rejected_candidates"]    = rejected_list
+    report_data["kh_only_candidates"]     = kh_only_candidates
+    report_data["kh_candidates_scope"]    = "top40_only"
+    report_data["obs_candidates"]         = obs_candidates
+    report_data["followup_data"]          = followup_data
+    report_data["pullback_obs_candidates"] = pullback_obs_candidates
 
     dashboard_links = {}
     if ENABLE_DASHBOARD:

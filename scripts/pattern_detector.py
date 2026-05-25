@@ -16,6 +16,7 @@ from config.settings import (
     STRUCTURE_BREAK_MAX_GAP_PCT,
     TV_RATIO_OK_MIN,
     TV_RATIO_WATCH_MIN,
+    TV_RATIO_P3_MAX,
     BASE_TV_EXPLOSION_MULT,
     CONSOLIDATION_LOOKBACK_DAYS,
     CONSOLIDATION_MAX_RANGE_PCT,
@@ -36,9 +37,11 @@ from config.settings import (
     HTC_BREAKDOWN_CANDLE_TV_RATIO_MIN,
     KH_BASE_TV_EXPLOSION_MULT,
     KH_BASE_TV_MIN_EOK,
+    KH_BASE_LOOKBACK_DAYS,
     KH_TODAY_TV_RATIO_MAX,
     KH_CLOSE_FROM_BASE_HIGH_MIN_PCT,
     KH_VOLUME_UP_BEARISH_RATIO,
+    KH_SQUEEZE_CANDLE_BODY_MAX_RATIO,
 )
 from scripts.indicators import is_big_candle, is_first_big_candle, is_ma_cluster, calc_all_ma
 
@@ -279,6 +282,20 @@ def detect_kim_hyungjun_pullback(
     if today_close < today_open and today_tv >= base_tv * KH_VOLUME_UP_BEARISH_RATIO:
         return _default
 
+    # 거자름 캔들이 "짧은" 캔들인지 확인: 몸통 / (고-저) ≤ KH_SQUEEZE_CANDLE_BODY_MAX_RATIO
+    # 강의: "거래량이 마르는 짧은 음봉/양봉" — 장대봉이 아닌 소형 캔들이어야 함
+    try:
+        _t_row   = daily_df.iloc[0]
+        _t_high  = float(_t_row.get("high", 0) or 0)
+        _t_low   = float(_t_row.get("low",  0) or 0)
+        _t_range = _t_high - _t_low
+        if _t_range > 0:
+            _body_ratio = abs(today_close - today_open) / _t_range
+            if _body_ratio > KH_SQUEEZE_CANDLE_BODY_MAX_RATIO:
+                return _default
+    except Exception:
+        pass
+
     base_tv_ratio  = round(base_tv / avg_20d_tv, 2) if not pd.isna(avg_20d_tv) and avg_20d_tv > 0 else None
     today_tv_ratio = round(today_tv / base_tv, 3)
 
@@ -454,8 +471,10 @@ def detect_patterns(
     # ── 패턴1: 당일돌파형 ──────────────────────────────────
     p1 = is_base_today and tv_ok
 
-    # ── 최근 1~3일 내 기준봉 탐지 ──────────────────────────
+    # ── 최근 1~HTC일 내 기준봉 탐지 (HTC/고가횡보형 공용) ──
     base_idx = _find_recent_big_candle(daily_df, start_idx=1, lookback=HTC_BASE_LOOKBACK_DAYS)
+    # KH 전용 기준봉: 더 넓은 lookback (HTC와 분리)
+    kh_base_idx = _find_recent_big_candle(daily_df, start_idx=1, lookback=KH_BASE_LOOKBACK_DAYS)
 
     # ── 최근 3일 거래대금 흐름 (1일전 ~ 3일전) — 대시보드 표시용 ─
     tv_3d_flow = [
@@ -538,8 +557,10 @@ def detect_patterns(
     p3 = (
         base_idx is not None
         and high_range_hold_flag
+        and not overheated_3d_flag                               # 기준봉 고가 대비 +5% 초과 과확장 탈락
         and not structure_broken_flag
-        and (tv_ratio is None or tv_ratio >= TV_RATIO_WATCH_MIN)
+        and (tv_ratio is None or tv_ratio >= TV_RATIO_WATCH_MIN) # TV 하한: 기준봉 대비 10% 이상
+        and (tv_ratio is None or tv_ratio <= TV_RATIO_P3_MAX)    # TV 상한: 기준봉 대비 70% 이하 (초과 시 재상승)
     )
 
 
@@ -650,7 +671,7 @@ def detect_patterns(
     _kh_near_high = new_high_60d or near_high_60d or near_high_52w
     kh = detect_kim_hyungjun_pullback(
         daily_df=daily_df,
-        base_idx=base_idx,
+        base_idx=kh_base_idx,
         today_close=today_close,
         today_open=today_open,
         today_tv=today_tv,
