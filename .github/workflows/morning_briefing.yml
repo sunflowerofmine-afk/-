@@ -1,7 +1,9 @@
 name: Morning Briefing
 
 on:
-  workflow_dispatch:           # cron-job.org → POST /dispatches 로 트리거
+  schedule:
+    - cron: "0 0 * * 1-5"     # 09:00 KST 월~금 (UTC 기준 00:00)
+  workflow_dispatch:           # 수동 실행
 
 jobs:
   briefing:
