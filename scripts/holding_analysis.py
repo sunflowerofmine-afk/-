@@ -428,8 +428,8 @@ def main():
         webbrowser.open(out.as_uri())
 
     # 콘솔 요약
-    col_keys   = ["d1_close", "d2_close", "d3_close", "d4_close", "d5_close"]
-    col_labels = ["D+1종가", "D+2종가", "D+3종가", "D+4종가", "D+5종가"]
+    col_keys   = ["d1_open", "d1_close", "d2_close", "d3_close", "d4_close", "d5_close"]
+    col_labels = ["D+1시가★", "D+1종가", "D+2종가", "D+3종가", "D+4종가", "D+5종가"]
     print("\n── 출구별 통계 ─────────────────────────────")
     print(f"{'출구':<10} {'건수':>4} {'승률':>6} {'평균':>8} {'중위':>8}")
     print("-" * 45)

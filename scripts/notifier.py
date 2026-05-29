@@ -612,13 +612,13 @@ def format_key_candidates(candidates: list[dict]) -> str:
 # ── 대시보드 링크 ─────────────────────────────────────────
 
 def _format_dashboard_links(links: dict) -> str:
-    """대시보드 링크 포맷. latest_url만 출력."""
+    """대시보드 링크 포맷. dated_url 우선 (CDN 캐시 회피), 없으면 latest_url."""
     if not links:
         return ""
-    latest = links.get("latest_url", "")
-    if not latest:
+    url = links.get("dated_url") or links.get("latest_url", "")
+    if not url:
         return ""
-    return f"🔗 대시보드: {latest}\n"
+    return f"🔗 대시보드: {url}\n"
 
 
 # ── 1차 / 2차 알림 조합 ───────────────────────────────────
