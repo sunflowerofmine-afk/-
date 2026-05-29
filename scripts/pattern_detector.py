@@ -10,6 +10,7 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from config.settings import (
     HIGH_RANGE_HOLD_MAX_GAP_FROM_BASE_HIGH_PCT,
+    OVERHEATED_GAP_FROM_BASE_HIGH_PCT,
     HIGH_RANGE_HOLD_DAYS,
     PULLBACK_MAX_DROP_PCT,
     MIN_TRADING_VALUE_EOK,
@@ -545,12 +546,11 @@ def detect_patterns(
     new_high_60d  = high_60d > 0 and today_high >= high_60d
     near_high_60d = high_60d > 0 and today_close >= high_60d * 0.97
 
-    # ── 과확장 판정: 오늘 종가가 기준봉 고가 위 5% 초과 → 진입 위험 ─
-    # today_high = today_close로 설정되어 윗꼬리 계산 불가 → 기준봉 고가 대비 이격으로 대체
+    # ── 과확장 판정: 오늘 종가가 기준봉 고가 위 OVERHEATED_GAP_FROM_BASE_HIGH_PCT 초과 → 진입 위험 ─
     overheated_3d_flag = (
         base_idx is not None and
         base_high_gap_pct is not None and
-        base_high_gap_pct > HIGH_RANGE_HOLD_MAX_GAP_FROM_BASE_HIGH_PCT
+        base_high_gap_pct > OVERHEATED_GAP_FROM_BASE_HIGH_PCT
     )
 
     # ── 패턴3: 고가횡보형 ─────────────────────────────────
