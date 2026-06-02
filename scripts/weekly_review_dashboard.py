@@ -191,7 +191,7 @@ def _aggregate(history: list[dict], trades: list[dict]) -> dict:
         ("bot_signal_rate",  "봇 신호"),
         ("inter_rate",       "교집합"),
         ("close_entry_rate", "종가 진입"),
-        ("d1_exit_rate",     "D+1 청산"),
+        ("d1_exit_rate",     "D+1 청산 (09:29전)"),
         ("avg_down_rate",    "물타기 금지"),
         ("pos_limit_rate",   "포지션 한도"),
     ]

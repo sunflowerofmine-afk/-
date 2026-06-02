@@ -61,9 +61,9 @@ TAG_DESC = {
     # D+1 청산 규칙
     "D1_EXIT_RULE_TARGET": "D+1 청산 목표 대상 (정보용)",
     "NXT_MORNING_EXIT":    "D+1 NXT 장전(08:00~08:50) 청산 완료 (준수, 정보용)",
-    "D1_EXIT_ON_TIME":     "D+1 09:20~09:40 정규장 청산 완료 (준수, 정보용)",
-    "D1_EXIT_EARLY":       "D+1 09:20 이전 조기 청산 (정보용)",
-    "D1_EXIT_DELAYED":     "D+1 09:40 이후 청산 (지연)",
+    "D1_EXIT_ON_TIME":     "D+1 09:00~09:29 정규장 청산 완료 (준수, 정보용)",
+    "D1_EXIT_EARLY":       "D+1 08:59 이전 청산 (정보용)",
+    "D1_EXIT_DELAYED":     "D+1 09:30 이후 청산 (지연)",
     "D1_EXIT_MISSED":      "D+1 미청산 (보유 지속)",
     # 갭하락 손절
     "GAP_DOWN_STOP_REQUIRED":      "D+1 시가 갭하락 -3% 이하 — 손절 대상 (정보용)",
@@ -592,17 +592,14 @@ def _check_d1_exit_and_stop(
         in_window = (9, 20) <= (h, m) <= (9, 40)
 
         in_nxt_morning = (8, 0) <= (h, m) <= (8, 50)
+        in_window      = (9, 0) <= (h, m) < (9, 30)   # 09:30 이전 무조건 준수
 
-        if in_window:
-            tags.append("D1_EXIT_ON_TIME")
-            if gap_down_required:
-                tags.append("GAP_DOWN_STOP_DONE")
-        elif in_nxt_morning:
+        if in_nxt_morning:
             tags.append("NXT_MORNING_EXIT")
             if gap_down_required:
                 tags.append("GAP_DOWN_STOP_DONE")
-        elif (h, m) < (9, 20):
-            tags.append("D1_EXIT_EARLY")
+        elif in_window:
+            tags.append("D1_EXIT_ON_TIME")
             if gap_down_required:
                 tags.append("GAP_DOWN_STOP_DONE")
         else:
@@ -853,7 +850,7 @@ def _analyze(trades: list[dict], cache: SignalCache) -> dict:
             "after_1750_is_violation_by_itself": False,
         },
         "exit_rule": {
-            "default_d1_exit_window":    "09:20-09:40",
+            "default_d1_exit_window":    "08:00~08:50(NXT) / 09:00~09:29",
             "reference_time":            "09:30",
             "gap_down_stop_pct":         -3.0,
             "extended_hold_allowed":     True,
