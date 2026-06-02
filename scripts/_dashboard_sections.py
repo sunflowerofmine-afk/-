@@ -609,7 +609,7 @@ def _section_stock_panel(candidates: list, rejected: list, market_regime: str = 
             '<div class="empty-msg">조건 충족 핵심 후보 없음</div>'
         )
 
-    _PAT_CLS = {"당일돌파형": "pat-break", "고가횡보형": "pat-hold"}
+    _PAT_CLS = {"당일돌파형": "pat-break", "고가수축형": "pat-htc", "고가횡보형": "pat-hold"}
 
     list_cards = []
     js_data    = []
@@ -776,10 +776,44 @@ function renderDetail(idx) {{
   document.getElementById('stock-detail').innerHTML = h;
 }}
 if (CANDS.length > 0) renderDetail(0);
+function filterPat(cls) {{
+  document.querySelectorAll('.pat-filter-btn').forEach(b => {{
+    b.classList.toggle('active', b.dataset.cls === cls);
+  }});
+  document.querySelectorAll('.list-card').forEach(card => {{
+    card.style.display = (!cls || card.classList.contains(cls)) ? '' : 'none';
+  }});
+  const first = document.querySelector('.list-card' + (cls ? '.' + cls : '') + '[data-idx]');
+  if (first) renderDetail(parseInt(first.dataset.idx));
+}}
 </script>"""
+
+    # ── 패턴별 필터 버튼 ───────────────────────────────────────
+    _pat_colors = {"pat-break": "var(--green)", "pat-htc": "var(--yellow)", "pat-hold": "var(--blue)"}
+    _pat_labels = [("당일돌파형", "pat-break"), ("고가수축형", "pat-htc"), ("고가횡보형", "pat-hold")]
+    _pat_cnt    = {}
+    for c in candidates:
+        pl = c.get("patterns", {}).get("pattern_type_label", "없음")
+        _pat_cnt[pl] = _pat_cnt.get(pl, 0) + 1
+
+    filter_btns = (
+        f'<button class="pat-filter-btn active" data-cls="" onclick="filterPat(\'\')">전체 {len(candidates)}개</button>'
+    )
+    for label, cls in _pat_labels:
+        cnt = _pat_cnt.get(label, 0)
+        if cnt == 0:
+            continue
+        color = _pat_colors[cls]
+        filter_btns += (
+            f'<button class="pat-filter-btn" data-cls="{cls}" '
+            f'style="color:{color}" onclick="filterPat(\'{cls}\')">'
+            f'{label} {cnt}개</button>'
+        )
+    filter_bar = f'<div class="pat-filter-bar">{filter_btns}</div>\n'
 
     return (
         f'<div class="section-title">🎯 핵심 후보 {len(candidates)}개</div>\n'
+        f'{filter_bar}'
         f'<div class="stock-layout">\n'
         f'  <div class="stock-list" id="stock-list">\n{list_html}\n  </div>\n'
         f'  <div class="stock-detail" id="stock-detail">'

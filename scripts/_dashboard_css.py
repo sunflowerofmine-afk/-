@@ -423,7 +423,13 @@ tbody tr:hover td { background: var(--bg3); }
 .list-card.active { background: var(--bg3); border-left-color: var(--blue); border-color: var(--blue); }
 .list-card.pat-break { border-left-color: var(--green); }
 .list-card.pat-hold  { border-left-color: var(--blue); }
+.list-card.pat-htc   { border-left-color: var(--yellow); }
 .list-card.pat-watch { border-left-color: var(--yellow); }
+.pat-filter-bar { display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;padding:2px 0; }
+.pat-filter-btn { background:transparent;border:1px solid var(--border);color:var(--muted);
+  border-radius:14px;padding:3px 12px;font-size:12px;cursor:pointer;transition:all 0.15s;font-family:inherit; }
+.pat-filter-btn:hover  { opacity:0.8; }
+.pat-filter-btn.active { background:rgba(255,255,255,0.08);border-color:currentColor; }
 .lc-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px; }
 .lc-name { font-weight: 700; font-size: 14px; }
 .lc-code { color: var(--muted); font-size: 11px; margin-left: 4px; }
