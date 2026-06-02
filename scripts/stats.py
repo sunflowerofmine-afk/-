@@ -137,16 +137,27 @@ def _calc_multiday_stats(reviews: list[dict]) -> dict:
 
     def _avg_by_pattern(entries: list[dict], field: str) -> dict:
         groups: dict[str, list] = {}
+        stocks: dict[str, list] = {}
         for e in entries:
             v = e.get(field)
             if v is None:
                 continue
             pat = e.get("pattern_type") or "없음"
             groups.setdefault(pat, []).append(float(v))
-        return {
-            pat: {"count": len(vals), "mean": round(sum(vals) / len(vals), 2)}
-            for pat, vals in sorted(groups.items(), key=lambda x: -len(x[1]))
-        }
+            stocks.setdefault(pat, []).append({
+                "code": e.get("code", ""),
+                "name": e.get("name", ""),
+                "date": e.get("signal_date", ""),
+                "pct":  round(float(v), 2),
+            })
+        result = {}
+        for pat, vals in sorted(groups.items(), key=lambda x: -len(x[1])):
+            result[pat] = {
+                "count":  len(vals),
+                "mean":   round(sum(vals) / len(vals), 2),
+                "stocks": sorted(stocks[pat], key=lambda x: x["date"], reverse=True),
+            }
+        return result
 
     d1_valid = [r for r in reviews if r.get("d1_open_pct") is not None]
     d3_valid = [r for r in reviews if r.get("d3_high_pct") is not None]

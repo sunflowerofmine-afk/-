@@ -1224,25 +1224,79 @@ def _section_cumulative_stats(stats: dict) -> str:
     d3c = md.get("d3_count", 0)
     d5c = md.get("d5_count", 0)
 
-    def _avg_rows(data: dict) -> str:
+    # 종목 팝업용 JS 데이터 수집
+    _all_stocks: dict[str, dict] = {}  # key: "d1|당일돌파형" → {count, stocks}
+    for _key, _src in [("d1", "d1_open_by_pattern"), ("d3", "d3_mfe_by_pattern"), ("d5", "d5_mfe_by_pattern")]:
+        for _pat, _v in md.get(_src, {}).items():
+            if _v.get("stocks"):
+                _all_stocks[f"{_key}|{_pat}"] = _v["stocks"]
+    _stocks_json = _json.dumps(_all_stocks, ensure_ascii=False)
+
+    def _avg_rows(data: dict, prefix: str) -> str:
         rows = ""
         for pat, v in data.items():
             mean = v.get("mean", 0)
             cls  = "td-pos" if mean >= 0 else "td-neg"
+            cnt  = v.get("count", 0)
+            key  = f"{prefix}|{pat}"
+            cnt_html = (
+                f'<span style="cursor:pointer;color:var(--blue);text-decoration:underline dotted" '
+                f'onclick="showMdStocks(\'{_e(key)}\',\'{_e(pat)}\',\'{prefix}\')">{cnt}</span>'
+                if key in _all_stocks else str(cnt)
+            )
             rows += (
                 f"<tr><td>{_e(pat)}</td>"
-                f'<td style="text-align:center">{v.get("count",0)}</td>'
+                f'<td style="text-align:center">{cnt_html}</td>'
                 f'<td class="{cls}" style="text-align:center">{mean:+.2f}%</td></tr>'
             )
         return rows
 
+    # 팝업 모달 + JS
+    modal_html = """
+<div id="md-modal" onclick="if(event.target===this)this.style.display='none'"
+  style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;align-items:center;justify-content:center">
+  <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;
+    padding:20px;max-width:500px;width:90%;max-height:70vh;overflow-y:auto;position:relative">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div id="md-modal-title" style="font-weight:700;font-size:15px"></div>
+      <span onclick="document.getElementById('md-modal').style.display='none'"
+        style="cursor:pointer;font-size:20px;color:var(--muted);line-height:1">×</span>
+    </div>
+    <div id="md-modal-body"></div>
+  </div>
+</div>
+<script>
+const _MD_STOCKS = """ + _stocks_json + """;
+function showMdStocks(key, pat, prefix) {
+  const stocks = _MD_STOCKS[key];
+  if (!stocks || !stocks.length) return;
+  const label = {d1:'D+1 시가', d3:'D+3 고가', d5:'D+5 MFE'}[prefix] || prefix;
+  document.getElementById('md-modal-title').textContent = label + ' · ' + pat + ' (' + stocks.length + '개)';
+  const rows = stocks.map(s => {
+    const cls = s.pct >= 0 ? 'td-pos' : 'td-neg';
+    return '<tr><td style="color:var(--muted);font-size:11px">' + s.date + '</td>' +
+           '<td style="padding:4px 8px">' + s.name + ' <span style="color:var(--muted);font-size:11px">' + s.code + '</span></td>' +
+           '<td class="' + cls + '" style="text-align:right;padding:4px 8px">' + (s.pct >= 0 ? '+' : '') + s.pct.toFixed(2) + '%</td></tr>';
+  }).join('');
+  document.getElementById('md-modal-body').innerHTML =
+    '<table style="width:100%;border-collapse:collapse;font-size:13px">' +
+    '<thead><tr><th style="color:var(--muted);font-weight:400;text-align:left">날짜</th>' +
+    '<th style="color:var(--muted);font-weight:400;text-align:left">종목</th>' +
+    '<th style="color:var(--muted);font-weight:400;text-align:right">수익률</th></tr></thead>' +
+    '<tbody>' + rows + '</tbody></table>';
+  const m = document.getElementById('md-modal');
+  m.style.display = 'flex';
+}
+</script>"""
+
     avg_head = "<tr><th>패턴</th><th>종목수</th><th>평균</th></tr>"
     html += (
+        f'{modal_html}'
         f'<div class="section-title">📈 멀티데이 수익률 통계</div>'
         f'<div style="display:flex;gap:24px;flex-wrap:wrap;margin-bottom:16px">'
-        f'{_tbl(f"D+1 시가 평균 ({d1c}개) ★09:30 이전 매도 기준", md.get("d1_open_by_pattern", {}), avg_head, _avg_rows)}'
-        f'{_tbl(f"D+3 고가 평균 ({d3c}개)", md.get("d3_mfe_by_pattern",  {}), avg_head, _avg_rows)}'
-        f'{_tbl(f"D+5 MFE 평균 ({d5c}개)",  md.get("d5_mfe_by_pattern",  {}), avg_head, _avg_rows)}'
+        f'{_tbl(f"D+1 시가 평균 ({d1c}개) ★09:30 이전 매도 기준", md.get("d1_open_by_pattern", {}), avg_head, lambda d: _avg_rows(d, "d1"))}'
+        f'{_tbl(f"D+3 고가 평균 ({d3c}개)", md.get("d3_mfe_by_pattern",  {}), avg_head, lambda d: _avg_rows(d, "d3"))}'
+        f'{_tbl(f"D+5 MFE 평균 ({d5c}개)",  md.get("d5_mfe_by_pattern",  {}), avg_head, lambda d: _avg_rows(d, "d5"))}'
         f"</div>"
     )
 
