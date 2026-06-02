@@ -23,6 +23,10 @@ python -m scripts.backfill_reviews
 if %ERRORLEVEL% NEQ 0 (
     echo   [warn] backfill_reviews error - continuing anyway
 )
+python -m scripts.stats
+if %ERRORLEVEL% NEQ 0 (
+    echo   [warn] stats update error - continuing anyway
+)
 echo.
 
 :: [3] HTS CSV check

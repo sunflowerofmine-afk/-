@@ -308,3 +308,12 @@ def run() -> dict:
     # GitHub Actions에서 읽을 수 있도록 캐시 저장
     _save_cached_stats(result)
     return result
+
+
+if __name__ == "__main__":
+    import logging
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
+    result = run()
+    print(f"누적 측정: {result.get('total_measured', 0)}개")
+    for pat, v in result.get("pattern", {}).items():
+        print(f"  {pat}: {v['total']}개 / {v['rate']}%")

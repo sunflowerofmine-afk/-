@@ -5,7 +5,8 @@ D+1 NXT 장전 단일가 수집 — 매일 08:52 KST 실행.
 GitHub Actions cron: "52 23 * * 0-4"  (23:52 UTC = 08:52 KST 월~금)
 
 어제 신호 종목들의 08:50 장전 단일가(또는 형성 중인 가격)를 수집해
-data/signals/nxt_morning_{YYYY-MM-DD}.json 으로 저장.
+data/nxt_morning/{YYYY-MM-DD}.json 으로 저장.
+(data/signals/ 는 gitignored 이므로 data/nxt_morning/ 에 별도 저장)
 
 {
   "date": "2026-06-02",
@@ -30,12 +31,13 @@ from pathlib import Path
 import requests
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from config.settings import HEADERS, REQUEST_DELAY, SIGNALS_DIR
+from config.settings import HEADERS, REQUEST_DELAY
 
 logger = logging.getLogger(__name__)
 
 _POLL_URL = "https://polling.finance.naver.com/api/realtime/domestic/stock/{code}"
-_OUT_DIR  = Path(SIGNALS_DIR)
+_OUT_DIR  = Path(__file__).parent.parent / "data" / "nxt_morning"
+_SIGNALS_DIR = Path(__file__).parent.parent / "data" / "signals"
 
 
 def _fetch_price(code: str) -> int | None:
@@ -61,7 +63,7 @@ def _find_yesterday_signals() -> tuple[str | None, dict[str, str]]:
     for days_back in range(1, 5):
         d = date.today() - timedelta(days=days_back)
         d_str = d.isoformat()
-        matches = sorted(Path(SIGNALS_DIR).glob(f"{d_str}_1750_signals.csv"), reverse=True)
+        matches = sorted(_SIGNALS_DIR.glob(f"{d_str}_1750_signals.csv"), reverse=True)
         for path in matches:
             try:
                 df = pd.read_csv(path, dtype={"종목코드": str}, encoding="utf-8-sig")
@@ -84,7 +86,7 @@ def _find_yesterday_signals() -> tuple[str | None, dict[str, str]]:
 def _load_signal_prices(sig_date: str) -> dict[str, float]:
     """signals CSV에서 entry_reference_price 또는 signal_price 추출."""
     import pandas as pd
-    matches = sorted(Path(SIGNALS_DIR).glob(f"{sig_date}_1750_signals.csv"), reverse=True)
+    matches = sorted(_SIGNALS_DIR.glob(f"{sig_date}_1750_signals.csv"), reverse=True)
     if not matches:
         return {}
     try:
