@@ -1,0 +1,46 @@
+name: Morning NXT Price Collector
+
+on:
+  # 08:52 KST = 23:52 UTC (전날) — 장전 단일가 세션 종료 직후
+  schedule:
+    - cron: "52 23 * * 0-4"   # UTC 일~목 = KST 월~금
+  workflow_dispatch:           # 수동 실행 (테스트용)
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Fetch morning NXT prices
+        env:
+          TZ: Asia/Seoul
+        run: python -m scripts.fetch_morning_nxt
+
+      - name: Commit NXT morning data
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/signals/nxt_morning_*.json
+          git diff --cached --quiet && echo "No changes" || \
+            git commit -m "data: NXT morning prices $(date +%Y-%m-%d) [skip ci]"
+          git pull --rebase --autostash origin main
+          git push

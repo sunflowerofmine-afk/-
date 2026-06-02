@@ -59,8 +59,9 @@ TAG_DESC = {
     "POSITION_RULE_BROKEN":        "포지션 비중 위반 (30% 초과)",
     "MAX_POSITION_COUNT_EXCEEDED": "동시 보유 종목 3개 초과",
     # D+1 청산 규칙
-    "D1_EXIT_RULE_TARGET": "D+1 09:30 청산 목표 대상 (정보용)",
-    "D1_EXIT_ON_TIME":     "D+1 09:20~09:40 내 청산 완료 (준수, 정보용)",
+    "D1_EXIT_RULE_TARGET": "D+1 청산 목표 대상 (정보용)",
+    "NXT_MORNING_EXIT":    "D+1 NXT 장전(08:00~08:50) 청산 완료 (준수, 정보용)",
+    "D1_EXIT_ON_TIME":     "D+1 09:20~09:40 정규장 청산 완료 (준수, 정보용)",
     "D1_EXIT_EARLY":       "D+1 09:20 이전 조기 청산 (정보용)",
     "D1_EXIT_DELAYED":     "D+1 09:40 이후 청산 (지연)",
     "D1_EXIT_MISSED":      "D+1 미청산 (보유 지속)",
@@ -590,8 +591,14 @@ def _check_d1_exit_and_stop(
         h, m = _hm(first_sell_time)
         in_window = (9, 20) <= (h, m) <= (9, 40)
 
+        in_nxt_morning = (8, 0) <= (h, m) <= (8, 50)
+
         if in_window:
             tags.append("D1_EXIT_ON_TIME")
+            if gap_down_required:
+                tags.append("GAP_DOWN_STOP_DONE")
+        elif in_nxt_morning:
+            tags.append("NXT_MORNING_EXIT")
             if gap_down_required:
                 tags.append("GAP_DOWN_STOP_DONE")
         elif (h, m) < (9, 20):
@@ -723,7 +730,7 @@ def _analyze(trades: list[dict], cache: SignalCache) -> dict:
     _bot_n   = len([r for r in results if "NON_SIGNAL_TRADE" not in r["tags"]])
     _inter_n = len([r for r in _sig_confirmed if "NON_INTERSECTION_TRADE" not in r["tags"]])
     _close_n = len([r for r in _price_avail if r.get("entry_type") == "REGULAR_CLOSE_ENTRY"])
-    _d1_n    = len([r for r in _d1_targets if "D1_EXIT_ON_TIME" in r["tags"]])
+    _d1_n    = len([r for r in _d1_targets if "D1_EXIT_ON_TIME" in r["tags"] or "NXT_MORNING_EXIT" in r["tags"]])
     _avg_n   = len([r for r in results if "AVERAGING_DOWN" not in r["tags"]])
     _pos_n   = len([r for r in results if "OVERSIZED_POSITION" not in r["tags"]])
 
@@ -972,8 +979,9 @@ _TAG_COLOR = {
     "POSITION_RULE_BROKEN":        "#8e24aa",
     "MAX_POSITION_COUNT_EXCEEDED": "#c62828",
     # D+1 청산
-    "D1_EXIT_RULE_TARGET": "#546e7a",
-    "D1_EXIT_ON_TIME":     "#4caf50",
+    "D1_EXIT_RULE_TARGET":  "#546e7a",
+    "NXT_MORNING_EXIT":     "#00897b",
+    "D1_EXIT_ON_TIME":      "#4caf50",
     "D1_EXIT_DELAYED":     "#fb8c00",
     "D1_EXIT_MISSED":      "#e53935",
     # 갭하락 손절

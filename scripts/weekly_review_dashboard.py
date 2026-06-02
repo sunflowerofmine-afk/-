@@ -59,7 +59,7 @@ _TAG_DESC = {
 
 _INFO_TAGS = {
     "NXT_ENTRY", "ADDITIONAL_BUY", "PRICE_REFERENCE_MISSING",
-    "AFTER_1750_NXT_ENTRY", "D1_EXIT_RULE_TARGET", "D1_EXIT_ON_TIME",
+    "AFTER_1750_NXT_ENTRY", "D1_EXIT_RULE_TARGET", "NXT_MORNING_EXIT", "D1_EXIT_ON_TIME",
     "D1_EXIT_EARLY", "GAP_DOWN_STOP_REQUIRED", "GAP_DOWN_STOP_DONE",
     "EXTENDED_HOLD_ALLOWED", "EXTENDED_HOLD_PROFIT", "EXTENDED_HOLD_LOSS",
     "EXTENDED_HOLD_NOT_ALLOWED", "EXTENDED_HOLD_REVIEW_NEEDED",
@@ -158,6 +158,16 @@ def _load_trades() -> list[dict]:
         return []
 
 
+def _load_cumulative_stats() -> dict:
+    p = _BASE / "reports" / "cumulative_stats.json"
+    if not p.exists():
+        return {}
+    try:
+        return json.loads(p.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
 # ── 집계 ──────────────────────────────────────────────────────
 
 def _aggregate(history: list[dict], trades: list[dict]) -> dict:
@@ -228,9 +238,90 @@ def _aggregate(history: list[dict], trades: list[dict]) -> dict:
     }
 
 
+def _section_system_stats(stats: dict) -> str:
+    """reports/cumulative_stats.json 기반 시스템 누적 성과 섹션."""
+    if not stats or not stats.get("total_measured"):
+        return ""
+    total = stats["total_measured"]
+
+    # 패턴별 승률 rows
+    pattern_rows = ""
+    for pat, v in stats.get("pattern", {}).items():
+        rate = v["rate"]
+        color = "#4caf50" if rate >= 65 else ("#fb8c00" if rate >= 50 else "#ef5350")
+        pattern_rows += (
+            f"<tr><td>{pat}</td>"
+            f"<td style='text-align:center'>{v['total']}</td>"
+            f"<td style='text-align:center;color:{color};font-weight:600'>{rate:.0f}%</td></tr>"
+        )
+
+    # 스코어 구간별 rows
+    score_rows = ""
+    for band, v in stats.get("score_band", {}).items():
+        rate = v["rate"]
+        color = "#4caf50" if rate >= 65 else ("#fb8c00" if rate >= 50 else "#ef5350")
+        score_rows += (
+            f"<tr><td>점수 {band}</td>"
+            f"<td style='text-align:center'>{v['total']}</td>"
+            f"<td style='text-align:center;color:{color};font-weight:600'>{rate:.0f}%</td></tr>"
+        )
+
+    # 교집합 vs 비교집합
+    inter_html = ""
+    inter_fs = stats.get("inter_full_stats", {})
+    d1_inter  = (inter_fs.get("inter",  {}).get("d1_open") or {})
+    d1_ninter = (inter_fs.get("ninter", {}).get("d1_open") or {})
+    if d1_inter or d1_ninter:
+        def _wr_cell(d: dict) -> str:
+            if not d:
+                return "<td style='text-align:center;color:#555'>-</td>"
+            wr = d.get("win_rate", 0)
+            avg = d.get("mean", 0)
+            n   = d.get("n", 0)
+            c   = "#4caf50" if wr >= 60 else ("#fb8c00" if wr >= 50 else "#ef5350")
+            return (f"<td style='text-align:center'>"
+                    f"<span style='color:{c};font-weight:600'>{wr:.0f}%</span>"
+                    f" <span style='color:#555;font-size:11px'>(avg {avg:+.1f}% / {n}개)</span>"
+                    f"</td>")
+        inter_html = f"""
+<div style="margin-top:12px">
+  <div style="font-size:12px;color:#888;margin-bottom:6px">교집합 vs 비교집합 (D+1 시가 기준)</div>
+  <table style="max-width:500px">
+    <thead><tr><th>구분</th><th style='text-align:center'>D+1 시가 승률</th></tr></thead>
+    <tbody>
+      <tr><td>★ 교집합</td>{_wr_cell(d1_inter)}</tr>
+      <tr><td>비교집합</td>{_wr_cell(d1_ninter)}</tr>
+    </tbody>
+  </table>
+</div>"""
+
+    return f"""
+<div class="card">
+  <div class="section-title">📊 시스템 누적 성과 ({total}개 측정) <span style="font-size:11px;color:#555;font-weight:400">D+1 시가 기준 성공/실패 판정</span></div>
+  <div style="display:flex;gap:32px;flex-wrap:wrap">
+    <div>
+      <div style="font-size:12px;color:#888;margin-bottom:6px">패턴별 성공률</div>
+      <table style="max-width:260px">
+        <thead><tr><th>패턴</th><th style='text-align:center'>n</th><th style='text-align:center'>성공률</th></tr></thead>
+        <tbody>{pattern_rows}</tbody>
+      </table>
+    </div>
+    <div>
+      <div style="font-size:12px;color:#888;margin-bottom:6px">스코어 구간별 성공률</div>
+      <table style="max-width:260px">
+        <thead><tr><th>구간</th><th style='text-align:center'>n</th><th style='text-align:center'>성공률</th></tr></thead>
+        <tbody>{score_rows}</tbody>
+      </table>
+    </div>
+  </div>
+  {inter_html}
+  <div style="font-size:11px;color:#555;margin-top:8px">※ run_trade_review.bat 실행 시 자동 갱신 (backfill_reviews → stats 순서)</div>
+</div>"""
+
+
 # ── HTML 생성 ─────────────────────────────────────────────────
 
-def _generate_html(history: list[dict], agg: dict) -> str:
+def _generate_html(history: list[dict], agg: dict, cumulative_stats: dict | None = None) -> str:
     if not history:
         return "<html><body><p>데이터 없음 — 먼저 trade_analyzer를 실행하세요.</p></body></html>"
 
@@ -506,6 +597,7 @@ def _generate_html(history: list[dict], agg: dict) -> str:
 {entry_table}
 {tag_table}
 {trade_section}
+{_section_system_stats(cumulative_stats or {})}
 {link_section}
 </body>
 </html>"""
@@ -526,8 +618,9 @@ def main():
         print("[오류] compliance_history.json 없음 — trade_analyzer를 먼저 실행하세요.")
         return
 
-    agg  = _aggregate(history, trades)
-    html = _generate_html(history, agg)
+    agg              = _aggregate(history, trades)
+    cumulative_stats = _load_cumulative_stats()
+    html             = _generate_html(history, agg, cumulative_stats)
 
     _REPORT_DIR.mkdir(parents=True, exist_ok=True)
     _OUT_HTML.write_text(html, encoding="utf-8")
