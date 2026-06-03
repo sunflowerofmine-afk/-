@@ -39,7 +39,8 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/nxt_morning/
+          mkdir -p data/nxt_morning
+          git add data/nxt_morning/ 2>/dev/null || true
           git diff --cached --quiet && echo "No changes" || \
             git commit -m "data: NXT morning prices $(date +%Y-%m-%d) [skip ci]"
           git pull --rebase --autostash origin main
