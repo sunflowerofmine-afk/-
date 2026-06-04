@@ -158,6 +158,87 @@ def analyze_news(
     return line
 
 
+def summarize_market_flow(
+    run_date: str,
+    market_regime: str,
+    adl: float | None,
+    leading_sectors: list[dict],
+    limit_up_names: list[str],
+    candidates: list[dict],
+) -> str:
+    """
+    오늘 시장 자금 흐름 요약 — TELEGRAM_CHAT_ID 전용 심층 브리핑.
+
+    입력:
+      run_date       : "2026-06-04"
+      market_regime  : "강세" / "중립" / "약세"
+      adl            : 0.0~1.0 (상승종목 비율)
+      leading_sectors: [{"sector_name": ..., "ratio": ...}, ...]
+      limit_up_names : 상한가 종목명 리스트
+      candidates     : 핵심 후보 종목 dict 리스트 (name, sector, llm_summary 포함)
+    """
+    client = _get_client()
+    if not client:
+        return "[요약 불가 - Gemini 미설정]"
+
+    sector_text = "\n".join(
+        f"  {i+1}. {s.get('sector_name','?')} ({s.get('ratio',0):.1f}%)"
+        for i, s in enumerate(leading_sectors[:5])
+    ) or "  (없음)"
+
+    limit_up_text = ", ".join(limit_up_names[:10]) if limit_up_names else "없음"
+
+    cand_text = ""
+    for c in candidates[:5]:
+        name    = c.get("name", "")
+        sector  = c.get("sector", "")
+        news    = c.get("news")
+        summary = getattr(news, "llm_summary", None) or ""
+        cand_text += f"  - {name}({sector}): {summary}\n"
+    if not cand_text:
+        cand_text = "  (없음)\n"
+
+    adl_str = f"{adl*100:.1f}%" if adl is not None else "?"
+
+    prompt = f"""당신은 한국 주식 단기 매매 전문가입니다.
+오늘({run_date}) 한국 장 마감 후 데이터입니다.
+
+시장 장세: {market_regime} (ADL {adl_str})
+
+거래대금 상위 섹터:
+{sector_text}
+
+상한가 종목: {limit_up_text}
+
+오늘 주목 종목 및 재료:
+{cand_text}
+위 데이터를 바탕으로 아래 3가지를 분석하세요:
+
+1. 오늘 시장의 핵심 자금 흐름 (어디에 돈이 몰렸고 왜인지)
+2. 주도 섹터/테마의 배경 (뉴스·이슈 맥락)
+3. 내일 장 시초가 대응 시 주목할 포인트
+
+규칙:
+- 사실 기반으로만 작성. 불확실한 예측 금지.
+- 각 항목 2~3문장 이내.
+- 전체 10줄 이내."""
+
+    try:
+        from google.genai import types as _gtypes
+        resp = client.models.generate_content(
+            model=GEMINI_MODEL,
+            contents=prompt,
+            config=_gtypes.GenerateContentConfig(
+                temperature=0.3,
+                thinking_config=_gtypes.ThinkingConfig(thinking_budget=0),
+            ),
+        )
+        return resp.text.strip()
+    except Exception as e:
+        logger.warning(f"시장 흐름 요약 실패: {e}")
+        return f"[요약 실패: {e}]"
+
+
 def summarize_us_market(indices: dict, headlines: list[str]) -> str:
     """미국 지수 + 뉴스 헤드라인 → 2~3줄 한국어 브리핑 요약."""
     client = _get_client()

@@ -76,6 +76,29 @@ def send_message(text: str) -> bool:
     return success
 
 
+def send_private(text: str) -> bool:
+    """TELEGRAM_CHAT_ID 단독 발송 — 공유 그룹 제외."""
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+        logger.error("TELEGRAM_BOT_TOKEN 또는 TELEGRAM_CHAT_ID 미설정")
+        return False
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    success = True
+    for chunk in _chunks(text):
+        try:
+            resp = requests.post(
+                url,
+                json={"chat_id": TELEGRAM_CHAT_ID, "text": chunk, "parse_mode": "HTML"},
+                timeout=15,
+            )
+            if resp.status_code != 200:
+                logger.error(f"텔레그램 전송 실패 [private]: {resp.status_code} {resp.text[:200]}")
+                success = False
+        except Exception as e:
+            logger.error(f"텔레그램 전송 예외 [private]: {e}")
+            success = False
+    return success
+
+
 # ── 포맷 헬퍼 ─────────────────────────────────────────────
 
 def _tv_eok(won: float) -> str:

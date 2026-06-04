@@ -1406,6 +1406,23 @@ def run(preview: bool = False):
         ntf.send_message(msg)
         logger.info(f"2차 알림 전송 완료 (핵심 {len(core_candidates)}개 / 관심 {len(watch_candidates)}개)")
 
+        # ── 시장 흐름 심층 요약 (TELEGRAM_CHAT_ID 전용) ────────────────
+        try:
+            from scripts.llm_analyzer import summarize_market_flow
+            flow_text = summarize_market_flow(
+                run_date       = report_date,
+                market_regime  = market_regime,
+                adl            = _market_adl,
+                leading_sectors= leading_sectors,
+                limit_up_names = limit_up_names,
+                candidates     = core_candidates,
+            )
+            private_msg = f"📊 <b>오늘 시장 흐름 분석</b> ({run_time} KST)\n\n{flow_text}"
+            ntf.send_private(private_msg)
+            logger.info("시장 흐름 요약 전송 완료")
+        except Exception as e:
+            logger.warning(f"시장 흐름 요약 실패 (무시): {e}")
+
     if ENABLE_DASHBOARD:
         try:
             generate_index_html(REPORTS_DIR)
