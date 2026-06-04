@@ -38,3 +38,4 @@ reports/weekly_reviews/
 # ── Claude Code 내부 파일 ─────────────────────────────────
 CLAUDE.md
 .claude/
+"test_artifact_check/" 
