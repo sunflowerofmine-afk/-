@@ -1,7 +1,9 @@
 name: Extra Signals Data
 
 on:
-  workflow_dispatch:           # cron-job.org 21:00 KST 트리거
+  schedule:
+    - cron: "0 12 * * 1-5"   # 21:00 KST (UTC+9 = 12:00 UTC), 평일만
+  workflow_dispatch:
 
 jobs:
   fetch-extra:
@@ -9,8 +11,13 @@ jobs:
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
+    permissions:
+      contents: write
+
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:
@@ -41,10 +48,14 @@ jobs:
           TZ: Asia/Seoul
         run: python -m scripts.fetch_extra_signals_data
 
-      - name: Upload extra signals artifact
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: extra-signals-${{ github.run_id }}
-          path: data/signals_extra/
-          retention-days: 30
+      - name: Commit extra signals data
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/signals_extra/
+          if git diff --cached --quiet; then
+            echo "변경 없음 → skip"
+          else
+            git commit -m "data: signals_extra $(date +%Y-%m-%d)"
+            git push
+          fi

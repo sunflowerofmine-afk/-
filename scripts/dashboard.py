@@ -39,6 +39,7 @@ from scripts._dashboard_sections import (
     _section_table_gainers,
     _section_table_tv,
     _section_pullback_observer,
+    _section_52w_trend,
 )
 
 logger = logging.getLogger(__name__)
@@ -249,6 +250,7 @@ def _build_html(data: dict, nav_entries: list | None = None, current_filename: s
         _section_recent_base_pool(data.get("obs_candidates", [])),
         _section_review(data.get("review_results", [])),
         _section_cumulative_stats(data.get("cumulative_stats", {})),
+        _section_52w_trend(),
         _section_pullback_observer(data.get("pullback_obs_candidates", [])),
     ]
     body     = "\n".join(body_parts)

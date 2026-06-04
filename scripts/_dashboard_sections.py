@@ -5,6 +5,7 @@ import json as _json
 import re as _re
 from datetime import date as _date, timedelta
 from html import escape
+from pathlib import Path as _Path
 
 
 # ─── 포맷 헬퍼 ────────────────────────────────────────────────────────────────
@@ -1908,5 +1909,68 @@ def _section_pullback_observer(candidates: list) -> str:
         f'총 {n_total}개 · 구조양호 {n_normal}개 · 구조훼손(참고) {n_broken}개'
         f'</p>'
         f'</div>'
+        f'</details>'
+    )
+
+
+def _section_52w_trend(days: int = 20) -> str:
+    """
+    data/signals_extra/ 에 누적된 JSON을 읽어 최근 N일
+    신고가 근처 비율 트렌드를 테이블로 표시.
+    파일이 없으면 빈 문자열 반환.
+    """
+    extra_dir = _Path("data/signals_extra")
+    if not extra_dir.exists():
+        return ""
+
+    files = sorted(extra_dir.glob("*_extra.json"), reverse=True)[:days]
+    if not files:
+        return ""
+
+    rows_html = ""
+    for f in sorted(files):
+        try:
+            data = _json.loads(f.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        stocks = data.get("stocks", {})
+        total  = len(stocks)
+        if total == 0:
+            continue
+        near   = sum(1 for v in stocks.values() if v.get("is_near_52w_high"))
+        pct    = round(near / total * 100)
+        bar_w  = pct
+        color  = "var(--green)" if pct >= 60 else ("var(--yellow)" if pct >= 30 else "var(--muted)")
+        near_names = ", ".join(
+            _e(v.get("name", k))
+            for k, v in stocks.items()
+            if v.get("is_near_52w_high")
+        ) or "-"
+        rows_html += (
+            f"<tr>"
+            f"<td>{_e(data.get('date',''))}</td>"
+            f'<td style="text-align:center">{total}</td>'
+            f'<td style="text-align:center;color:{color};font-weight:600">{near}</td>'
+            f'<td style="text-align:center;color:{color}">{pct}%</td>'
+            f'<td style="min-width:80px">'
+            f'<div style="background:{color};height:8px;width:{bar_w}%;border-radius:4px"></div></td>'
+            f'<td style="font-size:11px;color:var(--muted)">{near_names}</td>'
+            f"</tr>"
+        )
+
+    if not rows_html:
+        return ""
+
+    return (
+        f'<details open>'
+        f'<summary class="section-title">📈 52주 신고가 근처 비율 추이</summary>'
+        f'<div class="tbl-wrap" style="margin-top:8px"><table>'
+        f'<thead><tr>'
+        f'<th>날짜</th><th>신호수</th><th>신고가근처</th><th>비율</th><th></th><th>종목</th>'
+        f'</tr></thead>'
+        f'<tbody>{rows_html}</tbody>'
+        f'</table></div>'
+        f'<p style="font-size:11px;color:var(--muted);margin-top:4px">'
+        f'52주 최고가 ±5% 이내 = 신고가 근처. data/signals_extra/ 누적 기준.</p>'
         f'</details>'
     )
