@@ -101,32 +101,38 @@ def _supply_str(supply) -> str:
     if isinstance(supply, SupplyData):
         if supply.status == "failed":
             return "확인불가"
-        label   = getattr(supply, "supply_label", "") or ""
-        inst    = supply.institution_net
-        frgn    = supply.foreign_net
-        inst_5d = supply.institution_net_5d
-        frgn_5d = supply.foreign_net_5d
-        date    = supply.supply_date or ""
+        label    = getattr(supply, "supply_label", "") or ""
+        inst     = supply.institution_net
+        frgn     = supply.foreign_net
+        inst_5d  = supply.institution_net_5d
+        frgn_5d  = supply.foreign_net_5d
+        inst_con = getattr(supply, "institution_consecutive_days", 0)
+        frgn_con = getattr(supply, "foreign_consecutive_days", 0)
+        date     = supply.supply_date or ""
     else:
         if supply.get("status") == "failed":
             return "확인불가"
-        label   = supply.get("supply_label", "") or ""
-        inst    = supply.get("institution_net")
-        frgn    = supply.get("foreign_net")
-        inst_5d = supply.get("institution_net_5d")
-        frgn_5d = supply.get("foreign_net_5d")
-        date    = supply.get("supply_date") or ""
+        label    = supply.get("supply_label", "") or ""
+        inst     = supply.get("institution_net")
+        frgn     = supply.get("foreign_net")
+        inst_5d  = supply.get("institution_net_5d")
+        frgn_5d  = supply.get("foreign_net_5d")
+        inst_con = supply.get("institution_consecutive_days", 0)
+        frgn_con = supply.get("foreign_consecutive_days", 0)
+        date     = supply.get("supply_date") or ""
 
-    def _fmt(v1d, v5d, label_name):
+    def _fmt(v1d, v5d, con, label_name):
         if v1d is None:
             return f"{label_name} -"
         s = f"{label_name} {v1d/100_000_000:+.0f}억"
         if v5d is not None:
             s += f"(5d{v5d/100_000_000:+.0f}억)"
+        if con and abs(con) >= 2:
+            s += f"({abs(con)}일연속{'매수' if con > 0 else '매도'})"
         return s
 
-    inst_s  = _fmt(inst, inst_5d, "기관")
-    frgn_s  = _fmt(frgn, frgn_5d, "외국인")
+    inst_s  = _fmt(inst, inst_5d, inst_con, "기관")
+    frgn_s  = _fmt(frgn, frgn_5d, frgn_con, "외국인")
     date_s  = f" ({date})" if date else ""
     label_s = f"[{label}] " if label else ""
     base    = f"{label_s}{inst_s} / {frgn_s}{date_s}"

@@ -33,6 +33,28 @@ def _parse_shares(text: str) -> float | None:
 _SUPPLY_LOOKBACK = 5  # 누적 집계 거래일 수
 
 
+def _count_consecutive(values: list[float]) -> int:
+    """
+    최신일(index 0)부터 같은 부호가 연속되는 일수 반환.
+    양수(순매수)면 양수, 음수(순매도)면 음수로 반환.
+    예: [+100, +200, +50, -10, +30] → 3
+        [-100, -200, +50]           → -2
+        []                          → 0
+    """
+    if not values:
+        return 0
+    sign = 1 if values[0] > 0 else (-1 if values[0] < 0 else 0)
+    if sign == 0:
+        return 0
+    count = 0
+    for v in values:
+        if (sign > 0 and v > 0) or (sign < 0 and v < 0):
+            count += 1
+        else:
+            break
+    return sign * count
+
+
 def fetch_supply(code: str) -> SupplyData:
     """
     네이버 외국인/기관 매매 페이지에서 최근 5거래일 수급 데이터 반환.
@@ -52,9 +74,11 @@ def fetch_supply(code: str) -> SupplyData:
             logger.debug(f"[{code}] 수급 테이블 없음 (tables={len(tables)})")
             return result
 
-        inst_acc = 0.0
-        frgn_acc = 0.0
-        rows_ok  = 0
+        inst_acc  = 0.0
+        frgn_acc  = 0.0
+        rows_ok   = 0
+        inst_rows: list[float] = []
+        frgn_rows: list[float] = []
 
         for tr in tables[1].select("tr"):
             cols = tr.select("td")
@@ -74,6 +98,8 @@ def fetch_supply(code: str) -> SupplyData:
 
             inst_acc += (inst or 0.0)
             frgn_acc += (frgn or 0.0)
+            inst_rows.append(inst or 0.0)
+            frgn_rows.append(frgn or 0.0)
             rows_ok  += 1
 
             if rows_ok >= _SUPPLY_LOOKBACK:
@@ -82,6 +108,8 @@ def fetch_supply(code: str) -> SupplyData:
         if result.status == "ok":
             result.institution_net_5d = inst_acc
             result.foreign_net_5d     = frgn_acc
+            result.institution_consecutive_days = _count_consecutive(inst_rows)
+            result.foreign_consecutive_days     = _count_consecutive(frgn_rows)
             logger.info(
                 f"[{code}] 수급({rows_ok}d) 날짜={result.supply_date} "
                 f"기관1d={result.institution_net} 5d={inst_acc:.0f} "

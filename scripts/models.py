@@ -30,8 +30,10 @@ class SupplyData:
     institution_net:    Optional[float] = None   # 당일, 원 단위
     foreign_net:        Optional[float] = None
     program_net:        Optional[float] = None
-    institution_net_5d: Optional[float] = None   # 5거래일 누적, 원 단위
-    foreign_net_5d:     Optional[float] = None
+    institution_net_5d:          Optional[float] = None   # 5거래일 누적, 원 단위
+    foreign_net_5d:              Optional[float] = None
+    institution_consecutive_days: int = 0   # 최근 연속 순매수 거래일 수 (음수=연속 순매도)
+    foreign_consecutive_days:     int = 0
     supply_label:       str = ""                 # 쌍매수/기관매수/외인매수/혼조/확인불가
     status:             str = "failed"           # "ok" / "failed"
     supply_date:        Optional[str]  = None    # 수급 기준 날짜 (YYYY.MM.DD)

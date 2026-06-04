@@ -45,6 +45,7 @@ def _supply_info(supply) -> dict:
         "status": "failed",
         "institution_net": None, "foreign_net": None, "program_net": None,
         "institution_net_5d": None, "foreign_net_5d": None, "supply_label": "",
+        "institution_consecutive_days": 0, "foreign_consecutive_days": 0,
     }
     if supply is None:
         return empty
@@ -57,6 +58,8 @@ def _supply_info(supply) -> dict:
             "institution_net_5d": supply.institution_net_5d,
             "foreign_net_5d":     supply.foreign_net_5d,
             "supply_label":       getattr(supply, "supply_label", "") or "",
+            "institution_consecutive_days": getattr(supply, "institution_consecutive_days", 0),
+            "foreign_consecutive_days":     getattr(supply, "foreign_consecutive_days", 0),
         }
     if isinstance(supply, dict):
         return {**empty, **supply}
@@ -680,6 +683,8 @@ def _section_stock_panel(candidates: list, rejected: list, market_regime: str = 
         sup_frgn    = sup.get("foreign_net")
         sup_inst_5d = sup.get("institution_net_5d")
         sup_frgn_5d = sup.get("foreign_net_5d")
+        inst_con    = sup.get("institution_consecutive_days", 0)
+        frgn_con    = sup.get("foreign_consecutive_days", 0)
         js_data.append({
             "idx":          idx,
             "name":         c.get("name", ""),
@@ -708,6 +713,8 @@ def _section_stock_panel(candidates: list, rejected: list, market_regime: str = 
             "frgn_str":     f"{sup_frgn/1e8:+.0f}억" if sup_frgn is not None else "-",
             "inst_5d_str":  f"{sup_inst_5d/1e8:+.0f}억" if sup_inst_5d is not None else "-",
             "frgn_5d_str":  f"{sup_frgn_5d/1e8:+.0f}억" if sup_frgn_5d is not None else "-",
+            "inst_con":     inst_con,
+            "frgn_con":     frgn_con,
             "supply_label":  sup.get("supply_label", ""),
             "supply_ok":     sup.get("status") == "ok",
             "prog_net_str":  (f"{c['prog_net_eok']:+.0f}억" if c.get("prog_net_eok") is not None else None),
@@ -758,8 +765,9 @@ function renderDetail(idx) {{
   const ckHtml   = c.checkpoints.map(p => '<div class="chk-item">□ ' + p + '</div>').join('');
   const labelHtml = c.supply_label ? '<strong style="color:var(--blue)">[' + c.supply_label + ']</strong> ' : '';
   const progHtml  = c.prog_net_str ? ' &nbsp;<span style="color:var(--muted);font-size:11px">프로그램 <strong style="color:' + (c.prog_net_str.startsWith('+') ? 'var(--green)' : 'var(--red)') + '">' + c.prog_net_str + '</strong></span>' : '';
+  const _conStr = (con) => Math.abs(con) >= 2 ? '<span style="color:' + (con > 0 ? 'var(--green)' : 'var(--red)') + ';font-size:11px"> ' + Math.abs(con) + '일연속' + (con > 0 ? '매수' : '매도') + '</span>' : '';
   const supHtml   = c.supply_ok
-    ? '<div class="detail-section"><div class="detail-section-title">수급</div><div style="font-size:13px">' + labelHtml + '기관 <strong>' + c.inst_str + '</strong><span style="color:var(--muted);font-size:11px">(5d:' + c.inst_5d_str + ')</span> &nbsp;/&nbsp; 외국인 <strong>' + c.frgn_str + '</strong><span style="color:var(--muted);font-size:11px">(5d:' + c.frgn_5d_str + ')</span>' + progHtml + '</div></div>'
+    ? '<div class="detail-section"><div class="detail-section-title">수급</div><div style="font-size:13px">' + labelHtml + '기관 <strong>' + c.inst_str + '</strong><span style="color:var(--muted);font-size:11px">(5d:' + c.inst_5d_str + ')</span>' + _conStr(c.inst_con) + ' &nbsp;/&nbsp; 외국인 <strong>' + c.frgn_str + '</strong><span style="color:var(--muted);font-size:11px">(5d:' + c.frgn_5d_str + ')</span>' + _conStr(c.frgn_con) + progHtml + '</div></div>'
     : (c.prog_net_str ? '<div class="detail-section"><div class="detail-section-title">수급</div><div style="font-size:13px">' + progHtml.trim() + '</div></div>' : '');
 
   let h = '';
