@@ -1,0 +1,1289 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="UTF-8">
+<title>패턴 탈락 사유 분석</title>
+<style>
+body{font-family:'Noto Sans KR',sans-serif;font-size:13px;background:#f8f9fa;margin:0;padding:20px}
+h1{font-size:18px;margin-bottom:4px}
+.meta{color:#666;font-size:12px;margin-bottom:24px}
+.card{background:#fff;border:1px solid #dee2e6;border-radius:8px;margin-bottom:28px;overflow:hidden}
+.card-header{background:#343a40;color:#fff;padding:10px 16px;font-weight:700;display:flex;align-items:center;gap:12px}
+.badge{font-size:11px;padding:2px 7px;border-radius:4px;background:#6c757d}
+.badge.market{background:#0d6efd}
+table{width:100%;border-collapse:collapse}
+th{background:#f1f3f5;font-weight:600;padding:6px 10px;text-align:center;font-size:12px;border-bottom:2px solid #dee2e6}
+td{padding:5px 10px;border-bottom:1px solid #f0f0f0;text-align:center;font-size:12px}
+td.label{text-align:left;color:#495057;font-weight:500;padding-left:16px}
+td.section{text-align:left;font-weight:700;background:#e9ecef;color:#343a40;padding:5px 10px}
+.ok{color:#198754;font-weight:700}
+.fail{color:#dc3545;font-weight:700}
+.na{color:#adb5bd}
+.final-ok{background:#d1e7dd;font-weight:700;color:#0f5132}
+.final-fail{background:#f8d7da;font-weight:700;color:#842029}
+.sig-label{font-size:11px;padding:1px 5px;border-radius:3px;background:#e9ecef;color:#495057}
+.no-data{color:#adb5bd;font-style:italic}
+.error{color:#dc3545;padding:12px 16px;font-style:italic}
+</style>
+</head><body>
+<h1>📉 기준봉 → 패턴 탈락 사유 분석</h1>
+<p class="meta">분석 기간: 최근 21일 | 기준봉 이벤트: 34건 (데이터오류: 0건) | 생성: 2026-05-25 06:00</p>
+<p class="meta">● 시그널파일 TV(정확) &nbsp; ○ yfinance TV(근사) &nbsp; D+N 헤더 색상: 전일 대비 등락률</p>
+
+<div class="card">
+  <div class="card-header">
+    삼성증권
+    <span class="badge market">KOSPI</span>
+    <span class="badge">016360</span>
+    <span style="font-size:12px;font-weight:400">기준봉: 05/04 (+28.3%) | 거래대금: 9330억</span>
+  </div>
+<table><thead><tr><th style="text-align:left;min-width:160px">조건</th><th>D+1<br>05/06<br><span style="color:#198754">+8.4%</span> 6484억○</th><th>D+2<br>05/07<br><span style="color:#dc3545">-2.9%</span> 2080억○</th><th>D+3<br>05/08<br><span style="color:#dc3545">-5.5%</span> 1653억○</th><th>D+4<br>05/11<br><span style="color:#dc3545">-1.5%</span> 1490억○</th><th>D+5<br>05/12<br><span style="color:#dc3545">-5.3%</span> 1848억○</th></tr></thead><tbody>
+<tr><td class="section" colspan="6">📊 고가횡보형</td></tr>
+<tr><td class="label">가격유지</td><td class="ok">+7.0%</td><td class="ok">+3.9%</td><td class="ok">-1.8%</td><td class="ok">-3.2%</td><td class="fail">-8.4%</td></tr>
+<tr><td class="label">TV최소</td><td class="ok">0.69</td><td class="ok">0.22</td><td class="ok">0.18</td><td class="ok">0.16</td><td class="ok">0.20</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">최종</td><td class="final-ok">✅ 해당</td><td class="final-ok">✅ 해당</td><td class="final-ok">✅ 해당</td><td class="final-ok">✅ 해당</td><td class="final-fail">❌ 탈락</td></tr>
+<tr><td class="section" colspan="6">📊 고가수축형 (HTC)</td></tr>
+<tr><td class="label">가격(고가기준)</td><td class="ok">+7.0%</td><td class="ok">+3.9%</td><td class="ok">-1.8%</td><td class="ok">-3.2%</td><td class="fail">-8.4%</td></tr>
+<tr><td class="label">가격(종가기준)</td><td class="ok">+8.4%</td><td class="ok">+5.3%</td><td class="ok">-0.5%</td><td class="ok">-2.0%</td><td class="fail">-7.2%</td></tr>
+<tr><td class="label">중간일최저종가</td><td class="ok">+8.4%</td><td class="ok">+5.3%</td><td class="ok">-0.5%</td><td class="ok">-2.0%</td><td class="ok">-7.2%</td></tr>
+<tr><td class="label">TV평균수축</td><td class="fail">0.69</td><td class="ok">0.46</td><td class="ok">0.37</td><td class="ok">0.31</td><td class="ok">0.29</td></tr>
+<tr><td class="label">TV오늘수축</td><td class="fail">0.69</td><td class="ok">0.22</td><td class="ok">0.18</td><td class="ok">0.16</td><td class="ok">0.20</td></tr>
+<tr><td class="label">TV최소(300억)</td><td class="ok">6484억</td><td class="ok">2080억</td><td class="ok">1653억</td><td class="ok">1490억</td><td class="ok">1848억</td></tr>
+<tr><td class="label">고저변동폭</td><td class="ok">0.0%</td><td class="fail">12.8%</td><td class="fail">13.5%</td><td class="fail">16.6%</td><td class="fail">17.7%</td></tr>
+<tr><td class="label">종가변동폭</td><td class="ok">0.0%</td><td class="ok">2.9%</td><td class="ok">8.2%</td><td class="ok">9.6%</td><td class="fail">14.4%</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">몸통중간값유지</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">장대음봉없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">최종</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+<tr><td class="section" colspan="6">📊 김형준 기법 (KH)</td></tr>
+<tr><td class="label">기준봉TV폭발</td><td class="ok">26.7배</td><td class="ok">26.7배</td><td class="ok">26.7배</td><td class="ok">26.7배</td><td class="ok">26.7배</td></tr>
+<tr><td class="label">기준봉TV최소</td><td class="ok">9330억</td><td class="ok">9330억</td><td class="ok">9330억</td><td class="ok">9330억</td><td class="ok">9330억</td></tr>
+<tr><td class="label">TV수축</td><td class="fail">0.69</td><td class="ok">0.22</td><td class="ok">0.18</td><td class="ok">0.16</td><td class="ok">0.20</td></tr>
+<tr><td class="label">가격유지</td><td class="ok">+7.0%</td><td class="ok">+3.9%</td><td class="ok">-1.8%</td><td class="ok">-3.2%</td><td class="fail">-8.4%</td></tr>
+<tr><td class="label">5일선위</td><td class="ok">✓</td><td class="ok">✓</td><td class="ok">✓</td><td class="fail">✗</td><td class="fail">✗</td></tr>
+<tr><td class="label">신고가권</td><td class="ok">✓</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td></tr>
+<tr><td class="label">거래량증가음봉없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">최종</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+</tbody></table></div>
+
+<div class="card">
+  <div class="card-header">
+    산일전기
+    <span class="badge market">KOSPI</span>
+    <span class="badge">062040</span>
+    <span style="font-size:12px;font-weight:400">기준봉: 05/04 (+25.4%) | 거래대금: 15848억</span>
+  </div>
+<table><thead><tr><th style="text-align:left;min-width:160px">조건</th><th>D+1<br>05/06<br><span style="color:#dc3545">-4.2%</span> 2778억○</th><th>D+2<br>05/07<br><span style="color:#198754">+0.9%</span> 1616억○</th><th>D+3<br>05/08<br><span style="color:#198754">+2.6%</span> 1641억○</th><th>D+4<br>05/11<br><span style="color:#dc3545">-2.1%</span> 972억○</th><th>D+5<br>05/12<br><span style="color:#dc3545">-3.7%</span> 1642억○</th></tr></thead><tbody>
+<tr><td class="section" colspan="6">📊 고가횡보형</td></tr>
+<tr><td class="label">가격유지</td><td class="fail">-6.3%</td><td class="fail">-5.4%</td><td class="ok">-2.9%</td><td class="ok">-5.0%</td><td class="fail">-8.5%</td></tr>
+<tr><td class="label">TV최소</td><td class="ok">0.18</td><td class="ok">0.10</td><td class="ok">0.10</td><td class="fail">0.06</td><td class="ok">0.10</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">최종</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-ok">✅ 해당</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+<tr><td class="section" colspan="6">📊 고가수축형 (HTC)</td></tr>
+<tr><td class="label">가격(고가기준)</td><td class="fail">-6.3%</td><td class="fail">-5.4%</td><td class="ok">-2.9%</td><td class="ok">-5.0%</td><td class="fail">-8.5%</td></tr>
+<tr><td class="label">가격(종가기준)</td><td class="ok">-4.2%</td><td class="ok">-3.3%</td><td class="ok">-0.7%</td><td class="ok">-2.8%</td><td class="fail">-6.4%</td></tr>
+<tr><td class="label">중간일최저종가</td><td class="ok">-4.2%</td><td class="ok">-4.2%</td><td class="ok">-4.2%</td><td class="ok">-4.2%</td><td class="ok">-6.4%</td></tr>
+<tr><td class="label">TV평균수축</td><td class="ok">0.18</td><td class="ok">0.14</td><td class="ok">0.13</td><td class="ok">0.11</td><td class="ok">0.11</td></tr>
+<tr><td class="label">TV오늘수축</td><td class="ok">0.18</td><td class="ok">0.10</td><td class="ok">0.10</td><td class="ok">0.06</td><td class="ok">0.10</td></tr>
+<tr><td class="label">TV최소(300억)</td><td class="ok">2778억</td><td class="ok">1616억</td><td class="ok">1641억</td><td class="ok">972억</td><td class="ok">1642억</td></tr>
+<tr><td class="label">고저변동폭</td><td class="ok">0.0%</td><td class="ok">7.6%</td><td class="ok">9.0%</td><td class="ok">9.0%</td><td class="ok">9.0%</td></tr>
+<tr><td class="label">종가변동폭</td><td class="ok">0.0%</td><td class="ok">0.9%</td><td class="ok">3.5%</td><td class="ok">3.5%</td><td class="ok">5.7%</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">몸통중간값유지</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">장대음봉없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">최종</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-ok">✅ 해당</td><td class="final-ok">✅ 해당</td><td class="final-fail">❌ 탈락</td></tr>
+<tr><td class="section" colspan="6">📊 김형준 기법 (KH)</td></tr>
+<tr><td class="label">기준봉TV폭발</td><td class="ok">11.7배</td><td class="ok">11.7배</td><td class="ok">11.7배</td><td class="ok">11.7배</td><td class="ok">11.7배</td></tr>
+<tr><td class="label">기준봉TV최소</td><td class="ok">15848억</td><td class="ok">15848억</td><td class="ok">15848억</td><td class="ok">15848억</td><td class="ok">15848억</td></tr>
+<tr><td class="label">TV수축</td><td class="ok">0.18</td><td class="ok">0.10</td><td class="ok">0.10</td><td class="ok">0.06</td><td class="ok">0.10</td></tr>
+<tr><td class="label">가격유지</td><td class="fail">-6.3%</td><td class="fail">-5.4%</td><td class="ok">-2.9%</td><td class="ok">-5.0%</td><td class="fail">-8.5%</td></tr>
+<tr><td class="label">5일선위</td><td class="ok">✓</td><td class="ok">✓</td><td class="ok">✓</td><td class="fail">✗</td><td class="fail">✗</td></tr>
+<tr><td class="label">신고가권</td><td class="fail">✗</td><td class="fail">✗</td><td class="ok">✓</td><td class="fail">✗</td><td class="fail">✗</td></tr>
+<tr><td class="label">거래량증가음봉없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">최종</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-ok">✅ 해당</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+</tbody></table></div>
+
+<div class="card">
+  <div class="card-header">
+    제룡전기
+    <span class="badge market">KOSDAQ</span>
+    <span class="badge">033100</span>
+    <span style="font-size:12px;font-weight:400">기준봉: 05/04 (+30.0%) | 거래대금: 6779억</span>
+  </div>
+<table><thead><tr><th style="text-align:left;min-width:160px">조건</th><th>D+1<br>05/06<br><span style="color:#dc3545">-3.6%</span> 1274억○</th><th>D+2<br>05/07<br><span style="color:#198754">+0.0%</span> 664억○</th><th>D+3<br>05/08<br><span style="color:#dc3545">-0.5%</span> 609억○</th><th>D+4<br>05/11<br><span style="color:#dc3545">-7.4%</span> 496억○</th><th>D+5<br>05/12<br><span style="color:#dc3545">-4.8%</span> 646억○</th></tr></thead><tbody>
+<tr><td class="section" colspan="6">📊 고가횡보형</td></tr>
+<tr><td class="label">가격유지</td><td class="ok">-3.6%</td><td class="ok">-3.6%</td><td class="ok">-4.0%</td><td class="fail">-11.1%</td><td class="fail">-15.4%</td></tr>
+<tr><td class="label">TV최소</td><td class="ok">0.19</td><td class="fail">0.10</td><td class="fail">0.09</td><td class="fail">0.07</td><td class="fail">0.10</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="fail">붕괴발생</td></tr>
+<tr><td class="label">최종</td><td class="final-ok">✅ 해당</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+<tr><td class="section" colspan="6">📊 고가수축형 (HTC)</td></tr>
+<tr><td class="label">가격(고가기준)</td><td class="ok">-3.6%</td><td class="ok">-3.6%</td><td class="ok">-4.0%</td><td class="fail">-11.1%</td><td class="fail">-15.4%</td></tr>
+<tr><td class="label">가격(종가기준)</td><td class="ok">-3.6%</td><td class="ok">-3.6%</td><td class="ok">-4.0%</td><td class="fail">-11.1%</td><td class="fail">-15.4%</td></tr>
+<tr><td class="label">중간일최저종가</td><td class="ok">-3.6%</td><td class="ok">-3.6%</td><td class="ok">-4.0%</td><td class="fail">-11.1%</td><td class="fail">-15.4%</td></tr>
+<tr><td class="label">TV평균수축</td><td class="ok">0.19</td><td class="ok">0.14</td><td class="ok">0.13</td><td class="ok">0.11</td><td class="ok">0.11</td></tr>
+<tr><td class="label">TV오늘수축</td><td class="ok">0.19</td><td class="ok">0.10</td><td class="ok">0.09</td><td class="ok">0.07</td><td class="ok">0.10</td></tr>
+<tr><td class="label">TV최소(300억)</td><td class="ok">1274억</td><td class="ok">664억</td><td class="ok">609억</td><td class="ok">496억</td><td class="ok">646억</td></tr>
+<tr><td class="label">고저변동폭</td><td class="ok">0.0%</td><td class="ok">8.6%</td><td class="fail">14.6%</td><td class="fail">14.6%</td><td class="fail">15.0%</td></tr>
+<tr><td class="label">종가변동폭</td><td class="ok">0.0%</td><td class="ok">0.0%</td><td class="ok">0.5%</td><td class="ok">7.8%</td><td class="fail">12.2%</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="fail">붕괴발생</td></tr>
+<tr><td class="label">몸통중간값유지</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="fail">하회발생(85,500원)</td></tr>
+<tr><td class="label">장대음봉없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">최종</td><td class="final-ok">✅ 해당</td><td class="final-ok">✅ 해당</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+<tr><td class="section" colspan="6">📊 김형준 기법 (KH)</td></tr>
+<tr><td class="label">기준봉TV폭발</td><td class="ok">28.1배</td><td class="ok">28.1배</td><td class="ok">28.1배</td><td class="ok">28.1배</td><td class="ok">28.1배</td></tr>
+<tr><td class="label">기준봉TV최소</td><td class="ok">6779억</td><td class="ok">6779억</td><td class="ok">6779억</td><td class="ok">6779억</td><td class="ok">6779억</td></tr>
+<tr><td class="label">TV수축</td><td class="ok">0.19</td><td class="ok">0.10</td><td class="ok">0.09</td><td class="ok">0.07</td><td class="ok">0.10</td></tr>
+<tr><td class="label">가격유지</td><td class="ok">-3.6%</td><td class="ok">-3.6%</td><td class="ok">-4.0%</td><td class="fail">-11.1%</td><td class="fail">-15.4%</td></tr>
+<tr><td class="label">5일선위</td><td class="ok">✓</td><td class="ok">✓</td><td class="ok">✓</td><td class="fail">✗</td><td class="fail">✗</td></tr>
+<tr><td class="label">신고가권</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td></tr>
+<tr><td class="label">거래량증가음봉없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">최종</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+</tbody></table></div>
+
+<div class="card">
+  <div class="card-header">
+    SK스퀘어
+    <span class="badge market">KOSPI</span>
+    <span class="badge">402340</span>
+    <span style="font-size:12px;font-weight:400">기준봉: 05/04 (+17.8%) | 거래대금: 17002억</span>
+  </div>
+<table><thead><tr><th style="text-align:left;min-width:160px">조건</th><th>D+1<br>05/06<br><span style="color:#198754">+9.9%</span> 18176억○</th><th>D+2<br>05/07<br><span style="color:#198754">+0.9%</span> 12488억○</th><th>D+3<br>05/08<br><span style="color:#dc3545">-0.1%</span> 7896억○</th><th>D+4<br>05/11<br><span style="color:#198754">+8.1%</span> 15950억○</th><th>D+5<br>05/12<br><span style="color:#dc3545">-5.1%</span> 14377억○</th></tr></thead><tbody>
+<tr><td class="section" colspan="6">📊 고가횡보형</td></tr>
+<tr><td class="label">가격유지</td><td class="ok">+9.1%</td><td class="ok">+10.1%</td><td class="ok">+10.0%</td><td class="ok">+18.9%</td><td class="ok">+12.8%</td></tr>
+<tr><td class="label">TV최소</td><td class="ok">1.07</td><td class="ok">0.73</td><td class="ok">0.46</td><td class="ok">0.94</td><td class="ok">0.85</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">최종</td><td class="final-ok">✅ 해당</td><td class="final-ok">✅ 해당</td><td class="final-ok">✅ 해당</td><td class="final-ok">✅ 해당</td><td class="final-ok">✅ 해당</td></tr>
+<tr><td class="section" colspan="6">📊 고가수축형 (HTC)</td></tr>
+<tr><td class="label">가격(고가기준)</td><td class="ok">+9.1%</td><td class="ok">+10.1%</td><td class="ok">+10.0%</td><td class="ok">+18.9%</td><td class="ok">+12.8%</td></tr>
+<tr><td class="label">가격(종가기준)</td><td class="ok">+9.9%</td><td class="ok">+10.9%</td><td class="ok">+10.8%</td><td class="ok">+19.8%</td><td class="ok">+13.6%</td></tr>
+<tr><td class="label">중간일최저종가</td><td class="ok">+9.9%</td><td class="ok">+9.9%</td><td class="ok">+9.9%</td><td class="ok">+9.9%</td><td class="ok">+9.9%</td></tr>
+<tr><td class="label">TV평균수축</td><td class="fail">1.07</td><td class="fail">0.90</td><td class="fail">0.76</td><td class="fail">0.80</td><td class="fail">0.81</td></tr>
+<tr><td class="label">TV오늘수축</td><td class="fail">1.07</td><td class="fail">0.73</td><td class="ok">0.46</td><td class="fail">0.94</td><td class="fail">0.85</td></tr>
+<tr><td class="label">TV최소(300억)</td><td class="ok">18176억</td><td class="ok">12488억</td><td class="ok">7896억</td><td class="ok">15950억</td><td class="ok">14377억</td></tr>
+<tr><td class="label">고저변동폭</td><td class="ok">0.0%</td><td class="ok">9.5%</td><td class="ok">9.5%</td><td class="fail">13.7%</td><td class="fail">15.5%</td></tr>
+<tr><td class="label">종가변동폭</td><td class="ok">0.0%</td><td class="ok">0.9%</td><td class="ok">0.9%</td><td class="ok">8.3%</td><td class="ok">8.3%</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">몸통중간값유지</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">장대음봉없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">최종</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+<tr><td class="section" colspan="6">📊 김형준 기법 (KH)</td></tr>
+<tr><td class="label">기준봉TV폭발</td><td class="ok">4.8배</td><td class="ok">4.8배</td><td class="ok">4.8배</td><td class="ok">4.8배</td><td class="ok">4.8배</td></tr>
+<tr><td class="label">기준봉TV최소</td><td class="ok">17002억</td><td class="ok">17002억</td><td class="ok">17002억</td><td class="ok">17002억</td><td class="ok">17002억</td></tr>
+<tr><td class="label">TV수축</td><td class="fail">1.07</td><td class="fail">0.73</td><td class="ok">0.46</td><td class="fail">0.94</td><td class="fail">0.85</td></tr>
+<tr><td class="label">가격유지</td><td class="ok">+9.1%</td><td class="ok">+10.1%</td><td class="ok">+10.0%</td><td class="ok">+18.9%</td><td class="ok">+12.8%</td></tr>
+<tr><td class="label">5일선위</td><td class="ok">✓</td><td class="ok">✓</td><td class="ok">✓</td><td class="ok">✓</td><td class="ok">✓</td></tr>
+<tr><td class="label">신고가권</td><td class="ok">✓</td><td class="fail">✗</td><td class="fail">✗</td><td class="ok">✓</td><td class="fail">✗</td></tr>
+<tr><td class="label">거래량증가음봉없음</td><td class="fail">발생</td><td class="fail">발생</td><td class="ok">정상</td><td class="ok">정상</td><td class="fail">발생</td></tr>
+<tr><td class="label">최종</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+</tbody></table></div>
+
+<div class="card">
+  <div class="card-header">
+    LS마린솔루션
+    <span class="badge market">KOSDAQ</span>
+    <span class="badge">060370</span>
+    <span style="font-size:12px;font-weight:400">기준봉: 05/04 (+29.9%) | 거래대금: 3477억</span>
+  </div>
+<table><thead><tr><th style="text-align:left;min-width:160px">조건</th><th>D+1<br>05/06<br><span style="color:#198754">+1.1%</span> 623억○</th><th>D+2<br>05/07<br><span style="color:#dc3545">-6.0%</span> 361억○</th><th>D+3<br>05/08<br><span style="color:#dc3545">-1.6%</span> 236억○</th><th>D+4<br>05/11<br><span style="color:#dc3545">-5.5%</span> 233억○</th><th>D+5<br>05/12<br><span style="color:#dc3545">-7.4%</span> 296억○</th></tr></thead><tbody>
+<tr><td class="section" colspan="6">📊 고가횡보형</td></tr>
+<tr><td class="label">가격유지</td><td class="ok">+1.1%</td><td class="ok">-4.9%</td><td class="fail">-6.5%</td><td class="fail">-11.6%</td><td class="fail">-18.2%</td></tr>
+<tr><td class="label">TV최소</td><td class="ok">0.18</td><td class="ok">0.10</td><td class="fail">0.07</td><td class="fail">0.07</td><td class="fail">0.09</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="fail">붕괴발생</td></tr>
+<tr><td class="label">최종</td><td class="final-ok">✅ 해당</td><td class="final-ok">✅ 해당</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+<tr><td class="section" colspan="6">📊 고가수축형 (HTC)</td></tr>
+<tr><td class="label">가격(고가기준)</td><td class="ok">+1.1%</td><td class="ok">-4.9%</td><td class="fail">-6.5%</td><td class="fail">-11.6%</td><td class="fail">-18.2%</td></tr>
+<tr><td class="label">가격(종가기준)</td><td class="ok">+1.1%</td><td class="ok">-4.9%</td><td class="fail">-6.5%</td><td class="fail">-11.6%</td><td class="fail">-18.2%</td></tr>
+<tr><td class="label">중간일최저종가</td><td class="ok">+1.1%</td><td class="ok">-4.9%</td><td class="ok">-6.5%</td><td class="fail">-11.6%</td><td class="fail">-18.2%</td></tr>
+<tr><td class="label">TV평균수축</td><td class="ok">0.18</td><td class="ok">0.14</td><td class="ok">0.12</td><td class="ok">0.10</td><td class="ok">0.10</td></tr>
+<tr><td class="label">TV오늘수축</td><td class="ok">0.18</td><td class="ok">0.10</td><td class="ok">0.07</td><td class="ok">0.07</td><td class="ok">0.09</td></tr>
+<tr><td class="label">TV최소(300억)</td><td class="ok">623억</td><td class="ok">361억</td><td class="fail">236억</td><td class="fail">233억</td><td class="fail">296억</td></tr>
+<tr><td class="label">고저변동폭</td><td class="ok">0.0%</td><td class="ok">7.4%</td><td class="fail">12.8%</td><td class="fail">15.3%</td><td class="fail">15.9%</td></tr>
+<tr><td class="label">종가변동폭</td><td class="ok">0.0%</td><td class="ok">6.0%</td><td class="ok">7.5%</td><td class="fail">12.6%</td><td class="fail">19.1%</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="fail">붕괴발생</td></tr>
+<tr><td class="label">몸통중간값유지</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="fail">하회발생(45,425원)</td></tr>
+<tr><td class="label">장대음봉없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">최종</td><td class="final-ok">✅ 해당</td><td class="final-ok">✅ 해당</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+<tr><td class="section" colspan="6">📊 김형준 기법 (KH)</td></tr>
+<tr><td class="label">기준봉TV폭발</td><td class="ok">20.8배</td><td class="ok">20.8배</td><td class="ok">20.8배</td><td class="ok">20.8배</td><td class="ok">20.8배</td></tr>
+<tr><td class="label">기준봉TV최소</td><td class="ok">3477억</td><td class="ok">3477억</td><td class="ok">3477억</td><td class="ok">3477억</td><td class="ok">3477억</td></tr>
+<tr><td class="label">TV수축</td><td class="ok">0.18</td><td class="ok">0.10</td><td class="ok">0.07</td><td class="ok">0.07</td><td class="ok">0.09</td></tr>
+<tr><td class="label">가격유지</td><td class="ok">+1.1%</td><td class="ok">-4.9%</td><td class="fail">-6.5%</td><td class="fail">-11.6%</td><td class="fail">-18.2%</td></tr>
+<tr><td class="label">5일선위</td><td class="ok">✓</td><td class="ok">✓</td><td class="ok">✓</td><td class="fail">✗</td><td class="fail">✗</td></tr>
+<tr><td class="label">신고가권</td><td class="ok">✓</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td></tr>
+<tr><td class="label">거래량증가음봉없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">최종</td><td class="final-ok">✅ 해당</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+</tbody></table></div>
+
+<div class="card">
+  <div class="card-header">
+    보성파워텍
+    <span class="badge market">KOSDAQ</span>
+    <span class="badge">006910</span>
+    <span style="font-size:12px;font-weight:400">기준봉: 05/04 (+18.8%) | 거래대금: 6468억</span>
+  </div>
+<table><thead><tr><th style="text-align:left;min-width:160px">조건</th><th>D+1<br>05/06<br><span style="color:#198754">+10.3%</span> 6237억○</th><th>D+2<br>05/07<br><span style="color:#dc3545">-1.5%</span> 2441억○</th><th>D+3<br>05/08<br><span style="color:#dc3545">-8.3%</span> 822억○</th><th>D+4<br>05/11<br><span style="color:#dc3545">-3.6%</span> 619억○</th><th>D+5<br>05/12<br><span style="color:#dc3545">-5.7%</span> 730억○</th></tr></thead><tbody>
+<tr><td class="section" colspan="6">📊 고가횡보형</td></tr>
+<tr><td class="label">가격유지</td><td class="ok">+3.6%</td><td class="ok">+2.1%</td><td class="fail">-6.3%</td><td class="fail">-9.7%</td><td class="fail">-14.9%</td></tr>
+<tr><td class="label">TV최소</td><td class="ok">0.96</td><td class="ok">0.38</td><td class="ok">0.13</td><td class="fail">0.10</td><td class="ok">0.11</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="fail">붕괴발생</td></tr>
+<tr><td class="label">최종</td><td class="final-ok">✅ 해당</td><td class="final-ok">✅ 해당</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+<tr><td class="section" colspan="6">📊 고가수축형 (HTC)</td></tr>
+<tr><td class="label">가격(고가기준)</td><td class="ok">+3.6%</td><td class="ok">+2.1%</td><td class="fail">-6.3%</td><td class="fail">-9.7%</td><td class="fail">-14.9%</td></tr>
+<tr><td class="label">가격(종가기준)</td><td class="ok">+10.3%</td><td class="ok">+8.7%</td><td class="ok">-0.3%</td><td class="ok">-3.8%</td><td class="fail">-9.3%</td></tr>
+<tr><td class="label">중간일최저종가</td><td class="ok">+10.3%</td><td class="ok">+8.7%</td><td class="ok">-0.3%</td><td class="ok">-3.8%</td><td class="fail">-9.3%</td></tr>
+<tr><td class="label">TV평균수축</td><td class="fail">0.96</td><td class="fail">0.67</td><td class="ok">0.49</td><td class="ok">0.39</td><td class="ok">0.34</td></tr>
+<tr><td class="label">TV오늘수축</td><td class="fail">0.96</td><td class="ok">0.38</td><td class="ok">0.13</td><td class="ok">0.10</td><td class="ok">0.11</td></tr>
+<tr><td class="label">TV최소(300억)</td><td class="ok">6237억</td><td class="ok">2441억</td><td class="ok">822억</td><td class="ok">619억</td><td class="ok">730억</td></tr>
+<tr><td class="label">고저변동폭</td><td class="ok">0.0%</td><td class="fail">24.4%</td><td class="fail">24.4%</td><td class="fail">24.4%</td><td class="fail">25.5%</td></tr>
+<tr><td class="label">종가변동폭</td><td class="ok">0.0%</td><td class="ok">1.5%</td><td class="ok">9.6%</td><td class="fail">12.8%</td><td class="fail">17.8%</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="fail">붕괴발생</td></tr>
+<tr><td class="label">몸통중간값유지</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">장대음봉없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">최종</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+<tr><td class="section" colspan="6">📊 김형준 기법 (KH)</td></tr>
+<tr><td class="label">기준봉TV폭발</td><td class="ok">10.0배</td><td class="ok">10.0배</td><td class="ok">10.0배</td><td class="ok">10.0배</td><td class="ok">10.0배</td></tr>
+<tr><td class="label">기준봉TV최소</td><td class="ok">6468억</td><td class="ok">6468억</td><td class="ok">6468억</td><td class="ok">6468억</td><td class="ok">6468억</td></tr>
+<tr><td class="label">TV수축</td><td class="fail">0.96</td><td class="ok">0.38</td><td class="ok">0.13</td><td class="ok">0.10</td><td class="ok">0.11</td></tr>
+<tr><td class="label">가격유지</td><td class="ok">+3.6%</td><td class="ok">+2.1%</td><td class="fail">-6.3%</td><td class="fail">-9.7%</td><td class="fail">-14.9%</td></tr>
+<tr><td class="label">5일선위</td><td class="ok">✓</td><td class="ok">✓</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td></tr>
+<tr><td class="label">신고가권</td><td class="ok">✓</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td></tr>
+<tr><td class="label">거래량증가음봉없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">최종</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+</tbody></table></div>
+
+<div class="card">
+  <div class="card-header">
+    대한광통신
+    <span class="badge market">KOSDAQ</span>
+    <span class="badge">010170</span>
+    <span style="font-size:12px;font-weight:400">기준봉: 05/04 (+16.8%) | 거래대금: 14688억</span>
+  </div>
+<table><thead><tr><th style="text-align:left;min-width:160px">조건</th><th>D+1<br>05/06<br><span style="color:#198754">+3.2%</span> 7923억○</th><th>D+2<br>05/07<br><span style="color:#198754">+19.3%</span> 18087억○</th><th>D+3<br>05/08<br><span style="color:#198754">+2.5%</span> 15526억○</th><th>D+4<br>05/11<br><span style="color:#198754">+25.1%</span> 23349억●<br><span class="sig-label">당일돌파형</span></th><th>D+5<br>05/12<br><span style="color:#198754">+4.1%</span> 21398억○</th></tr></thead><tbody>
+<tr><td class="section" colspan="6">📊 고가횡보형</td></tr>
+<tr><td class="label">가격유지</td><td class="ok">+0.4%</td><td class="ok">+19.8%</td><td class="ok">+22.8%</td><td class="ok">+53.6%</td><td class="ok">+59.9%</td></tr>
+<tr><td class="label">TV최소</td><td class="ok">0.54</td><td class="ok">1.23</td><td class="ok">1.06</td><td class="ok">1.59</td><td class="ok">1.46</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">최종</td><td class="final-ok">✅ 해당</td><td class="final-ok">✅ 해당</td><td class="final-ok">✅ 해당</td><td class="final-ok">✅ 해당</td><td class="final-ok">✅ 해당</td></tr>
+<tr><td class="section" colspan="6">📊 고가수축형 (HTC)</td></tr>
+<tr><td class="label">가격(고가기준)</td><td class="ok">+0.4%</td><td class="ok">+19.8%</td><td class="ok">+22.8%</td><td class="ok">+53.6%</td><td class="ok">+59.9%</td></tr>
+<tr><td class="label">가격(종가기준)</td><td class="ok">+3.2%</td><td class="ok">+23.2%</td><td class="ok">+26.3%</td><td class="ok">+57.9%</td><td class="ok">+64.4%</td></tr>
+<tr><td class="label">중간일최저종가</td><td class="ok">+3.2%</td><td class="ok">+3.2%</td><td class="ok">+3.2%</td><td class="ok">+3.2%</td><td class="ok">+3.2%</td></tr>
+<tr><td class="label">TV평균수축</td><td class="fail">0.54</td><td class="fail">0.89</td><td class="fail">0.94</td><td class="fail">1.10</td><td class="fail">1.17</td></tr>
+<tr><td class="label">TV오늘수축</td><td class="fail">0.54</td><td class="fail">1.23</td><td class="fail">1.06</td><td class="fail">1.59</td><td class="fail">1.46</td></tr>
+<tr><td class="label">TV최소(300억)</td><td class="ok">7923억</td><td class="ok">18087억</td><td class="ok">15526억</td><td class="ok">23349억</td><td class="ok">21398억</td></tr>
+<tr><td class="label">고저변동폭</td><td class="ok">0.0%</td><td class="fail">19.5%</td><td class="fail">27.6%</td><td class="fail">38.1%</td><td class="fail">43.8%</td></tr>
+<tr><td class="label">종가변동폭</td><td class="ok">0.0%</td><td class="fail">16.2%</td><td class="fail">18.3%</td><td class="fail">34.6%</td><td class="fail">37.2%</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">몸통중간값유지</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">장대음봉없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">최종</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+<tr><td class="section" colspan="6">📊 김형준 기법 (KH)</td></tr>
+<tr><td class="label">기준봉TV폭발</td><td class="fail">2.1배</td><td class="fail">2.1배</td><td class="fail">2.1배</td><td class="fail">2.1배</td><td class="fail">2.1배</td></tr>
+<tr><td class="label">기준봉TV최소</td><td class="ok">14688억</td><td class="ok">14688억</td><td class="ok">14688억</td><td class="ok">14688억</td><td class="ok">14688억</td></tr>
+<tr><td class="label">TV수축</td><td class="fail">0.54</td><td class="fail">1.23</td><td class="fail">1.06</td><td class="fail">1.59</td><td class="fail">1.46</td></tr>
+<tr><td class="label">가격유지</td><td class="ok">+0.4%</td><td class="ok">+19.8%</td><td class="ok">+22.8%</td><td class="ok">+53.6%</td><td class="ok">+59.9%</td></tr>
+<tr><td class="label">5일선위</td><td class="ok">✓</td><td class="ok">✓</td><td class="ok">✓</td><td class="ok">✓</td><td class="ok">✓</td></tr>
+<tr><td class="label">신고가권</td><td class="fail">✗</td><td class="ok">✓</td><td class="ok">✓</td><td class="ok">✓</td><td class="ok">✓</td></tr>
+<tr><td class="label">거래량증가음봉없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="fail">발생</td></tr>
+<tr><td class="label">최종</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+</tbody></table></div>
+
+<div class="card">
+  <div class="card-header">
+    SK하이닉스
+    <span class="badge market">KOSPI</span>
+    <span class="badge">000660</span>
+    <span style="font-size:12px;font-weight:400">기준봉: 05/04 (+12.5%) | 거래대금: 135078억</span>
+  </div>
+<table><thead><tr><th style="text-align:left;min-width:160px">조건</th><th>D+1<br>05/06<br><span style="color:#198754">+10.6%</span> 106177억○</th><th>D+2<br>05/07<br><span style="color:#198754">+3.3%</span> 96935억○</th><th>D+3<br>05/08<br><span style="color:#198754">+1.9%</span> 72129억○</th><th>D+4<br>05/11<br><span style="color:#198754">+11.5%</span> 139741억○</th><th>D+5<br>05/12<br><span style="color:#dc3545">-2.4%</span> 168097억○</th></tr></thead><tbody>
+<tr><td class="section" colspan="6">📊 고가횡보형</td></tr>
+<tr><td class="label">가격유지</td><td class="ok">+10.4%</td><td class="ok">+14.1%</td><td class="ok">+16.3%</td><td class="ok">+29.7%</td><td class="ok">+26.6%</td></tr>
+<tr><td class="label">TV최소</td><td class="ok">0.79</td><td class="ok">0.72</td><td class="ok">0.53</td><td class="ok">1.03</td><td class="ok">1.24</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">최종</td><td class="final-ok">✅ 해당</td><td class="final-ok">✅ 해당</td><td class="final-ok">✅ 해당</td><td class="final-ok">✅ 해당</td><td class="final-ok">✅ 해당</td></tr>
+<tr><td class="section" colspan="6">📊 고가수축형 (HTC)</td></tr>
+<tr><td class="label">가격(고가기준)</td><td class="ok">+10.4%</td><td class="ok">+14.1%</td><td class="ok">+16.3%</td><td class="ok">+29.7%</td><td class="ok">+26.6%</td></tr>
+<tr><td class="label">가격(종가기준)</td><td class="ok">+10.6%</td><td class="ok">+14.3%</td><td class="ok">+16.5%</td><td class="ok">+29.9%</td><td class="ok">+26.8%</td></tr>
+<tr><td class="label">중간일최저종가</td><td class="ok">+10.6%</td><td class="ok">+10.6%</td><td class="ok">+10.6%</td><td class="ok">+10.6%</td><td class="ok">+10.6%</td></tr>
+<tr><td class="label">TV평균수축</td><td class="fail">0.79</td><td class="fail">0.75</td><td class="fail">0.68</td><td class="fail">0.77</td><td class="fail">0.86</td></tr>
+<tr><td class="label">TV오늘수축</td><td class="fail">0.79</td><td class="fail">0.72</td><td class="fail">0.53</td><td class="fail">1.03</td><td class="fail">1.24</td></tr>
+<tr><td class="label">TV최소(300억)</td><td class="ok">106177억</td><td class="ok">96935억</td><td class="ok">72129억</td><td class="ok">139741억</td><td class="ok">168097억</td></tr>
+<tr><td class="label">고저변동폭</td><td class="ok">0.0%</td><td class="ok">6.5%</td><td class="ok">7.8%</td><td class="fail">20.1%</td><td class="fail">20.8%</td></tr>
+<tr><td class="label">종가변동폭</td><td class="ok">0.0%</td><td class="ok">3.2%</td><td class="ok">5.0%</td><td class="fail">14.8%</td><td class="fail">14.8%</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">몸통중간값유지</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">장대음봉없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">최종</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+<tr><td class="section" colspan="6">📊 김형준 기법 (KH)</td></tr>
+<tr><td class="label">기준봉TV폭발</td><td class="ok">3.2배</td><td class="ok">3.2배</td><td class="ok">3.2배</td><td class="ok">3.2배</td><td class="ok">3.2배</td></tr>
+<tr><td class="label">기준봉TV최소</td><td class="ok">135078억</td><td class="ok">135078억</td><td class="ok">135078억</td><td class="ok">135078억</td><td class="ok">135078억</td></tr>
+<tr><td class="label">TV수축</td><td class="fail">0.79</td><td class="fail">0.72</td><td class="fail">0.53</td><td class="fail">1.03</td><td class="fail">1.24</td></tr>
+<tr><td class="label">가격유지</td><td class="ok">+10.4%</td><td class="ok">+14.1%</td><td class="ok">+16.3%</td><td class="ok">+29.7%</td><td class="ok">+26.6%</td></tr>
+<tr><td class="label">5일선위</td><td class="ok">✓</td><td class="ok">✓</td><td class="ok">✓</td><td class="ok">✓</td><td class="ok">✓</td></tr>
+<tr><td class="label">신고가권</td><td class="ok">✓</td><td class="ok">✓</td><td class="ok">✓</td><td class="ok">✓</td><td class="fail">✗</td></tr>
+<tr><td class="label">거래량증가음봉없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="fail">발생</td></tr>
+<tr><td class="label">최종</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+</tbody></table></div>
+
+<div class="card">
+  <div class="card-header">
+    삼성전기
+    <span class="badge market">KOSPI</span>
+    <span class="badge">009150</span>
+    <span style="font-size:12px;font-weight:400">기준봉: 05/04 (+10.3%) | 거래대금: 14112억</span>
+  </div>
+<table><thead><tr><th style="text-align:left;min-width:160px">조건</th><th>D+1<br>05/06<br><span style="color:#dc3545">-0.7%</span> 11094억○</th><th>D+2<br>05/07<br><span style="color:#198754">+0.5%</span> 6327억○</th><th>D+3<br>05/08<br><span style="color:#dc3545">-0.3%</span> 4783억○</th><th>D+4<br>05/11<br><span style="color:#dc3545">-1.5%</span> 8547억○</th><th>D+5<br>05/12<br><span style="color:#198754">+6.4%</span> 20815억○</th></tr></thead><tbody>
+<tr><td class="section" colspan="6">📊 고가횡보형</td></tr>
+<tr><td class="label">가격유지</td><td class="ok">-1.4%</td><td class="ok">-0.9%</td><td class="ok">-1.2%</td><td class="ok">-2.7%</td><td class="ok">+3.6%</td></tr>
+<tr><td class="label">TV최소</td><td class="ok">0.79</td><td class="ok">0.45</td><td class="ok">0.34</td><td class="ok">0.61</td><td class="ok">1.47</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">최종</td><td class="final-ok">✅ 해당</td><td class="final-ok">✅ 해당</td><td class="final-ok">✅ 해당</td><td class="final-ok">✅ 해당</td><td class="final-ok">✅ 해당</td></tr>
+<tr><td class="section" colspan="6">📊 고가수축형 (HTC)</td></tr>
+<tr><td class="label">가격(고가기준)</td><td class="ok">-1.4%</td><td class="ok">-0.9%</td><td class="ok">-1.2%</td><td class="ok">-2.7%</td><td class="ok">+3.6%</td></tr>
+<tr><td class="label">가격(종가기준)</td><td class="ok">-0.7%</td><td class="ok">-0.1%</td><td class="ok">-0.4%</td><td class="ok">-2.0%</td><td class="ok">+4.4%</td></tr>
+<tr><td class="label">중간일최저종가</td><td class="ok">-0.7%</td><td class="ok">-0.7%</td><td class="ok">-0.7%</td><td class="ok">-2.0%</td><td class="ok">-2.0%</td></tr>
+<tr><td class="label">TV평균수축</td><td class="fail">0.79</td><td class="fail">0.62</td><td class="fail">0.52</td><td class="fail">0.54</td><td class="fail">0.73</td></tr>
+<tr><td class="label">TV오늘수축</td><td class="fail">0.79</td><td class="ok">0.45</td><td class="ok">0.34</td><td class="fail">0.61</td><td class="fail">1.47</td></tr>
+<tr><td class="label">TV최소(300억)</td><td class="ok">11094억</td><td class="ok">6327억</td><td class="ok">4783억</td><td class="ok">8547억</td><td class="ok">20815억</td></tr>
+<tr><td class="label">고저변동폭</td><td class="ok">0.0%</td><td class="ok">7.5%</td><td class="ok">9.4%</td><td class="ok">9.4%</td><td class="fail">13.8%</td></tr>
+<tr><td class="label">종가변동폭</td><td class="ok">0.0%</td><td class="ok">0.5%</td><td class="ok">0.5%</td><td class="ok">1.9%</td><td class="ok">6.1%</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">몸통중간값유지</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">장대음봉없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">최종</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+<tr><td class="section" colspan="6">📊 김형준 기법 (KH)</td></tr>
+<tr><td class="label">기준봉TV폭발</td><td class="fail">2.9배</td><td class="fail">2.9배</td><td class="fail">2.9배</td><td class="fail">2.9배</td><td class="fail">2.9배</td></tr>
+<tr><td class="label">기준봉TV최소</td><td class="ok">14112억</td><td class="ok">14112억</td><td class="ok">14112억</td><td class="ok">14112억</td><td class="ok">14112억</td></tr>
+<tr><td class="label">TV수축</td><td class="fail">0.79</td><td class="ok">0.45</td><td class="ok">0.34</td><td class="fail">0.61</td><td class="fail">1.47</td></tr>
+<tr><td class="label">가격유지</td><td class="ok">-1.4%</td><td class="ok">-0.9%</td><td class="ok">-1.2%</td><td class="ok">-2.7%</td><td class="ok">+3.6%</td></tr>
+<tr><td class="label">5일선위</td><td class="ok">✓</td><td class="ok">✓</td><td class="ok">✓</td><td class="fail">✗</td><td class="ok">✓</td></tr>
+<tr><td class="label">신고가권</td><td class="ok">✓</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td><td class="ok">✓</td></tr>
+<tr><td class="label">거래량증가음봉없음</td><td class="fail">발생</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">최종</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+</tbody></table></div>
+
+<div class="card">
+  <div class="card-header">
+    일진전기
+    <span class="badge market">KOSPI</span>
+    <span class="badge">103590</span>
+    <span style="font-size:12px;font-weight:400">기준봉: 05/04 (+17.6%) | 거래대금: 7233억</span>
+  </div>
+<table><thead><tr><th style="text-align:left;min-width:160px">조건</th><th>D+1<br>05/06<br><span style="color:#dc3545">-1.3%</span> 1523억○</th><th>D+2<br>05/07<br><span style="color:#198754">+0.3%</span> 842억○</th><th>D+3<br>05/08<br><span style="color:#198754">+1.1%</span> 838억○</th><th>D+4<br>05/11<br><span style="color:#dc3545">-1.1%</span> 553억○</th><th>D+5<br>05/12<br><span style="color:#dc3545">-2.3%</span> 1166억○</th></tr></thead><tbody>
+<tr><td class="section" colspan="6">📊 고가횡보형</td></tr>
+<tr><td class="label">가격유지</td><td class="ok">-3.9%</td><td class="ok">-3.6%</td><td class="ok">-2.6%</td><td class="ok">-3.7%</td><td class="fail">-5.9%</td></tr>
+<tr><td class="label">TV최소</td><td class="ok">0.21</td><td class="ok">0.12</td><td class="ok">0.12</td><td class="fail">0.08</td><td class="ok">0.16</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">최종</td><td class="final-ok">✅ 해당</td><td class="final-ok">✅ 해당</td><td class="final-ok">✅ 해당</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+<tr><td class="section" colspan="6">📊 고가수축형 (HTC)</td></tr>
+<tr><td class="label">가격(고가기준)</td><td class="ok">-3.9%</td><td class="ok">-3.6%</td><td class="ok">-2.6%</td><td class="ok">-3.7%</td><td class="fail">-5.9%</td></tr>
+<tr><td class="label">가격(종가기준)</td><td class="ok">-1.3%</td><td class="ok">-1.0%</td><td class="ok">+0.0%</td><td class="ok">-1.1%</td><td class="ok">-3.4%</td></tr>
+<tr><td class="label">중간일최저종가</td><td class="ok">-1.3%</td><td class="ok">-1.3%</td><td class="ok">-1.3%</td><td class="ok">-1.3%</td><td class="ok">-3.4%</td></tr>
+<tr><td class="label">TV평균수축</td><td class="ok">0.21</td><td class="ok">0.16</td><td class="ok">0.15</td><td class="ok">0.13</td><td class="ok">0.14</td></tr>
+<tr><td class="label">TV오늘수축</td><td class="ok">0.21</td><td class="ok">0.12</td><td class="ok">0.12</td><td class="ok">0.08</td><td class="ok">0.16</td></tr>
+<tr><td class="label">TV최소(300억)</td><td class="ok">1523억</td><td class="ok">842억</td><td class="ok">838억</td><td class="ok">553억</td><td class="ok">1166억</td></tr>
+<tr><td class="label">고저변동폭</td><td class="ok">0.0%</td><td class="ok">7.4%</td><td class="ok">7.4%</td><td class="ok">7.4%</td><td class="ok">7.4%</td></tr>
+<tr><td class="label">종가변동폭</td><td class="ok">0.0%</td><td class="ok">0.3%</td><td class="ok">1.3%</td><td class="ok">1.3%</td><td class="ok">3.4%</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">몸통중간값유지</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">장대음봉없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">최종</td><td class="final-ok">✅ 해당</td><td class="final-ok">✅ 해당</td><td class="final-ok">✅ 해당</td><td class="final-ok">✅ 해당</td><td class="final-fail">❌ 탈락</td></tr>
+<tr><td class="section" colspan="6">📊 김형준 기법 (KH)</td></tr>
+<tr><td class="label">기준봉TV폭발</td><td class="ok">12.1배</td><td class="ok">12.1배</td><td class="ok">12.1배</td><td class="ok">12.1배</td><td class="ok">12.1배</td></tr>
+<tr><td class="label">기준봉TV최소</td><td class="ok">7233억</td><td class="ok">7233억</td><td class="ok">7233억</td><td class="ok">7233억</td><td class="ok">7233억</td></tr>
+<tr><td class="label">TV수축</td><td class="ok">0.21</td><td class="ok">0.12</td><td class="ok">0.12</td><td class="ok">0.08</td><td class="ok">0.16</td></tr>
+<tr><td class="label">가격유지</td><td class="ok">-3.9%</td><td class="ok">-3.6%</td><td class="ok">-2.6%</td><td class="ok">-3.7%</td><td class="fail">-5.9%</td></tr>
+<tr><td class="label">5일선위</td><td class="ok">✓</td><td class="ok">✓</td><td class="ok">✓</td><td class="fail">✗</td><td class="fail">✗</td></tr>
+<tr><td class="label">신고가권</td><td class="fail">✗</td><td class="fail">✗</td><td class="ok">✓</td><td class="fail">✗</td><td class="fail">✗</td></tr>
+<tr><td class="label">거래량증가음봉없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">최종</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-ok">✅ 해당</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+</tbody></table></div>
+
+<div class="card">
+  <div class="card-header">
+    아진엑스텍
+    <span class="badge market">KOSDAQ</span>
+    <span class="badge">059120</span>
+    <span style="font-size:12px;font-weight:400">기준봉: 05/04 (+30.0%) | 거래대금: 1643억</span>
+  </div>
+<table><thead><tr><th style="text-align:left;min-width:160px">조건</th><th>D+1<br>05/06<br><span style="color:#198754">+0.7%</span> 908억○</th><th>D+2<br>05/07<br><span style="color:#198754">+7.7%</span> 1946억○</th><th>D+3<br>05/08<br><span style="color:#198754">+3.3%</span> 101억○</th><th>D+4<br>05/11<br><span style="color:#198754">+3.8%</span> 123억○</th><th>D+5<br>05/12<br><span style="color:#dc3545">-3.7%</span> 127억○</th></tr></thead><tbody>
+<tr><td class="section" colspan="6">📊 고가횡보형</td></tr>
+<tr><td class="label">가격유지</td><td class="ok">+0.7%</td><td class="ok">+8.5%</td><td class="ok">+12.1%</td><td class="ok">+16.3%</td><td class="ok">+12.0%</td></tr>
+<tr><td class="label">TV최소</td><td class="ok">0.55</td><td class="ok">1.18</td><td class="fail">0.06</td><td class="fail">0.07</td><td class="fail">0.08</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">최종</td><td class="final-ok">✅ 해당</td><td class="final-ok">✅ 해당</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+<tr><td class="section" colspan="6">📊 고가수축형 (HTC)</td></tr>
+<tr><td class="label">가격(고가기준)</td><td class="ok">+0.7%</td><td class="ok">+8.5%</td><td class="ok">+12.1%</td><td class="ok">+16.3%</td><td class="ok">+12.0%</td></tr>
+<tr><td class="label">가격(종가기준)</td><td class="ok">+0.7%</td><td class="ok">+8.5%</td><td class="ok">+12.1%</td><td class="ok">+16.3%</td><td class="ok">+12.0%</td></tr>
+<tr><td class="label">중간일최저종가</td><td class="ok">+0.7%</td><td class="ok">+0.7%</td><td class="ok">+0.7%</td><td class="ok">+0.7%</td><td class="ok">+0.7%</td></tr>
+<tr><td class="label">TV평균수축</td><td class="fail">0.55</td><td class="fail">0.87</td><td class="fail">0.60</td><td class="ok">0.47</td><td class="ok">0.39</td></tr>
+<tr><td class="label">TV오늘수축</td><td class="fail">0.55</td><td class="fail">1.18</td><td class="ok">0.06</td><td class="ok">0.07</td><td class="ok">0.08</td></tr>
+<tr><td class="label">TV최소(300억)</td><td class="ok">908억</td><td class="ok">1946억</td><td class="fail">101억</td><td class="fail">123억</td><td class="fail">127억</td></tr>
+<tr><td class="label">고저변동폭</td><td class="ok">0.0%</td><td class="fail">21.7%</td><td class="fail">21.7%</td><td class="fail">21.7%</td><td class="fail">21.7%</td></tr>
+<tr><td class="label">종가변동폭</td><td class="ok">0.0%</td><td class="ok">7.2%</td><td class="fail">10.2%</td><td class="fail">13.4%</td><td class="fail">13.4%</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">몸통중간값유지</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">장대음봉없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">최종</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+<tr><td class="section" colspan="6">📊 김형준 기법 (KH)</td></tr>
+<tr><td class="label">기준봉TV폭발</td><td class="ok">16.3배</td><td class="ok">16.3배</td><td class="ok">16.3배</td><td class="ok">16.3배</td><td class="ok">16.3배</td></tr>
+<tr><td class="label">기준봉TV최소</td><td class="ok">1643억</td><td class="ok">1643억</td><td class="ok">1643억</td><td class="ok">1643억</td><td class="ok">1643억</td></tr>
+<tr><td class="label">TV수축</td><td class="fail">0.55</td><td class="fail">1.18</td><td class="ok">0.06</td><td class="ok">0.07</td><td class="ok">0.08</td></tr>
+<tr><td class="label">가격유지</td><td class="ok">+0.7%</td><td class="ok">+8.5%</td><td class="ok">+12.1%</td><td class="ok">+16.3%</td><td class="ok">+12.0%</td></tr>
+<tr><td class="label">5일선위</td><td class="ok">✓</td><td class="ok">✓</td><td class="ok">✓</td><td class="ok">✓</td><td class="ok">✓</td></tr>
+<tr><td class="label">신고가권</td><td class="ok">✓</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td></tr>
+<tr><td class="label">거래량증가음봉없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">최종</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+</tbody></table></div>
+
+<div class="card">
+  <div class="card-header">
+    현대모비스
+    <span class="badge market">KOSPI</span>
+    <span class="badge">012330</span>
+    <span style="font-size:12px;font-weight:400">기준봉: 05/08 (+15.3%) | 거래대금: 14024억</span>
+  </div>
+<table><thead><tr><th style="text-align:left;min-width:160px">조건</th><th>D+1<br>05/11<br><span style="color:#198754">+8.6%</span> 6001억○</th><th>D+2<br>05/12<br><span style="color:#dc3545">-0.9%</span> 7132억○</th><th>D+3<br>05/13<br><span style="color:#198754">+18.4%</span> 21428억●<br><span class="sig-label">당일돌파형</span></th><th>D+4<br>05/14<br><span style="color:#198754">+0.2%</span> 7652억○</th><th>D+5<br>05/15<br><span style="color:#dc3545">-3.2%</span> 6357억○</th></tr></thead><tbody>
+<tr><td class="section" colspan="6">📊 고가횡보형</td></tr>
+<tr><td class="label">가격유지</td><td class="ok">+1.1%</td><td class="ok">+0.2%</td><td class="ok">+18.6%</td><td class="ok">+18.8%</td><td class="ok">+15.0%</td></tr>
+<tr><td class="label">TV최소</td><td class="ok">0.43</td><td class="ok">0.51</td><td class="ok">1.53</td><td class="ok">0.55</td><td class="ok">0.45</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">최종</td><td class="final-ok">✅ 해당</td><td class="final-ok">✅ 해당</td><td class="final-ok">✅ 해당</td><td class="final-ok">✅ 해당</td><td class="final-ok">✅ 해당</td></tr>
+<tr><td class="section" colspan="6">📊 고가수축형 (HTC)</td></tr>
+<tr><td class="label">가격(고가기준)</td><td class="ok">+1.1%</td><td class="ok">+0.2%</td><td class="ok">+18.6%</td><td class="ok">+18.8%</td><td class="ok">+15.0%</td></tr>
+<tr><td class="label">가격(종가기준)</td><td class="ok">+8.6%</td><td class="ok">+7.7%</td><td class="ok">+27.5%</td><td class="ok">+27.7%</td><td class="ok">+23.6%</td></tr>
+<tr><td class="label">중간일최저종가</td><td class="ok">+8.6%</td><td class="ok">+7.7%</td><td class="ok">+7.7%</td><td class="ok">+7.7%</td><td class="ok">+7.7%</td></tr>
+<tr><td class="label">TV평균수축</td><td class="ok">0.43</td><td class="ok">0.47</td><td class="fail">0.82</td><td class="fail">0.75</td><td class="fail">0.69</td></tr>
+<tr><td class="label">TV오늘수축</td><td class="ok">0.43</td><td class="fail">0.51</td><td class="fail">1.53</td><td class="fail">0.55</td><td class="ok">0.45</td></tr>
+<tr><td class="label">TV최소(300억)</td><td class="ok">6001억</td><td class="ok">7132억</td><td class="ok">21428억</td><td class="ok">7652억</td><td class="ok">6357억</td></tr>
+<tr><td class="label">고저변동폭</td><td class="ok">0.0%</td><td class="fail">14.3%</td><td class="fail">23.2%</td><td class="fail">24.3%</td><td class="fail">24.3%</td></tr>
+<tr><td class="label">종가변동폭</td><td class="ok">0.0%</td><td class="ok">0.9%</td><td class="fail">15.6%</td><td class="fail">15.7%</td><td class="fail">15.7%</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">몸통중간값유지</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">장대음봉없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">최종</td><td class="final-ok">✅ 해당</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+<tr><td class="section" colspan="6">📊 김형준 기법 (KH)</td></tr>
+<tr><td class="label">기준봉TV폭발</td><td class="ok">11.3배</td><td class="ok">11.3배</td><td class="ok">11.3배</td><td class="ok">11.3배</td><td class="ok">11.3배</td></tr>
+<tr><td class="label">기준봉TV최소</td><td class="ok">14024억</td><td class="ok">14024억</td><td class="ok">14024억</td><td class="ok">14024억</td><td class="ok">14024억</td></tr>
+<tr><td class="label">TV수축</td><td class="ok">0.43</td><td class="fail">0.51</td><td class="fail">1.53</td><td class="fail">0.55</td><td class="ok">0.45</td></tr>
+<tr><td class="label">가격유지</td><td class="ok">+1.1%</td><td class="ok">+0.2%</td><td class="ok">+18.6%</td><td class="ok">+18.8%</td><td class="ok">+15.0%</td></tr>
+<tr><td class="label">5일선위</td><td class="ok">✓</td><td class="ok">✓</td><td class="ok">✓</td><td class="ok">✓</td><td class="ok">✓</td></tr>
+<tr><td class="label">신고가권</td><td class="ok">✓</td><td class="fail">✗</td><td class="ok">✓</td><td class="fail">✗</td><td class="fail">✗</td></tr>
+<tr><td class="label">거래량증가음봉없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">최종</td><td class="final-ok">✅ 해당</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+</tbody></table></div>
+
+<div class="card">
+  <div class="card-header">
+    레인보우로보틱스
+    <span class="badge market">KOSDAQ</span>
+    <span class="badge">277810</span>
+    <span style="font-size:12px;font-weight:400">기준봉: 05/08 (+12.5%) | 거래대금: 10885억</span>
+  </div>
+<table><thead><tr><th style="text-align:left;min-width:160px">조건</th><th>D+1<br>05/11<br><span style="color:#198754">+10.3%</span> 3842억○</th><th>D+2<br>05/12<br><span style="color:#dc3545">-1.2%</span> 5041억○</th><th>D+3<br>05/13<br><span style="color:#198754">+2.7%</span> 2755억○</th><th>D+4<br>05/14<br><span style="color:#dc3545">-4.2%</span> 1938억○</th><th>D+5<br>05/15<br><span style="color:#dc3545">-3.7%</span> 3089억○</th></tr></thead><tbody>
+<tr><td class="section" colspan="6">📊 고가횡보형</td></tr>
+<tr><td class="label">가격유지</td><td class="ok">+7.1%</td><td class="ok">+5.8%</td><td class="ok">+8.7%</td><td class="ok">+4.1%</td><td class="ok">+0.2%</td></tr>
+<tr><td class="label">TV최소</td><td class="ok">0.35</td><td class="ok">0.46</td><td class="ok">0.25</td><td class="ok">0.18</td><td class="ok">0.28</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">최종</td><td class="final-ok">✅ 해당</td><td class="final-ok">✅ 해당</td><td class="final-ok">✅ 해당</td><td class="final-ok">✅ 해당</td><td class="final-ok">✅ 해당</td></tr>
+<tr><td class="section" colspan="6">📊 고가수축형 (HTC)</td></tr>
+<tr><td class="label">가격(고가기준)</td><td class="ok">+7.1%</td><td class="ok">+5.8%</td><td class="ok">+8.7%</td><td class="ok">+4.1%</td><td class="ok">+0.2%</td></tr>
+<tr><td class="label">가격(종가기준)</td><td class="ok">+10.3%</td><td class="ok">+9.1%</td><td class="ok">+12.0%</td><td class="ok">+7.3%</td><td class="ok">+3.3%</td></tr>
+<tr><td class="label">중간일최저종가</td><td class="ok">+10.3%</td><td class="ok">+9.1%</td><td class="ok">+9.1%</td><td class="ok">+7.3%</td><td class="ok">+3.3%</td></tr>
+<tr><td class="label">TV평균수축</td><td class="ok">0.35</td><td class="ok">0.41</td><td class="ok">0.36</td><td class="ok">0.31</td><td class="ok">0.31</td></tr>
+<tr><td class="label">TV오늘수축</td><td class="ok">0.35</td><td class="ok">0.46</td><td class="ok">0.25</td><td class="ok">0.18</td><td class="ok">0.28</td></tr>
+<tr><td class="label">TV최소(300억)</td><td class="ok">3842억</td><td class="ok">5041억</td><td class="ok">2755억</td><td class="ok">1938억</td><td class="ok">3089억</td></tr>
+<tr><td class="label">고저변동폭</td><td class="ok">0.0%</td><td class="fail">21.8%</td><td class="fail">21.8%</td><td class="fail">21.8%</td><td class="fail">21.8%</td></tr>
+<tr><td class="label">종가변동폭</td><td class="ok">0.0%</td><td class="ok">1.2%</td><td class="ok">2.6%</td><td class="ok">4.2%</td><td class="ok">7.7%</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">몸통중간값유지</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">장대음봉없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">최종</td><td class="final-ok">✅ 해당</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+<tr><td class="section" colspan="6">📊 김형준 기법 (KH)</td></tr>
+<tr><td class="label">기준봉TV폭발</td><td class="ok">11.6배</td><td class="ok">11.6배</td><td class="ok">11.6배</td><td class="ok">11.6배</td><td class="ok">11.6배</td></tr>
+<tr><td class="label">기준봉TV최소</td><td class="ok">10885억</td><td class="ok">10885억</td><td class="ok">10885억</td><td class="ok">10885억</td><td class="ok">10885억</td></tr>
+<tr><td class="label">TV수축</td><td class="ok">0.35</td><td class="ok">0.46</td><td class="ok">0.25</td><td class="ok">0.18</td><td class="ok">0.28</td></tr>
+<tr><td class="label">가격유지</td><td class="ok">+7.1%</td><td class="ok">+5.8%</td><td class="ok">+8.7%</td><td class="ok">+4.1%</td><td class="ok">+0.2%</td></tr>
+<tr><td class="label">5일선위</td><td class="ok">✓</td><td class="ok">✓</td><td class="ok">✓</td><td class="fail">✗</td><td class="fail">✗</td></tr>
+<tr><td class="label">신고가권</td><td class="ok">✓</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td></tr>
+<tr><td class="label">거래량증가음봉없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">최종</td><td class="final-ok">✅ 해당</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+</tbody></table></div>
+
+<div class="card">
+  <div class="card-header">
+    대한전선
+    <span class="badge market">KOSPI</span>
+    <span class="badge">001440</span>
+    <span style="font-size:12px;font-weight:400">기준봉: 05/08 (+12.8%) | 거래대금: 14631억</span>
+  </div>
+<table><thead><tr><th style="text-align:left;min-width:160px">조건</th><th>D+1<br>05/11<br><span style="color:#dc3545">-2.5%</span> 6961억○</th><th>D+2<br>05/12<br><span style="color:#dc3545">-4.7%</span> 7222억○</th><th>D+3<br>05/13<br><span style="color:#dc3545">-2.7%</span> 4514억○</th><th>D+4<br>05/14<br><span style="color:#198754">+0.2%</span> 5273억○</th><th>D+5<br>05/15<br><span style="color:#dc3545">-8.4%</span> 4166억○</th></tr></thead><tbody>
+<tr><td class="section" colspan="6">📊 고가횡보형</td></tr>
+<tr><td class="label">가격유지</td><td class="fail">-5.7%</td><td class="fail">-10.2%</td><td class="fail">-12.6%</td><td class="fail">-12.4%</td><td class="fail">-19.8%</td></tr>
+<tr><td class="label">TV최소</td><td class="ok">0.48</td><td class="ok">0.49</td><td class="ok">0.31</td><td class="ok">0.36</td><td class="ok">0.28</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td></tr>
+<tr><td class="label">최종</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+<tr><td class="section" colspan="6">📊 고가수축형 (HTC)</td></tr>
+<tr><td class="label">가격(고가기준)</td><td class="fail">-5.7%</td><td class="fail">-10.2%</td><td class="fail">-12.6%</td><td class="fail">-12.4%</td><td class="fail">-19.8%</td></tr>
+<tr><td class="label">가격(종가기준)</td><td class="ok">-2.5%</td><td class="fail">-7.1%</td><td class="fail">-9.5%</td><td class="fail">-9.4%</td><td class="fail">-17.0%</td></tr>
+<tr><td class="label">중간일최저종가</td><td class="ok">-2.5%</td><td class="ok">-7.1%</td><td class="fail">-9.5%</td><td class="fail">-9.5%</td><td class="fail">-17.0%</td></tr>
+<tr><td class="label">TV평균수축</td><td class="ok">0.48</td><td class="ok">0.48</td><td class="ok">0.43</td><td class="ok">0.41</td><td class="ok">0.38</td></tr>
+<tr><td class="label">TV오늘수축</td><td class="ok">0.48</td><td class="ok">0.49</td><td class="ok">0.31</td><td class="ok">0.36</td><td class="ok">0.28</td></tr>
+<tr><td class="label">TV최소(300억)</td><td class="ok">6961억</td><td class="ok">7222억</td><td class="ok">4514억</td><td class="ok">5273억</td><td class="ok">4166억</td></tr>
+<tr><td class="label">고저변동폭</td><td class="ok">0.0%</td><td class="ok">9.4%</td><td class="fail">19.2%</td><td class="fail">19.2%</td><td class="fail">19.2%</td></tr>
+<tr><td class="label">종가변동폭</td><td class="ok">0.0%</td><td class="ok">4.7%</td><td class="ok">7.2%</td><td class="ok">7.2%</td><td class="fail">14.9%</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td></tr>
+<tr><td class="label">몸통중간값유지</td><td class="ok">정상</td><td class="ok">정상</td><td class="fail">하회발생(67,650원)</td><td class="fail">하회발생(67,650원)</td><td class="fail">하회발생(67,650원)</td></tr>
+<tr><td class="label">장대음봉없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">최종</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+<tr><td class="section" colspan="6">📊 김형준 기법 (KH)</td></tr>
+<tr><td class="label">기준봉TV폭발</td><td class="fail">1.9배</td><td class="fail">1.9배</td><td class="fail">1.9배</td><td class="fail">1.9배</td><td class="fail">1.9배</td></tr>
+<tr><td class="label">기준봉TV최소</td><td class="ok">14631억</td><td class="ok">14631억</td><td class="ok">14631억</td><td class="ok">14631억</td><td class="ok">14631억</td></tr>
+<tr><td class="label">TV수축</td><td class="ok">0.48</td><td class="ok">0.49</td><td class="ok">0.31</td><td class="ok">0.36</td><td class="ok">0.28</td></tr>
+<tr><td class="label">가격유지</td><td class="fail">-5.7%</td><td class="fail">-10.2%</td><td class="fail">-12.6%</td><td class="fail">-12.4%</td><td class="fail">-19.8%</td></tr>
+<tr><td class="label">5일선위</td><td class="ok">✓</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td></tr>
+<tr><td class="label">신고가권</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td></tr>
+<tr><td class="label">거래량증가음봉없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">최종</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+</tbody></table></div>
+
+<div class="card">
+  <div class="card-header">
+    대한광통신
+    <span class="badge market">KOSDAQ</span>
+    <span class="badge">010170</span>
+    <span style="font-size:12px;font-weight:400">기준봉: 05/11 (+25.1%) | 거래대금: 23349억</span>
+  </div>
+<table><thead><tr><th style="text-align:left;min-width:160px">조건</th><th>D+1<br>05/12<br><span style="color:#198754">+4.1%</span> 21398억○</th><th>D+2<br>05/13<br><span style="color:#dc3545">-14.9%</span> 8533억○</th><th>D+3<br>05/14<br><span style="color:#198754">+0.0%</span> 7415억○</th><th>D+4<br>05/15<br><span style="color:#dc3545">-7.1%</span> 3339억○</th><th>D+5<br>05/18<br><span style="color:#198754">+0.4%</span> 5631억○</th></tr></thead><tbody>
+<tr><td class="section" colspan="6">📊 고가횡보형</td></tr>
+<tr><td class="label">가격유지</td><td class="ok">+1.7%</td><td class="fail">-13.5%</td><td class="fail">-13.5%</td><td class="fail">-19.6%</td><td class="fail">-19.2%</td></tr>
+<tr><td class="label">TV최소</td><td class="ok">0.92</td><td class="ok">0.37</td><td class="ok">0.32</td><td class="ok">0.14</td><td class="ok">0.24</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td></tr>
+<tr><td class="label">최종</td><td class="final-ok">✅ 해당</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+<tr><td class="section" colspan="6">📊 고가수축형 (HTC)</td></tr>
+<tr><td class="label">가격(고가기준)</td><td class="ok">+1.7%</td><td class="fail">-13.5%</td><td class="fail">-13.5%</td><td class="fail">-19.6%</td><td class="fail">-19.2%</td></tr>
+<tr><td class="label">가격(종가기준)</td><td class="ok">+4.1%</td><td class="fail">-11.4%</td><td class="fail">-11.4%</td><td class="fail">-17.7%</td><td class="fail">-17.4%</td></tr>
+<tr><td class="label">중간일최저종가</td><td class="ok">+4.1%</td><td class="fail">-11.4%</td><td class="fail">-11.4%</td><td class="fail">-17.7%</td><td class="fail">-17.7%</td></tr>
+<tr><td class="label">TV평균수축</td><td class="fail">0.92</td><td class="fail">0.64</td><td class="fail">0.53</td><td class="ok">0.44</td><td class="ok">0.40</td></tr>
+<tr><td class="label">TV오늘수축</td><td class="fail">0.92</td><td class="ok">0.37</td><td class="ok">0.32</td><td class="ok">0.14</td><td class="ok">0.24</td></tr>
+<tr><td class="label">TV최소(300억)</td><td class="ok">21398억</td><td class="ok">8533억</td><td class="ok">7415억</td><td class="ok">3339억</td><td class="ok">5631억</td></tr>
+<tr><td class="label">고저변동폭</td><td class="ok">0.0%</td><td class="fail">23.0%</td><td class="fail">23.0%</td><td class="fail">28.6%</td><td class="fail">30.3%</td></tr>
+<tr><td class="label">종가변동폭</td><td class="ok">0.0%</td><td class="fail">14.9%</td><td class="fail">14.9%</td><td class="fail">21.0%</td><td class="fail">21.0%</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td></tr>
+<tr><td class="label">몸통중간값유지</td><td class="ok">정상</td><td class="ok">정상</td><td class="fail">하회발생(25,675원)</td><td class="fail">하회발생(25,675원)</td><td class="fail">하회발생(25,675원)</td></tr>
+<tr><td class="label">장대음봉없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">최종</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+<tr><td class="section" colspan="6">📊 김형준 기법 (KH)</td></tr>
+<tr><td class="label">기준봉TV폭발</td><td class="fail">2.9배</td><td class="fail">2.9배</td><td class="fail">2.9배</td><td class="fail">2.9배</td><td class="fail">2.9배</td></tr>
+<tr><td class="label">기준봉TV최소</td><td class="ok">23349억</td><td class="ok">23349억</td><td class="ok">23349억</td><td class="ok">23349억</td><td class="ok">23349억</td></tr>
+<tr><td class="label">TV수축</td><td class="fail">0.92</td><td class="ok">0.37</td><td class="ok">0.32</td><td class="ok">0.14</td><td class="ok">0.24</td></tr>
+<tr><td class="label">가격유지</td><td class="ok">+1.7%</td><td class="fail">-13.5%</td><td class="fail">-13.5%</td><td class="fail">-19.6%</td><td class="fail">-19.2%</td></tr>
+<tr><td class="label">5일선위</td><td class="ok">✓</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td></tr>
+<tr><td class="label">신고가권</td><td class="ok">✓</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td></tr>
+<tr><td class="label">거래량증가음봉없음</td><td class="fail">발생</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">최종</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+</tbody></table></div>
+
+<div class="card">
+  <div class="card-header">
+    한온시스템
+    <span class="badge market">KOSPI</span>
+    <span class="badge">018880</span>
+    <span style="font-size:12px;font-weight:400">기준봉: 05/11 (+20.1%) | 거래대금: 8707억</span>
+  </div>
+<table><thead><tr><th style="text-align:left;min-width:160px">조건</th><th>D+1<br>05/12<br><span style="color:#dc3545">-9.9%</span> 3064억○</th><th>D+2<br>05/13<br><span style="color:#dc3545">-2.3%</span> 1122억○</th><th>D+3<br>05/14<br><span style="color:#dc3545">-0.8%</span> 993억○</th><th>D+4<br>05/15<br><span style="color:#198754">+1.0%</span> 3137억○</th><th>D+5<br>05/18<br><span style="color:#dc3545">-2.8%</span> 907억○</th></tr></thead><tbody>
+<tr><td class="section" colspan="6">📊 고가횡보형</td></tr>
+<tr><td class="label">가격유지</td><td class="fail">-11.9%</td><td class="fail">-14.0%</td><td class="fail">-14.7%</td><td class="fail">-13.8%</td><td class="fail">-16.2%</td></tr>
+<tr><td class="label">TV최소</td><td class="ok">0.35</td><td class="ok">0.13</td><td class="ok">0.11</td><td class="ok">0.36</td><td class="ok">0.10</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td></tr>
+<tr><td class="label">최종</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+<tr><td class="section" colspan="6">📊 고가수축형 (HTC)</td></tr>
+<tr><td class="label">가격(고가기준)</td><td class="fail">-11.9%</td><td class="fail">-14.0%</td><td class="fail">-14.7%</td><td class="fail">-13.8%</td><td class="fail">-16.2%</td></tr>
+<tr><td class="label">가격(종가기준)</td><td class="fail">-9.9%</td><td class="fail">-12.0%</td><td class="fail">-12.7%</td><td class="fail">-11.9%</td><td class="fail">-14.3%</td></tr>
+<tr><td class="label">중간일최저종가</td><td class="fail">-9.9%</td><td class="fail">-12.0%</td><td class="fail">-12.7%</td><td class="fail">-12.7%</td><td class="fail">-14.3%</td></tr>
+<tr><td class="label">TV평균수축</td><td class="ok">0.35</td><td class="ok">0.24</td><td class="ok">0.20</td><td class="ok">0.24</td><td class="ok">0.21</td></tr>
+<tr><td class="label">TV오늘수축</td><td class="ok">0.35</td><td class="ok">0.13</td><td class="ok">0.11</td><td class="ok">0.36</td><td class="ok">0.10</td></tr>
+<tr><td class="label">TV최소(300억)</td><td class="ok">3064억</td><td class="ok">1122억</td><td class="ok">993억</td><td class="ok">3137억</td><td class="ok">907억</td></tr>
+<tr><td class="label">고저변동폭</td><td class="ok">0.0%</td><td class="fail">14.4%</td><td class="fail">14.4%</td><td class="fail">15.5%</td><td class="fail">15.5%</td></tr>
+<tr><td class="label">종가변동폭</td><td class="ok">0.0%</td><td class="ok">2.3%</td><td class="ok">3.1%</td><td class="ok">3.1%</td><td class="ok">4.8%</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td></tr>
+<tr><td class="label">몸통중간값유지</td><td class="ok">정상</td><td class="fail">하회발생(5,290원)</td><td class="fail">하회발생(5,290원)</td><td class="fail">하회발생(5,290원)</td><td class="fail">하회발생(5,290원)</td></tr>
+<tr><td class="label">장대음봉없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">최종</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+<tr><td class="section" colspan="6">📊 김형준 기법 (KH)</td></tr>
+<tr><td class="label">기준봉TV폭발</td><td class="ok">6.9배</td><td class="ok">6.9배</td><td class="ok">6.9배</td><td class="ok">6.9배</td><td class="ok">6.9배</td></tr>
+<tr><td class="label">기준봉TV최소</td><td class="ok">8707억</td><td class="ok">8707억</td><td class="ok">8707억</td><td class="ok">8707억</td><td class="ok">8707억</td></tr>
+<tr><td class="label">TV수축</td><td class="ok">0.35</td><td class="ok">0.13</td><td class="ok">0.11</td><td class="ok">0.36</td><td class="ok">0.10</td></tr>
+<tr><td class="label">가격유지</td><td class="fail">-11.9%</td><td class="fail">-14.0%</td><td class="fail">-14.7%</td><td class="fail">-13.8%</td><td class="fail">-16.2%</td></tr>
+<tr><td class="label">5일선위</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td></tr>
+<tr><td class="label">신고가권</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td></tr>
+<tr><td class="label">거래량증가음봉없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">최종</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+</tbody></table></div>
+
+<div class="card">
+  <div class="card-header">
+    로보티즈
+    <span class="badge market">KOSDAQ</span>
+    <span class="badge">108490</span>
+    <span style="font-size:12px;font-weight:400">기준봉: 05/11 (+12.9%) | 거래대금: 7677억</span>
+  </div>
+<table><thead><tr><th style="text-align:left;min-width:160px">조건</th><th>D+1<br>05/12<br><span style="color:#dc3545">-8.6%</span> 2814억○</th><th>D+2<br>05/13<br><span style="color:#198754">+3.0%</span> 1413억○</th><th>D+3<br>05/14<br><span style="color:#dc3545">-4.1%</span> 869억○</th><th>D+4<br>05/15<br><span style="color:#dc3545">-3.7%</span> 1744억○</th><th>D+5<br>05/18<br><span style="color:#dc3545">-6.8%</span> 1056억○</th></tr></thead><tbody>
+<tr><td class="section" colspan="6">📊 고가횡보형</td></tr>
+<tr><td class="label">가격유지</td><td class="fail">-12.4%</td><td class="fail">-9.8%</td><td class="fail">-13.5%</td><td class="fail">-16.6%</td><td class="fail">-22.3%</td></tr>
+<tr><td class="label">TV최소</td><td class="ok">0.37</td><td class="ok">0.18</td><td class="ok">0.11</td><td class="ok">0.23</td><td class="ok">0.14</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td></tr>
+<tr><td class="label">최종</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+<tr><td class="section" colspan="6">📊 고가수축형 (HTC)</td></tr>
+<tr><td class="label">가격(고가기준)</td><td class="fail">-12.4%</td><td class="fail">-9.8%</td><td class="fail">-13.5%</td><td class="fail">-16.6%</td><td class="fail">-22.3%</td></tr>
+<tr><td class="label">가격(종가기준)</td><td class="fail">-8.6%</td><td class="fail">-5.8%</td><td class="fail">-9.7%</td><td class="fail">-13.0%</td><td class="fail">-18.9%</td></tr>
+<tr><td class="label">중간일최저종가</td><td class="fail">-8.6%</td><td class="fail">-8.6%</td><td class="fail">-9.7%</td><td class="fail">-13.0%</td><td class="fail">-18.9%</td></tr>
+<tr><td class="label">TV평균수축</td><td class="ok">0.37</td><td class="ok">0.28</td><td class="ok">0.22</td><td class="ok">0.22</td><td class="ok">0.21</td></tr>
+<tr><td class="label">TV오늘수축</td><td class="ok">0.37</td><td class="ok">0.18</td><td class="ok">0.11</td><td class="ok">0.23</td><td class="ok">0.14</td></tr>
+<tr><td class="label">TV최소(300억)</td><td class="ok">2814억</td><td class="ok">1413억</td><td class="ok">869억</td><td class="ok">1744억</td><td class="ok">1056억</td></tr>
+<tr><td class="label">고저변동폭</td><td class="ok">0.0%</td><td class="fail">17.8%</td><td class="fail">17.8%</td><td class="fail">17.8%</td><td class="fail">19.1%</td></tr>
+<tr><td class="label">종가변동폭</td><td class="ok">0.0%</td><td class="ok">3.0%</td><td class="ok">4.1%</td><td class="ok">7.6%</td><td class="fail">13.9%</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td></tr>
+<tr><td class="label">몸통중간값유지</td><td class="ok">정상</td><td class="fail">하회발생(356,500원)</td><td class="fail">하회발생(356,500원)</td><td class="fail">하회발생(356,500원)</td><td class="fail">하회발생(356,500원)</td></tr>
+<tr><td class="label">장대음봉없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">최종</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+<tr><td class="section" colspan="6">📊 김형준 기법 (KH)</td></tr>
+<tr><td class="label">기준봉TV폭발</td><td class="ok">7.5배</td><td class="ok">7.5배</td><td class="ok">7.5배</td><td class="ok">7.5배</td><td class="ok">7.5배</td></tr>
+<tr><td class="label">기준봉TV최소</td><td class="ok">7677억</td><td class="ok">7677억</td><td class="ok">7677억</td><td class="ok">7677억</td><td class="ok">7677억</td></tr>
+<tr><td class="label">TV수축</td><td class="ok">0.37</td><td class="ok">0.18</td><td class="ok">0.11</td><td class="ok">0.23</td><td class="ok">0.14</td></tr>
+<tr><td class="label">가격유지</td><td class="fail">-12.4%</td><td class="fail">-9.8%</td><td class="fail">-13.5%</td><td class="fail">-16.6%</td><td class="fail">-22.3%</td></tr>
+<tr><td class="label">5일선위</td><td class="ok">✓</td><td class="ok">✓</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td></tr>
+<tr><td class="label">신고가권</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td></tr>
+<tr><td class="label">거래량증가음봉없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">최종</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+</tbody></table></div>
+
+<div class="card">
+  <div class="card-header">
+    에이치브이엠
+    <span class="badge market">KOSDAQ</span>
+    <span class="badge">295310</span>
+    <span style="font-size:12px;font-weight:400">기준봉: 05/11 (+18.0%) | 거래대금: 1625억</span>
+  </div>
+<table><thead><tr><th style="text-align:left;min-width:160px">조건</th><th>D+1<br>05/12<br><span style="color:#dc3545">-7.4%</span> 504억○</th><th>D+2<br>05/13<br><span style="color:#dc3545">-2.2%</span> 223억○</th><th>D+3<br>05/14<br><span style="color:#dc3545">-1.0%</span> 148억○</th><th>D+4<br>05/15<br><span style="color:#198754">+3.1%</span> 516억○</th><th>D+5<br>05/18<br><span style="color:#198754">+28.0%</span> 3709억●<br><span class="sig-label">당일돌파형</span></th></tr></thead><tbody>
+<tr><td class="section" colspan="6">📊 고가횡보형</td></tr>
+<tr><td class="label">가격유지</td><td class="fail">-9.0%</td><td class="fail">-11.0%</td><td class="fail">-12.0%</td><td class="fail">-9.3%</td><td class="ok">+16.1%</td></tr>
+<tr><td class="label">TV최소</td><td class="ok">0.31</td><td class="ok">0.14</td><td class="fail">0.09</td><td class="ok">0.32</td><td class="ok">2.28</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td></tr>
+<tr><td class="label">최종</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+<tr><td class="section" colspan="6">📊 고가수축형 (HTC)</td></tr>
+<tr><td class="label">가격(고가기준)</td><td class="fail">-9.0%</td><td class="fail">-11.0%</td><td class="fail">-12.0%</td><td class="fail">-9.3%</td><td class="ok">+16.1%</td></tr>
+<tr><td class="label">가격(종가기준)</td><td class="fail">-7.4%</td><td class="fail">-9.5%</td><td class="fail">-10.5%</td><td class="fail">-7.7%</td><td class="ok">+18.1%</td></tr>
+<tr><td class="label">중간일최저종가</td><td class="ok">-7.4%</td><td class="fail">-9.5%</td><td class="fail">-10.5%</td><td class="fail">-10.5%</td><td class="fail">-10.5%</td></tr>
+<tr><td class="label">TV평균수축</td><td class="ok">0.31</td><td class="ok">0.22</td><td class="ok">0.18</td><td class="ok">0.21</td><td class="fail">0.63</td></tr>
+<tr><td class="label">TV오늘수축</td><td class="ok">0.31</td><td class="ok">0.14</td><td class="ok">0.09</td><td class="ok">0.32</td><td class="fail">2.28</td></tr>
+<tr><td class="label">TV최소(300억)</td><td class="ok">504억</td><td class="fail">223억</td><td class="fail">148억</td><td class="ok">516억</td><td class="ok">3709억</td></tr>
+<tr><td class="label">고저변동폭</td><td class="ok">0.0%</td><td class="fail">16.0%</td><td class="fail">23.1%</td><td class="fail">23.1%</td><td class="fail">31.0%</td></tr>
+<tr><td class="label">종가변동폭</td><td class="ok">0.0%</td><td class="ok">2.2%</td><td class="ok">3.3%</td><td class="ok">3.3%</td><td class="fail">24.2%</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td></tr>
+<tr><td class="label">몸통중간값유지</td><td class="ok">정상</td><td class="fail">하회발생(99,950원)</td><td class="fail">하회발생(99,950원)</td><td class="fail">하회발생(99,950원)</td><td class="fail">하회발생(99,950원)</td></tr>
+<tr><td class="label">장대음봉없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">최종</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+<tr><td class="section" colspan="6">📊 김형준 기법 (KH)</td></tr>
+<tr><td class="label">기준봉TV폭발</td><td class="ok">8.7배</td><td class="ok">8.7배</td><td class="ok">8.7배</td><td class="ok">8.7배</td><td class="ok">8.7배</td></tr>
+<tr><td class="label">기준봉TV최소</td><td class="ok">1625억</td><td class="ok">1625억</td><td class="ok">1625억</td><td class="ok">1625억</td><td class="ok">1625억</td></tr>
+<tr><td class="label">TV수축</td><td class="ok">0.31</td><td class="ok">0.14</td><td class="ok">0.09</td><td class="ok">0.32</td><td class="fail">2.28</td></tr>
+<tr><td class="label">가격유지</td><td class="fail">-9.0%</td><td class="fail">-11.0%</td><td class="fail">-12.0%</td><td class="fail">-9.3%</td><td class="ok">+16.1%</td></tr>
+<tr><td class="label">5일선위</td><td class="ok">✓</td><td class="ok">✓</td><td class="fail">✗</td><td class="fail">✗</td><td class="ok">✓</td></tr>
+<tr><td class="label">신고가권</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td><td class="ok">✓</td></tr>
+<tr><td class="label">거래량증가음봉없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">최종</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+</tbody></table></div>
+
+<div class="card">
+  <div class="card-header">
+    LG전자
+    <span class="badge market">KOSPI</span>
+    <span class="badge">066570</span>
+    <span style="font-size:12px;font-weight:400">기준봉: 05/12 (+18.0%) | 거래대금: 34192억</span>
+  </div>
+<table><thead><tr><th style="text-align:left;min-width:160px">조건</th><th>D+1<br>05/13<br><span style="color:#198754">+3.5%</span> 8394억○</th><th>D+2<br>05/14<br><span style="color:#198754">+13.4%</span> 24390억●<br><span class="sig-label">당일돌파형</span></th><th>D+3<br>05/15<br><span style="color:#198754">+10.8%</span> 14084억○</th><th>D+4<br>05/18<br><span style="color:#dc3545">-9.8%</span> 8570억○</th><th>D+5<br>05/19<br><span style="color:#dc3545">-11.7%</span> 8991억○</th></tr></thead><tbody>
+<tr><td class="section" colspan="6">📊 고가횡보형</td></tr>
+<tr><td class="label">가격유지</td><td class="ok">-1.8%</td><td class="ok">+11.3%</td><td class="ok">+23.4%</td><td class="ok">+11.3%</td><td class="ok">-1.6%</td></tr>
+<tr><td class="label">TV최소</td><td class="ok">0.25</td><td class="ok">0.71</td><td class="ok">0.41</td><td class="ok">0.25</td><td class="ok">0.26</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">최종</td><td class="final-ok">✅ 해당</td><td class="final-ok">✅ 해당</td><td class="final-ok">✅ 해당</td><td class="final-ok">✅ 해당</td><td class="final-ok">✅ 해당</td></tr>
+<tr><td class="section" colspan="6">📊 고가수축형 (HTC)</td></tr>
+<tr><td class="label">가격(고가기준)</td><td class="ok">-1.8%</td><td class="ok">+11.3%</td><td class="ok">+23.4%</td><td class="ok">+11.3%</td><td class="ok">-1.6%</td></tr>
+<tr><td class="label">가격(종가기준)</td><td class="ok">+3.5%</td><td class="ok">+17.4%</td><td class="ok">+30.1%</td><td class="ok">+17.4%</td><td class="ok">+3.7%</td></tr>
+<tr><td class="label">중간일최저종가</td><td class="ok">+3.5%</td><td class="ok">+3.5%</td><td class="ok">+3.5%</td><td class="ok">+3.5%</td><td class="ok">+3.5%</td></tr>
+<tr><td class="label">TV평균수축</td><td class="ok">0.25</td><td class="ok">0.48</td><td class="ok">0.46</td><td class="ok">0.41</td><td class="ok">0.38</td></tr>
+<tr><td class="label">TV오늘수축</td><td class="ok">0.25</td><td class="fail">0.71</td><td class="ok">0.41</td><td class="ok">0.25</td><td class="ok">0.26</td></tr>
+<tr><td class="label">TV최소(300억)</td><td class="ok">8394억</td><td class="ok">24390억</td><td class="ok">14084억</td><td class="ok">8570억</td><td class="ok">8991억</td></tr>
+<tr><td class="label">고저변동폭</td><td class="ok">0.0%</td><td class="fail">18.1%</td><td class="fail">31.0%</td><td class="fail">31.0%</td><td class="fail">31.0%</td></tr>
+<tr><td class="label">종가변동폭</td><td class="ok">0.0%</td><td class="fail">11.8%</td><td class="fail">20.4%</td><td class="fail">20.4%</td><td class="fail">20.4%</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">몸통중간값유지</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">장대음봉없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">최종</td><td class="final-ok">✅ 해당</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+<tr><td class="section" colspan="6">📊 김형준 기법 (KH)</td></tr>
+<tr><td class="label">기준봉TV폭발</td><td class="ok">16.3배</td><td class="ok">16.3배</td><td class="ok">16.3배</td><td class="ok">16.3배</td><td class="ok">16.3배</td></tr>
+<tr><td class="label">기준봉TV최소</td><td class="ok">34192억</td><td class="ok">34192억</td><td class="ok">34192억</td><td class="ok">34192억</td><td class="ok">34192억</td></tr>
+<tr><td class="label">TV수축</td><td class="ok">0.25</td><td class="fail">0.71</td><td class="ok">0.41</td><td class="ok">0.25</td><td class="ok">0.26</td></tr>
+<tr><td class="label">가격유지</td><td class="ok">-1.8%</td><td class="ok">+11.3%</td><td class="ok">+23.4%</td><td class="ok">+11.3%</td><td class="ok">-1.6%</td></tr>
+<tr><td class="label">5일선위</td><td class="ok">✓</td><td class="ok">✓</td><td class="ok">✓</td><td class="ok">✓</td><td class="fail">✗</td></tr>
+<tr><td class="label">신고가권</td><td class="ok">✓</td><td class="ok">✓</td><td class="ok">✓</td><td class="fail">✗</td><td class="fail">✗</td></tr>
+<tr><td class="label">거래량증가음봉없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">최종</td><td class="final-ok">✅ 해당</td><td class="final-fail">❌ 탈락</td><td class="final-ok">✅ 해당</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+</tbody></table></div>
+
+<div class="card">
+  <div class="card-header">
+    가온전선
+    <span class="badge market">KOSPI</span>
+    <span class="badge">000500</span>
+    <span style="font-size:12px;font-weight:400">기준봉: 05/12 (+18.2%) | 거래대금: 2528억</span>
+  </div>
+<table><thead><tr><th style="text-align:left;min-width:160px">조건</th><th>D+1<br>05/13<br><span style="color:#dc3545">-10.5%</span> 1434억○</th><th>D+2<br>05/14<br><span style="color:#dc3545">-21.0%</span> 1350억○</th><th>D+3<br>05/15<br><span style="color:#dc3545">-15.2%</span> 1306억○</th><th>D+4<br>05/18<br><span style="color:#198754">+12.3%</span> 3207억○</th><th>D+5<br>05/19<br><span style="color:#198754">+2.1%</span> 1389억○</th></tr></thead><tbody>
+<tr><td class="section" colspan="6">📊 고가횡보형</td></tr>
+<tr><td class="label">가격유지</td><td class="fail">-17.5%</td><td class="fail">-34.8%</td><td class="fail">-44.7%</td><td class="fail">-37.9%</td><td class="fail">-36.6%</td></tr>
+<tr><td class="label">TV최소</td><td class="ok">0.57</td><td class="ok">0.53</td><td class="ok">0.52</td><td class="ok">1.27</td><td class="ok">0.55</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td></tr>
+<tr><td class="label">최종</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+<tr><td class="section" colspan="6">📊 고가수축형 (HTC)</td></tr>
+<tr><td class="label">가격(고가기준)</td><td class="fail">-17.5%</td><td class="fail">-34.8%</td><td class="fail">-44.7%</td><td class="fail">-37.9%</td><td class="fail">-36.6%</td></tr>
+<tr><td class="label">가격(종가기준)</td><td class="fail">-10.5%</td><td class="fail">-29.3%</td><td class="fail">-40.0%</td><td class="fail">-32.6%</td><td class="fail">-31.2%</td></tr>
+<tr><td class="label">중간일최저종가</td><td class="fail">-10.5%</td><td class="fail">-29.3%</td><td class="fail">-40.0%</td><td class="fail">-40.0%</td><td class="fail">-40.0%</td></tr>
+<tr><td class="label">TV평균수축</td><td class="fail">0.57</td><td class="fail">0.55</td><td class="fail">0.54</td><td class="fail">0.72</td><td class="fail">0.69</td></tr>
+<tr><td class="label">TV오늘수축</td><td class="fail">0.57</td><td class="fail">0.53</td><td class="fail">0.52</td><td class="fail">1.27</td><td class="fail">0.55</td></tr>
+<tr><td class="label">TV최소(300억)</td><td class="ok">1434억</td><td class="ok">1350억</td><td class="ok">1306억</td><td class="ok">3207억</td><td class="ok">1389억</td></tr>
+<tr><td class="label">고저변동폭</td><td class="ok">0.0%</td><td class="fail">24.6%</td><td class="fail">40.9%</td><td class="fail">51.5%</td><td class="fail">53.5%</td></tr>
+<tr><td class="label">종가변동폭</td><td class="ok">0.0%</td><td class="fail">21.0%</td><td class="fail">33.0%</td><td class="fail">33.0%</td><td class="fail">33.0%</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td></tr>
+<tr><td class="label">몸통중간값유지</td><td class="ok">정상</td><td class="fail">하회발생(545,500원)</td><td class="fail">하회발생(545,500원)</td><td class="fail">하회발생(545,500원)</td><td class="fail">하회발생(545,500원)</td></tr>
+<tr><td class="label">장대음봉없음</td><td class="ok">정상</td><td class="fail">발생</td><td class="fail">발생</td><td class="fail">발생</td><td class="fail">발생</td></tr>
+<tr><td class="label">최종</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+<tr><td class="section" colspan="6">📊 김형준 기법 (KH)</td></tr>
+<tr><td class="label">기준봉TV폭발</td><td class="ok">7.3배</td><td class="ok">7.3배</td><td class="ok">7.3배</td><td class="ok">7.3배</td><td class="ok">7.3배</td></tr>
+<tr><td class="label">기준봉TV최소</td><td class="ok">2528억</td><td class="ok">2528억</td><td class="ok">2528억</td><td class="ok">2528억</td><td class="ok">2528억</td></tr>
+<tr><td class="label">TV수축</td><td class="fail">0.57</td><td class="fail">0.53</td><td class="fail">0.52</td><td class="fail">1.27</td><td class="fail">0.55</td></tr>
+<tr><td class="label">가격유지</td><td class="fail">-17.5%</td><td class="fail">-34.8%</td><td class="fail">-44.7%</td><td class="fail">-37.9%</td><td class="fail">-36.6%</td></tr>
+<tr><td class="label">5일선위</td><td class="ok">✓</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td></tr>
+<tr><td class="label">신고가권</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td></tr>
+<tr><td class="label">거래량증가음봉없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">최종</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+</tbody></table></div>
+
+<div class="card">
+  <div class="card-header">
+    현대모비스
+    <span class="badge market">KOSPI</span>
+    <span class="badge">012330</span>
+    <span style="font-size:12px;font-weight:400">기준봉: 05/13 (+18.4%) | 거래대금: 21428억</span>
+  </div>
+<table><thead><tr><th style="text-align:left;min-width:160px">조건</th><th>D+1<br>05/14<br><span style="color:#198754">+0.2%</span> 7652억○</th><th>D+2<br>05/15<br><span style="color:#dc3545">-3.2%</span> 6357억○</th><th>D+3<br>05/18<br><span style="color:#dc3545">-9.2%</span> 5407억○</th><th>D+4<br>05/19<br><span style="color:#dc3545">-8.1%</span> 4770억○</th><th>D+5<br>05/20<br><span style="color:#198754">+1.9%</span> 5162억○</th></tr></thead><tbody>
+<tr><td class="section" colspan="6">📊 고가횡보형</td></tr>
+<tr><td class="label">가격유지</td><td class="ok">-4.0%</td><td class="fail">-7.1%</td><td class="fail">-15.7%</td><td class="fail">-22.5%</td><td class="fail">-21.0%</td></tr>
+<tr><td class="label">TV최소</td><td class="ok">0.36</td><td class="ok">0.30</td><td class="ok">0.25</td><td class="ok">0.22</td><td class="ok">0.24</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td></tr>
+<tr><td class="label">최종</td><td class="final-ok">✅ 해당</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+<tr><td class="section" colspan="6">📊 고가수축형 (HTC)</td></tr>
+<tr><td class="label">가격(고가기준)</td><td class="ok">-4.0%</td><td class="fail">-7.1%</td><td class="fail">-15.7%</td><td class="fail">-22.5%</td><td class="fail">-21.0%</td></tr>
+<tr><td class="label">가격(종가기준)</td><td class="ok">+0.2%</td><td class="ok">-3.1%</td><td class="fail">-12.0%</td><td class="fail">-19.1%</td><td class="fail">-17.6%</td></tr>
+<tr><td class="label">중간일최저종가</td><td class="ok">+0.2%</td><td class="ok">-3.1%</td><td class="fail">-12.0%</td><td class="fail">-19.1%</td><td class="fail">-19.1%</td></tr>
+<tr><td class="label">TV평균수축</td><td class="ok">0.36</td><td class="ok">0.33</td><td class="ok">0.30</td><td class="ok">0.28</td><td class="ok">0.27</td></tr>
+<tr><td class="label">TV오늘수축</td><td class="ok">0.36</td><td class="ok">0.30</td><td class="ok">0.25</td><td class="ok">0.22</td><td class="ok">0.24</td></tr>
+<tr><td class="label">TV최소(300억)</td><td class="ok">7652억</td><td class="ok">6357억</td><td class="ok">5407억</td><td class="ok">4770억</td><td class="ok">5162억</td></tr>
+<tr><td class="label">고저변동폭</td><td class="ok">0.0%</td><td class="ok">6.3%</td><td class="fail">11.2%</td><td class="fail">18.2%</td><td class="fail">25.9%</td></tr>
+<tr><td class="label">종가변동폭</td><td class="ok">0.0%</td><td class="ok">3.2%</td><td class="fail">12.2%</td><td class="fail">19.2%</td><td class="fail">19.2%</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td></tr>
+<tr><td class="label">몸통중간값유지</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="fail">하회발생(606,500원)</td><td class="fail">하회발생(606,500원)</td></tr>
+<tr><td class="label">장대음봉없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">최종</td><td class="final-ok">✅ 해당</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+<tr><td class="section" colspan="6">📊 김형준 기법 (KH)</td></tr>
+<tr><td class="label">기준봉TV폭발</td><td class="ok">10.1배</td><td class="ok">10.1배</td><td class="ok">10.1배</td><td class="ok">10.1배</td><td class="ok">10.1배</td></tr>
+<tr><td class="label">기준봉TV최소</td><td class="ok">21428억</td><td class="ok">21428억</td><td class="ok">21428억</td><td class="ok">21428억</td><td class="ok">21428억</td></tr>
+<tr><td class="label">TV수축</td><td class="ok">0.36</td><td class="ok">0.30</td><td class="ok">0.25</td><td class="ok">0.22</td><td class="ok">0.24</td></tr>
+<tr><td class="label">가격유지</td><td class="ok">-4.0%</td><td class="fail">-7.1%</td><td class="fail">-15.7%</td><td class="fail">-22.5%</td><td class="fail">-21.0%</td></tr>
+<tr><td class="label">5일선위</td><td class="ok">✓</td><td class="ok">✓</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td></tr>
+<tr><td class="label">신고가권</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td></tr>
+<tr><td class="label">거래량증가음봉없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">최종</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+</tbody></table></div>
+
+<div class="card">
+  <div class="card-header">
+    엑스게이트
+    <span class="badge market">KOSDAQ</span>
+    <span class="badge">356680</span>
+    <span style="font-size:12px;font-weight:400">기준봉: 05/13 (+16.4%) | 거래대금: 6087억</span>
+  </div>
+<table><thead><tr><th style="text-align:left;min-width:160px">조건</th><th>D+1<br>05/14<br><span style="color:#dc3545">-5.3%</span> 389억○</th><th>D+2<br>05/15<br><span style="color:#dc3545">-14.0%</span> 229억○</th><th>D+3<br>05/18<br><span style="color:#dc3545">-5.5%</span> 140억○</th><th>D+4<br>05/19<br><span style="color:#198754">+22.9%</span> 4964억●<br><span class="sig-label">당일돌파형</span></th><th>D+5<br>05/20<br><span style="color:#dc3545">-13.4%</span> 275억○</th></tr></thead><tbody>
+<tr><td class="section" colspan="6">📊 고가횡보형</td></tr>
+<tr><td class="label">가격유지</td><td class="fail">-6.0%</td><td class="fail">-19.2%</td><td class="fail">-23.7%</td><td class="fail">-6.2%</td><td class="fail">-18.7%</td></tr>
+<tr><td class="label">TV최소</td><td class="fail">0.06</td><td class="fail">0.04</td><td class="fail">0.02</td><td class="ok">0.82</td><td class="fail">0.05</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td></tr>
+<tr><td class="label">최종</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+<tr><td class="section" colspan="6">📊 고가수축형 (HTC)</td></tr>
+<tr><td class="label">가격(고가기준)</td><td class="fail">-6.0%</td><td class="fail">-19.2%</td><td class="fail">-23.7%</td><td class="fail">-6.2%</td><td class="fail">-18.7%</td></tr>
+<tr><td class="label">가격(종가기준)</td><td class="fail">-5.3%</td><td class="fail">-18.6%</td><td class="fail">-23.1%</td><td class="fail">-5.5%</td><td class="fail">-18.1%</td></tr>
+<tr><td class="label">중간일최저종가</td><td class="ok">-5.3%</td><td class="fail">-18.6%</td><td class="fail">-23.1%</td><td class="fail">-23.1%</td><td class="fail">-23.1%</td></tr>
+<tr><td class="label">TV평균수축</td><td class="ok">0.06</td><td class="ok">0.05</td><td class="ok">0.04</td><td class="ok">0.24</td><td class="ok">0.20</td></tr>
+<tr><td class="label">TV오늘수축</td><td class="ok">0.06</td><td class="ok">0.04</td><td class="ok">0.02</td><td class="fail">0.82</td><td class="ok">0.05</td></tr>
+<tr><td class="label">TV최소(300억)</td><td class="ok">389억</td><td class="fail">229억</td><td class="fail">140억</td><td class="ok">4964억</td><td class="fail">275억</td></tr>
+<tr><td class="label">고저변동폭</td><td class="ok">0.0%</td><td class="ok">6.2%</td><td class="fail">16.9%</td><td class="fail">24.9%</td><td class="fail">24.9%</td></tr>
+<tr><td class="label">종가변동폭</td><td class="ok">0.0%</td><td class="fail">14.0%</td><td class="fail">18.8%</td><td class="fail">18.8%</td><td class="fail">18.8%</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td></tr>
+<tr><td class="label">몸통중간값유지</td><td class="ok">정상</td><td class="fail">하회발생(19,285원)</td><td class="fail">하회발생(19,285원)</td><td class="fail">하회발생(19,285원)</td><td class="fail">하회발생(19,285원)</td></tr>
+<tr><td class="label">장대음봉없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">최종</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+<tr><td class="section" colspan="6">📊 김형준 기법 (KH)</td></tr>
+<tr><td class="label">기준봉TV폭발</td><td class="ok">7.1배</td><td class="ok">7.1배</td><td class="ok">7.1배</td><td class="ok">7.1배</td><td class="ok">7.1배</td></tr>
+<tr><td class="label">기준봉TV최소</td><td class="ok">6087억</td><td class="ok">6087억</td><td class="ok">6087억</td><td class="ok">6087억</td><td class="ok">6087억</td></tr>
+<tr><td class="label">TV수축</td><td class="ok">0.06</td><td class="ok">0.04</td><td class="ok">0.02</td><td class="fail">0.82</td><td class="ok">0.05</td></tr>
+<tr><td class="label">가격유지</td><td class="fail">-6.0%</td><td class="fail">-19.2%</td><td class="fail">-23.7%</td><td class="fail">-6.2%</td><td class="fail">-18.7%</td></tr>
+<tr><td class="label">5일선위</td><td class="ok">✓</td><td class="fail">✗</td><td class="fail">✗</td><td class="ok">✓</td><td class="fail">✗</td></tr>
+<tr><td class="label">신고가권</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td></tr>
+<tr><td class="label">거래량증가음봉없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">최종</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+</tbody></table></div>
+
+<div class="card">
+  <div class="card-header">
+    제주반도체
+    <span class="badge market">KOSDAQ</span>
+    <span class="badge">080220</span>
+    <span style="font-size:12px;font-weight:400">기준봉: 05/14 (+28.4%) | 거래대금: 8157억</span>
+  </div>
+<table><thead><tr><th style="text-align:left;min-width:160px">조건</th><th>D+1<br>05/15<br><span style="color:#198754">+8.9%</span> 8897억○</th><th>D+2<br>05/18<br><span style="color:#198754">+12.5%</span> 8597억○</th><th>D+3<br>05/19<br><span style="color:#198754">+3.6%</span> 4417억○</th><th>D+4<br>05/20<br><span style="color:#dc3545">-1.1%</span> 2607억●<br><span class="sig-label">고가횡보형</span></th><th>D+5<br>05/21<br><span style="color:#198754">+24.3%</span> 10127억○</th></tr></thead><tbody>
+<tr><td class="section" colspan="6">📊 고가횡보형</td></tr>
+<tr><td class="label">가격유지</td><td class="ok">+7.6%</td><td class="ok">+21.0%</td><td class="ok">+25.4%</td><td class="ok">+23.9%</td><td class="ok">+54.0%</td></tr>
+<tr><td class="label">TV최소</td><td class="ok">1.09</td><td class="ok">1.05</td><td class="ok">0.54</td><td class="ok">0.32</td><td class="ok">1.24</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">최종</td><td class="final-ok">✅ 해당</td><td class="final-ok">✅ 해당</td><td class="final-ok">✅ 해당</td><td class="final-ok">✅ 해당</td><td class="final-ok">✅ 해당</td></tr>
+<tr><td class="section" colspan="6">📊 고가수축형 (HTC)</td></tr>
+<tr><td class="label">가격(고가기준)</td><td class="ok">+7.6%</td><td class="ok">+21.0%</td><td class="ok">+25.4%</td><td class="ok">+23.9%</td><td class="ok">+54.0%</td></tr>
+<tr><td class="label">가격(종가기준)</td><td class="ok">+8.9%</td><td class="ok">+22.5%</td><td class="ok">+26.9%</td><td class="ok">+25.4%</td><td class="ok">+55.8%</td></tr>
+<tr><td class="label">중간일최저종가</td><td class="ok">+8.9%</td><td class="ok">+8.9%</td><td class="ok">+8.9%</td><td class="ok">+8.9%</td><td class="ok">+8.9%</td></tr>
+<tr><td class="label">TV평균수축</td><td class="fail">1.09</td><td class="fail">1.07</td><td class="fail">0.90</td><td class="fail">0.75</td><td class="fail">0.85</td></tr>
+<tr><td class="label">TV오늘수축</td><td class="fail">1.09</td><td class="fail">1.05</td><td class="fail">0.54</td><td class="ok">0.32</td><td class="fail">1.24</td></tr>
+<tr><td class="label">TV최소(300억)</td><td class="ok">8897억</td><td class="ok">8597억</td><td class="ok">4417억</td><td class="ok">2607억</td><td class="ok">10127억</td></tr>
+<tr><td class="label">고저변동폭</td><td class="ok">0.0%</td><td class="fail">30.0%</td><td class="fail">30.0%</td><td class="fail">30.0%</td><td class="fail">42.3%</td></tr>
+<tr><td class="label">종가변동폭</td><td class="ok">0.0%</td><td class="fail">11.1%</td><td class="fail">14.2%</td><td class="fail">14.2%</td><td class="fail">30.1%</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">몸통중간값유지</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">장대음봉없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">최종</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+<tr><td class="section" colspan="6">📊 김형준 기법 (KH)</td></tr>
+<tr><td class="label">기준봉TV폭발</td><td class="ok">3.5배</td><td class="ok">3.5배</td><td class="ok">3.5배</td><td class="ok">3.5배</td><td class="ok">3.5배</td></tr>
+<tr><td class="label">기준봉TV최소</td><td class="ok">8157억</td><td class="ok">8157억</td><td class="ok">8157억</td><td class="ok">8157억</td><td class="ok">8157억</td></tr>
+<tr><td class="label">TV수축</td><td class="fail">1.09</td><td class="fail">1.05</td><td class="fail">0.54</td><td class="ok">0.32</td><td class="fail">1.24</td></tr>
+<tr><td class="label">가격유지</td><td class="ok">+7.6%</td><td class="ok">+21.0%</td><td class="ok">+25.4%</td><td class="ok">+23.9%</td><td class="ok">+54.0%</td></tr>
+<tr><td class="label">5일선위</td><td class="ok">✓</td><td class="ok">✓</td><td class="ok">✓</td><td class="ok">✓</td><td class="ok">✓</td></tr>
+<tr><td class="label">신고가권</td><td class="ok">✓</td><td class="ok">✓</td><td class="fail">✗</td><td class="fail">✗</td><td class="ok">✓</td></tr>
+<tr><td class="label">거래량증가음봉없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">최종</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+</tbody></table></div>
+
+<div class="card">
+  <div class="card-header">
+    LG씨엔에스
+    <span class="badge market">KOSPI</span>
+    <span class="badge">064400</span>
+    <span style="font-size:12px;font-weight:400">기준봉: 05/14 (+17.1%) | 거래대금: 18237억</span>
+  </div>
+<table><thead><tr><th style="text-align:left;min-width:160px">조건</th><th>D+1<br>05/15<br><span style="color:#198754">+0.6%</span> 6351억○</th><th>D+2<br>05/18<br><span style="color:#dc3545">-6.1%</span> 2016억○</th><th>D+3<br>05/19<br><span style="color:#dc3545">-8.0%</span> 1604억○</th><th>D+4<br>05/20<br><span style="color:#dc3545">-4.8%</span> 1100억○</th><th>D+5<br>05/21<br><span style="color:#198754">+12.6%</span> 3033억○</th></tr></thead><tbody>
+<tr><td class="section" colspan="6">📊 고가횡보형</td></tr>
+<tr><td class="label">가격유지</td><td class="ok">-2.0%</td><td class="fail">-8.0%</td><td class="fail">-15.4%</td><td class="fail">-19.5%</td><td class="fail">-9.3%</td></tr>
+<tr><td class="label">TV최소</td><td class="ok">0.35</td><td class="ok">0.11</td><td class="fail">0.09</td><td class="fail">0.06</td><td class="ok">0.17</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td></tr>
+<tr><td class="label">최종</td><td class="final-ok">✅ 해당</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+<tr><td class="section" colspan="6">📊 고가수축형 (HTC)</td></tr>
+<tr><td class="label">가격(고가기준)</td><td class="ok">-2.0%</td><td class="fail">-8.0%</td><td class="fail">-15.4%</td><td class="fail">-19.5%</td><td class="fail">-9.3%</td></tr>
+<tr><td class="label">가격(종가기준)</td><td class="ok">+0.6%</td><td class="fail">-5.6%</td><td class="fail">-13.1%</td><td class="fail">-17.3%</td><td class="fail">-6.9%</td></tr>
+<tr><td class="label">중간일최저종가</td><td class="ok">+0.6%</td><td class="ok">-5.6%</td><td class="fail">-13.1%</td><td class="fail">-17.3%</td><td class="fail">-17.3%</td></tr>
+<tr><td class="label">TV평균수축</td><td class="ok">0.35</td><td class="ok">0.23</td><td class="ok">0.18</td><td class="ok">0.15</td><td class="ok">0.15</td></tr>
+<tr><td class="label">TV오늘수축</td><td class="ok">0.35</td><td class="ok">0.11</td><td class="ok">0.09</td><td class="ok">0.06</td><td class="ok">0.17</td></tr>
+<tr><td class="label">TV최소(300억)</td><td class="ok">6351억</td><td class="ok">2016억</td><td class="ok">1604억</td><td class="ok">1100억</td><td class="ok">3033억</td></tr>
+<tr><td class="label">고저변동폭</td><td class="ok">0.0%</td><td class="fail">16.0%</td><td class="fail">20.2%</td><td class="fail">26.1%</td><td class="fail">30.6%</td></tr>
+<tr><td class="label">종가변동폭</td><td class="ok">0.0%</td><td class="ok">6.1%</td><td class="fail">13.6%</td><td class="fail">17.8%</td><td class="fail">17.8%</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td></tr>
+<tr><td class="label">몸통중간값유지</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="fail">하회발생(80,600원)</td><td class="fail">하회발생(80,600원)</td></tr>
+<tr><td class="label">장대음봉없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">최종</td><td class="final-ok">✅ 해당</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+<tr><td class="section" colspan="6">📊 김형준 기법 (KH)</td></tr>
+<tr><td class="label">기준봉TV폭발</td><td class="ok">32.3배</td><td class="ok">32.3배</td><td class="ok">32.3배</td><td class="ok">32.3배</td><td class="ok">32.3배</td></tr>
+<tr><td class="label">기준봉TV최소</td><td class="ok">18237억</td><td class="ok">18237억</td><td class="ok">18237억</td><td class="ok">18237억</td><td class="ok">18237억</td></tr>
+<tr><td class="label">TV수축</td><td class="ok">0.35</td><td class="ok">0.11</td><td class="ok">0.09</td><td class="ok">0.06</td><td class="ok">0.17</td></tr>
+<tr><td class="label">가격유지</td><td class="ok">-2.0%</td><td class="fail">-8.0%</td><td class="fail">-15.4%</td><td class="fail">-19.5%</td><td class="fail">-9.3%</td></tr>
+<tr><td class="label">5일선위</td><td class="ok">✓</td><td class="ok">✓</td><td class="fail">✗</td><td class="fail">✗</td><td class="ok">✓</td></tr>
+<tr><td class="label">신고가권</td><td class="ok">✓</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td></tr>
+<tr><td class="label">거래량증가음봉없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">최종</td><td class="final-ok">✅ 해당</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+</tbody></table></div>
+
+<div class="card">
+  <div class="card-header">
+    비에이치
+    <span class="badge market">KOSPI</span>
+    <span class="badge">090460</span>
+    <span style="font-size:12px;font-weight:400">기준봉: 05/14 (+24.4%) | 거래대금: 1611억</span>
+  </div>
+<table><thead><tr><th style="text-align:left;min-width:160px">조건</th><th>D+1<br>05/15<br><span style="color:#dc3545">-11.6%</span> 457억○</th><th>D+2<br>05/18<br><span style="color:#dc3545">-2.4%</span> 215억○</th><th>D+3<br>05/19<br><span style="color:#198754">+5.9%</span> 464억○</th><th>D+4<br>05/20<br><span style="color:#dc3545">-5.8%</span> 226억○</th><th>D+5<br>05/21<br><span style="color:#198754">+4.5%</span> 263억○</th></tr></thead><tbody>
+<tr><td class="section" colspan="6">📊 고가횡보형</td></tr>
+<tr><td class="label">가격유지</td><td class="fail">-13.9%</td><td class="fail">-16.0%</td><td class="fail">-11.0%</td><td class="fail">-16.2%</td><td class="fail">-12.5%</td></tr>
+<tr><td class="label">TV최소</td><td class="ok">0.28</td><td class="ok">0.13</td><td class="ok">0.29</td><td class="ok">0.14</td><td class="ok">0.16</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td></tr>
+<tr><td class="label">최종</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+<tr><td class="section" colspan="6">📊 고가수축형 (HTC)</td></tr>
+<tr><td class="label">가격(고가기준)</td><td class="fail">-13.9%</td><td class="fail">-16.0%</td><td class="fail">-11.0%</td><td class="fail">-16.2%</td><td class="fail">-12.5%</td></tr>
+<tr><td class="label">가격(종가기준)</td><td class="fail">-11.6%</td><td class="fail">-13.7%</td><td class="fail">-8.7%</td><td class="fail">-14.0%</td><td class="fail">-10.1%</td></tr>
+<tr><td class="label">중간일최저종가</td><td class="fail">-11.6%</td><td class="fail">-13.7%</td><td class="fail">-13.7%</td><td class="fail">-14.0%</td><td class="fail">-14.0%</td></tr>
+<tr><td class="label">TV평균수축</td><td class="ok">0.28</td><td class="ok">0.21</td><td class="ok">0.23</td><td class="ok">0.21</td><td class="ok">0.20</td></tr>
+<tr><td class="label">TV오늘수축</td><td class="ok">0.28</td><td class="ok">0.13</td><td class="ok">0.29</td><td class="ok">0.14</td><td class="ok">0.16</td></tr>
+<tr><td class="label">TV최소(300억)</td><td class="ok">457억</td><td class="fail">215억</td><td class="ok">464억</td><td class="fail">226억</td><td class="fail">263억</td></tr>
+<tr><td class="label">고저변동폭</td><td class="ok">0.0%</td><td class="fail">12.8%</td><td class="fail">18.4%</td><td class="fail">18.4%</td><td class="fail">18.4%</td></tr>
+<tr><td class="label">종가변동폭</td><td class="ok">0.0%</td><td class="ok">2.4%</td><td class="ok">5.5%</td><td class="ok">5.8%</td><td class="ok">5.8%</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td></tr>
+<tr><td class="label">몸통중간값유지</td><td class="ok">정상</td><td class="fail">하회발생(34,250원)</td><td class="fail">하회발생(34,250원)</td><td class="fail">하회발생(34,250원)</td><td class="fail">하회발생(34,250원)</td></tr>
+<tr><td class="label">장대음봉없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">최종</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+<tr><td class="section" colspan="6">📊 김형준 기법 (KH)</td></tr>
+<tr><td class="label">기준봉TV폭발</td><td class="ok">5.0배</td><td class="ok">5.0배</td><td class="ok">5.0배</td><td class="ok">5.0배</td><td class="ok">5.0배</td></tr>
+<tr><td class="label">기준봉TV최소</td><td class="ok">1611억</td><td class="ok">1611억</td><td class="ok">1611억</td><td class="ok">1611억</td><td class="ok">1611억</td></tr>
+<tr><td class="label">TV수축</td><td class="ok">0.28</td><td class="ok">0.13</td><td class="ok">0.29</td><td class="ok">0.14</td><td class="ok">0.16</td></tr>
+<tr><td class="label">가격유지</td><td class="fail">-13.9%</td><td class="fail">-16.0%</td><td class="fail">-11.0%</td><td class="fail">-16.2%</td><td class="fail">-12.5%</td></tr>
+<tr><td class="label">5일선위</td><td class="ok">✓</td><td class="fail">✗</td><td class="ok">✓</td><td class="fail">✗</td><td class="ok">✓</td></tr>
+<tr><td class="label">신고가권</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td></tr>
+<tr><td class="label">거래량증가음봉없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">최종</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+</tbody></table></div>
+
+<div class="card">
+  <div class="card-header">
+    LG전자
+    <span class="badge market">KOSPI</span>
+    <span class="badge">066570</span>
+    <span style="font-size:12px;font-weight:400">기준봉: 05/14 (+13.4%) | 거래대금: 24390억</span>
+  </div>
+<table><thead><tr><th style="text-align:left;min-width:160px">조건</th><th>D+1<br>05/15<br><span style="color:#198754">+10.8%</span> 14084억○</th><th>D+2<br>05/18<br><span style="color:#dc3545">-9.8%</span> 8570억○</th><th>D+3<br>05/19<br><span style="color:#dc3545">-11.7%</span> 8991억○</th><th>D+4<br>05/20<br><span style="color:#dc3545">-5.6%</span> 6739억○</th><th>D+5<br>05/21<br><span style="color:#198754">+29.8%</span> 12500억○</th></tr></thead><tbody>
+<tr><td class="section" colspan="6">📊 고가횡보형</td></tr>
+<tr><td class="label">가격유지</td><td class="ok">+7.1%</td><td class="ok">-3.3%</td><td class="fail">-14.6%</td><td class="fail">-19.4%</td><td class="ok">+4.7%</td></tr>
+<tr><td class="label">TV최소</td><td class="ok">0.58</td><td class="ok">0.35</td><td class="ok">0.37</td><td class="ok">0.28</td><td class="ok">0.51</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td></tr>
+<tr><td class="label">최종</td><td class="final-ok">✅ 해당</td><td class="final-ok">✅ 해당</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+<tr><td class="section" colspan="6">📊 고가수축형 (HTC)</td></tr>
+<tr><td class="label">가격(고가기준)</td><td class="ok">+7.1%</td><td class="ok">-3.3%</td><td class="fail">-14.6%</td><td class="fail">-19.4%</td><td class="ok">+4.7%</td></tr>
+<tr><td class="label">가격(종가기준)</td><td class="ok">+10.8%</td><td class="ok">+0.0%</td><td class="fail">-11.7%</td><td class="fail">-16.6%</td><td class="ok">+8.3%</td></tr>
+<tr><td class="label">중간일최저종가</td><td class="ok">+10.8%</td><td class="ok">+0.0%</td><td class="fail">-11.7%</td><td class="fail">-16.6%</td><td class="fail">-16.6%</td></tr>
+<tr><td class="label">TV평균수축</td><td class="fail">0.58</td><td class="ok">0.46</td><td class="ok">0.43</td><td class="ok">0.39</td><td class="ok">0.42</td></tr>
+<tr><td class="label">TV오늘수축</td><td class="fail">0.58</td><td class="ok">0.35</td><td class="ok">0.37</td><td class="ok">0.28</td><td class="fail">0.51</td></tr>
+<tr><td class="label">TV최소(300억)</td><td class="ok">14084억</td><td class="ok">8570억</td><td class="ok">8991억</td><td class="ok">6739억</td><td class="ok">12500억</td></tr>
+<tr><td class="label">고저변동폭</td><td class="ok">0.0%</td><td class="fail">12.6%</td><td class="fail">20.5%</td><td class="fail">29.7%</td><td class="fail">34.2%</td></tr>
+<tr><td class="label">종가변동폭</td><td class="ok">0.0%</td><td class="ok">9.8%</td><td class="fail">20.3%</td><td class="fail">24.7%</td><td class="fail">24.7%</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td></tr>
+<tr><td class="label">몸통중간값유지</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="fail">하회발생(209,500원)</td><td class="fail">하회발생(209,500원)</td></tr>
+<tr><td class="label">장대음봉없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">최종</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+<tr><td class="section" colspan="6">📊 김형준 기법 (KH)</td></tr>
+<tr><td class="label">기준봉TV폭발</td><td class="ok">7.1배</td><td class="ok">7.1배</td><td class="ok">7.1배</td><td class="ok">7.1배</td><td class="ok">7.1배</td></tr>
+<tr><td class="label">기준봉TV최소</td><td class="ok">24390억</td><td class="ok">24390억</td><td class="ok">24390억</td><td class="ok">24390억</td><td class="ok">24390억</td></tr>
+<tr><td class="label">TV수축</td><td class="fail">0.58</td><td class="ok">0.35</td><td class="ok">0.37</td><td class="ok">0.28</td><td class="fail">0.51</td></tr>
+<tr><td class="label">가격유지</td><td class="ok">+7.1%</td><td class="ok">-3.3%</td><td class="fail">-14.6%</td><td class="fail">-19.4%</td><td class="ok">+4.7%</td></tr>
+<tr><td class="label">5일선위</td><td class="ok">✓</td><td class="ok">✓</td><td class="fail">✗</td><td class="fail">✗</td><td class="ok">✓</td></tr>
+<tr><td class="label">신고가권</td><td class="ok">✓</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td></tr>
+<tr><td class="label">거래량증가음봉없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td></tr>
+<tr><td class="label">최종</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td></tr>
+</tbody></table></div>
+
+<div class="card">
+  <div class="card-header">
+    아주IB투자
+    <span class="badge market">KOSDAQ</span>
+    <span class="badge">027360</span>
+    <span style="font-size:12px;font-weight:400">기준봉: 05/18 (+18.9%) | 거래대금: 7437억</span>
+  </div>
+<table><thead><tr><th style="text-align:left;min-width:160px">조건</th><th>D+1<br>05/19<br><span style="color:#198754">+1.6%</span> 6715억○</th><th>D+2<br>05/20<br><span style="color:#dc3545">-10.2%</span> 1263억○</th><th>D+3<br>05/21<br><span style="color:#198754">+3.2%</span> 1756억○</th><th>D+4<br>05/22<br><span style="color:#dc3545">-1.5%</span> 827억○</th><th>D+5<br><span class="no-data">데이터없음</span></th></tr></thead><tbody>
+<tr><td class="section" colspan="6">📊 고가횡보형</td></tr>
+<tr><td class="label">가격유지</td><td class="ok">-3.4%</td><td class="fail">-13.2%</td><td class="fail">-10.5%</td><td class="fail">-11.8%</td><td class="na">-</td></tr>
+<tr><td class="label">TV최소</td><td class="ok">0.90</td><td class="ok">0.17</td><td class="ok">0.24</td><td class="ok">0.11</td><td class="na">-</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td><td class="na">-</td></tr>
+<tr><td class="label">최종</td><td class="final-ok">✅ 해당</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="na">-</td></tr>
+<tr><td class="section" colspan="6">📊 고가수축형 (HTC)</td></tr>
+<tr><td class="label">가격(고가기준)</td><td class="ok">-3.4%</td><td class="fail">-13.2%</td><td class="fail">-10.5%</td><td class="fail">-11.8%</td><td class="na">-</td></tr>
+<tr><td class="label">가격(종가기준)</td><td class="ok">+1.6%</td><td class="fail">-8.8%</td><td class="fail">-5.8%</td><td class="fail">-7.2%</td><td class="na">-</td></tr>
+<tr><td class="label">중간일최저종가</td><td class="ok">+1.6%</td><td class="fail">-8.8%</td><td class="fail">-8.8%</td><td class="fail">-8.8%</td><td class="na">-</td></tr>
+<tr><td class="label">TV평균수축</td><td class="fail">0.90</td><td class="fail">0.54</td><td class="ok">0.44</td><td class="ok">0.36</td><td class="na">-</td></tr>
+<tr><td class="label">TV오늘수축</td><td class="fail">0.90</td><td class="ok">0.17</td><td class="ok">0.24</td><td class="ok">0.11</td><td class="na">-</td></tr>
+<tr><td class="label">TV최소(300억)</td><td class="ok">6715억</td><td class="ok">1263억</td><td class="ok">1756억</td><td class="ok">827억</td><td class="na">-</td></tr>
+<tr><td class="label">고저변동폭</td><td class="ok">0.0%</td><td class="fail">18.3%</td><td class="fail">25.6%</td><td class="fail">25.6%</td><td class="na">-</td></tr>
+<tr><td class="label">종가변동폭</td><td class="ok">0.0%</td><td class="fail">10.2%</td><td class="fail">10.2%</td><td class="fail">10.2%</td><td class="na">-</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td><td class="na">-</td></tr>
+<tr><td class="label">몸통중간값유지</td><td class="ok">정상</td><td class="ok">정상</td><td class="fail">하회발생(16,420원)</td><td class="fail">하회발생(16,420원)</td><td class="na">-</td></tr>
+<tr><td class="label">장대음봉없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="na">-</td></tr>
+<tr><td class="label">최종</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="na">-</td></tr>
+<tr><td class="section" colspan="6">📊 김형준 기법 (KH)</td></tr>
+<tr><td class="label">기준봉TV폭발</td><td class="fail">2.7배</td><td class="fail">2.7배</td><td class="fail">2.7배</td><td class="fail">2.7배</td><td class="na">-</td></tr>
+<tr><td class="label">기준봉TV최소</td><td class="ok">7437억</td><td class="ok">7437억</td><td class="ok">7437억</td><td class="ok">7437억</td><td class="na">-</td></tr>
+<tr><td class="label">TV수축</td><td class="fail">0.90</td><td class="ok">0.17</td><td class="ok">0.24</td><td class="ok">0.11</td><td class="na">-</td></tr>
+<tr><td class="label">가격유지</td><td class="ok">-3.4%</td><td class="fail">-13.2%</td><td class="fail">-10.5%</td><td class="fail">-11.8%</td><td class="na">-</td></tr>
+<tr><td class="label">5일선위</td><td class="ok">✓</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td><td class="na">-</td></tr>
+<tr><td class="label">신고가권</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td><td class="na">-</td></tr>
+<tr><td class="label">거래량증가음봉없음</td><td class="fail">발생</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="na">-</td></tr>
+<tr><td class="label">최종</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="na">-</td></tr>
+</tbody></table></div>
+
+<div class="card">
+  <div class="card-header">
+    미래에셋벤처투자
+    <span class="badge market">KOSDAQ</span>
+    <span class="badge">100790</span>
+    <span style="font-size:12px;font-weight:400">기준봉: 05/18 (+22.8%) | 거래대금: 7873억</span>
+  </div>
+<table><thead><tr><th style="text-align:left;min-width:160px">조건</th><th>D+1<br>05/19<br><span style="color:#dc3545">-9.8%</span> 3790억○</th><th>D+2<br>05/20<br><span style="color:#dc3545">-11.0%</span> 1455억○</th><th>D+3<br>05/21<br><span style="color:#198754">+4.1%</span> 1278억○</th><th>D+4<br>05/22<br><span style="color:#dc3545">-0.5%</span> 879억○</th><th>D+5<br><span class="no-data">데이터없음</span></th></tr></thead><tbody>
+<tr><td class="section" colspan="6">📊 고가횡보형</td></tr>
+<tr><td class="label">가격유지</td><td class="fail">-10.3%</td><td class="fail">-20.2%</td><td class="fail">-17.0%</td><td class="fail">-17.4%</td><td class="na">-</td></tr>
+<tr><td class="label">TV최소</td><td class="ok">0.48</td><td class="ok">0.18</td><td class="ok">0.16</td><td class="ok">0.11</td><td class="na">-</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td><td class="na">-</td></tr>
+<tr><td class="label">최종</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="na">-</td></tr>
+<tr><td class="section" colspan="6">📊 고가수축형 (HTC)</td></tr>
+<tr><td class="label">가격(고가기준)</td><td class="fail">-10.3%</td><td class="fail">-20.2%</td><td class="fail">-17.0%</td><td class="fail">-17.4%</td><td class="na">-</td></tr>
+<tr><td class="label">가격(종가기준)</td><td class="fail">-9.8%</td><td class="fail">-19.7%</td><td class="fail">-16.5%</td><td class="fail">-16.9%</td><td class="na">-</td></tr>
+<tr><td class="label">중간일최저종가</td><td class="fail">-9.8%</td><td class="fail">-19.7%</td><td class="fail">-19.7%</td><td class="fail">-19.7%</td><td class="na">-</td></tr>
+<tr><td class="label">TV평균수축</td><td class="ok">0.48</td><td class="ok">0.33</td><td class="ok">0.28</td><td class="ok">0.24</td><td class="na">-</td></tr>
+<tr><td class="label">TV오늘수축</td><td class="ok">0.48</td><td class="ok">0.18</td><td class="ok">0.16</td><td class="ok">0.11</td><td class="na">-</td></tr>
+<tr><td class="label">TV최소(300억)</td><td class="ok">3790억</td><td class="ok">1455억</td><td class="ok">1278억</td><td class="ok">879억</td><td class="na">-</td></tr>
+<tr><td class="label">고저변동폭</td><td class="ok">0.0%</td><td class="fail">15.1%</td><td class="fail">27.4%</td><td class="fail">27.4%</td><td class="na">-</td></tr>
+<tr><td class="label">종가변동폭</td><td class="ok">0.0%</td><td class="fail">11.0%</td><td class="fail">11.0%</td><td class="fail">11.0%</td><td class="na">-</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td><td class="na">-</td></tr>
+<tr><td class="label">몸통중간값유지</td><td class="ok">정상</td><td class="fail">하회발생(64,000원)</td><td class="fail">하회발생(64,000원)</td><td class="fail">하회발생(64,000원)</td><td class="na">-</td></tr>
+<tr><td class="label">장대음봉없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="na">-</td></tr>
+<tr><td class="label">최종</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="na">-</td></tr>
+<tr><td class="section" colspan="6">📊 김형준 기법 (KH)</td></tr>
+<tr><td class="label">기준봉TV폭발</td><td class="fail">2.9배</td><td class="fail">2.9배</td><td class="fail">2.9배</td><td class="fail">2.9배</td><td class="na">-</td></tr>
+<tr><td class="label">기준봉TV최소</td><td class="ok">7873억</td><td class="ok">7873억</td><td class="ok">7873억</td><td class="ok">7873억</td><td class="na">-</td></tr>
+<tr><td class="label">TV수축</td><td class="ok">0.48</td><td class="ok">0.18</td><td class="ok">0.16</td><td class="ok">0.11</td><td class="na">-</td></tr>
+<tr><td class="label">가격유지</td><td class="fail">-10.3%</td><td class="fail">-20.2%</td><td class="fail">-17.0%</td><td class="fail">-17.4%</td><td class="na">-</td></tr>
+<tr><td class="label">5일선위</td><td class="ok">✓</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td><td class="na">-</td></tr>
+<tr><td class="label">신고가권</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td><td class="na">-</td></tr>
+<tr><td class="label">거래량증가음봉없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="na">-</td></tr>
+<tr><td class="label">최종</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="na">-</td></tr>
+</tbody></table></div>
+
+<div class="card">
+  <div class="card-header">
+    에이치브이엠
+    <span class="badge market">KOSDAQ</span>
+    <span class="badge">295310</span>
+    <span style="font-size:12px;font-weight:400">기준봉: 05/18 (+28.0%) | 거래대금: 3709억</span>
+  </div>
+<table><thead><tr><th style="text-align:left;min-width:160px">조건</th><th>D+1<br>05/19<br><span style="color:#dc3545">-7.9%</span> 789억○</th><th>D+2<br>05/20<br><span style="color:#dc3545">-18.4%</span> 400억○</th><th>D+3<br>05/21<br><span style="color:#198754">+17.7%</span> 478억○</th><th>D+4<br>05/22<br><span style="color:#198754">+1.9%</span> 259억○</th><th>D+5<br><span class="no-data">데이터없음</span></th></tr></thead><tbody>
+<tr><td class="section" colspan="6">📊 고가횡보형</td></tr>
+<tr><td class="label">가격유지</td><td class="fail">-9.1%</td><td class="fail">-25.8%</td><td class="fail">-12.7%</td><td class="fail">-11.0%</td><td class="na">-</td></tr>
+<tr><td class="label">TV최소</td><td class="ok">0.21</td><td class="ok">0.11</td><td class="ok">0.13</td><td class="fail">0.07</td><td class="na">-</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td><td class="na">-</td></tr>
+<tr><td class="label">최종</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="na">-</td></tr>
+<tr><td class="section" colspan="6">📊 고가수축형 (HTC)</td></tr>
+<tr><td class="label">가격(고가기준)</td><td class="fail">-9.1%</td><td class="fail">-25.8%</td><td class="fail">-12.7%</td><td class="fail">-11.0%</td><td class="na">-</td></tr>
+<tr><td class="label">가격(종가기준)</td><td class="fail">-7.9%</td><td class="fail">-24.8%</td><td class="fail">-11.5%</td><td class="fail">-9.8%</td><td class="na">-</td></tr>
+<tr><td class="label">중간일최저종가</td><td class="ok">-7.9%</td><td class="fail">-24.8%</td><td class="fail">-24.8%</td><td class="fail">-24.8%</td><td class="na">-</td></tr>
+<tr><td class="label">TV평균수축</td><td class="ok">0.21</td><td class="ok">0.16</td><td class="ok">0.15</td><td class="ok">0.13</td><td class="na">-</td></tr>
+<tr><td class="label">TV오늘수축</td><td class="ok">0.21</td><td class="ok">0.11</td><td class="ok">0.13</td><td class="ok">0.07</td><td class="na">-</td></tr>
+<tr><td class="label">TV최소(300억)</td><td class="ok">789억</td><td class="ok">400억</td><td class="ok">478억</td><td class="fail">259억</td><td class="na">-</td></tr>
+<tr><td class="label">고저변동폭</td><td class="ok">0.0%</td><td class="fail">18.0%</td><td class="fail">26.4%</td><td class="fail">26.4%</td><td class="na">-</td></tr>
+<tr><td class="label">종가변동폭</td><td class="ok">0.0%</td><td class="fail">18.4%</td><td class="fail">18.4%</td><td class="fail">18.4%</td><td class="na">-</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td><td class="na">-</td></tr>
+<tr><td class="label">몸통중간값유지</td><td class="ok">정상</td><td class="fail">하회발생(118,250원)</td><td class="fail">하회발생(118,250원)</td><td class="fail">하회발생(118,250원)</td><td class="na">-</td></tr>
+<tr><td class="label">장대음봉없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="na">-</td></tr>
+<tr><td class="label">최종</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="na">-</td></tr>
+<tr><td class="section" colspan="6">📊 김형준 기법 (KH)</td></tr>
+<tr><td class="label">기준봉TV폭발</td><td class="ok">14.7배</td><td class="ok">14.7배</td><td class="ok">14.7배</td><td class="ok">14.7배</td><td class="na">-</td></tr>
+<tr><td class="label">기준봉TV최소</td><td class="ok">3709억</td><td class="ok">3709억</td><td class="ok">3709억</td><td class="ok">3709억</td><td class="na">-</td></tr>
+<tr><td class="label">TV수축</td><td class="ok">0.21</td><td class="ok">0.11</td><td class="ok">0.13</td><td class="ok">0.07</td><td class="na">-</td></tr>
+<tr><td class="label">가격유지</td><td class="fail">-9.1%</td><td class="fail">-25.8%</td><td class="fail">-12.7%</td><td class="fail">-11.0%</td><td class="na">-</td></tr>
+<tr><td class="label">5일선위</td><td class="ok">✓</td><td class="fail">✗</td><td class="ok">✓</td><td class="ok">✓</td><td class="na">-</td></tr>
+<tr><td class="label">신고가권</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td><td class="na">-</td></tr>
+<tr><td class="label">거래량증가음봉없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="na">-</td></tr>
+<tr><td class="label">최종</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="na">-</td></tr>
+</tbody></table></div>
+
+<div class="card">
+  <div class="card-header">
+    스피어
+    <span class="badge market">KOSDAQ</span>
+    <span class="badge">347700</span>
+    <span style="font-size:12px;font-weight:400">기준봉: 05/18 (+14.6%) | 거래대금: 4801억</span>
+  </div>
+<table><thead><tr><th style="text-align:left;min-width:160px">조건</th><th>D+1<br>05/19<br><span style="color:#dc3545">-2.6%</span> 1418억○</th><th>D+2<br>05/20<br><span style="color:#dc3545">-14.6%</span> 491억○</th><th>D+3<br>05/21<br><span style="color:#198754">+6.5%</span> 392억○</th><th>D+4<br>05/22<br><span style="color:#198754">+0.4%</span> 424억○</th><th>D+5<br><span class="no-data">데이터없음</span></th></tr></thead><tbody>
+<tr><td class="section" colspan="6">📊 고가횡보형</td></tr>
+<tr><td class="label">가격유지</td><td class="ok">-3.0%</td><td class="fail">-17.2%</td><td class="fail">-11.8%</td><td class="fail">-11.5%</td><td class="na">-</td></tr>
+<tr><td class="label">TV최소</td><td class="ok">0.30</td><td class="ok">0.10</td><td class="fail">0.08</td><td class="fail">0.09</td><td class="na">-</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td><td class="na">-</td></tr>
+<tr><td class="label">최종</td><td class="final-ok">✅ 해당</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="na">-</td></tr>
+<tr><td class="section" colspan="6">📊 고가수축형 (HTC)</td></tr>
+<tr><td class="label">가격(고가기준)</td><td class="ok">-3.0%</td><td class="fail">-17.2%</td><td class="fail">-11.8%</td><td class="fail">-11.5%</td><td class="na">-</td></tr>
+<tr><td class="label">가격(종가기준)</td><td class="ok">-2.6%</td><td class="fail">-16.8%</td><td class="fail">-11.4%</td><td class="fail">-11.1%</td><td class="na">-</td></tr>
+<tr><td class="label">중간일최저종가</td><td class="ok">-2.6%</td><td class="fail">-16.8%</td><td class="fail">-16.8%</td><td class="fail">-16.8%</td><td class="na">-</td></tr>
+<tr><td class="label">TV평균수축</td><td class="ok">0.30</td><td class="ok">0.20</td><td class="ok">0.16</td><td class="ok">0.14</td><td class="na">-</td></tr>
+<tr><td class="label">TV오늘수축</td><td class="ok">0.30</td><td class="ok">0.10</td><td class="ok">0.08</td><td class="ok">0.09</td><td class="na">-</td></tr>
+<tr><td class="label">TV최소(300억)</td><td class="ok">1418억</td><td class="ok">491억</td><td class="ok">392억</td><td class="ok">424억</td><td class="na">-</td></tr>
+<tr><td class="label">고저변동폭</td><td class="ok">0.0%</td><td class="fail">16.7%</td><td class="fail">19.3%</td><td class="fail">19.3%</td><td class="na">-</td></tr>
+<tr><td class="label">종가변동폭</td><td class="ok">0.0%</td><td class="fail">14.6%</td><td class="fail">14.6%</td><td class="fail">14.6%</td><td class="na">-</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td><td class="na">-</td></tr>
+<tr><td class="label">몸통중간값유지</td><td class="ok">정상</td><td class="fail">하회발생(47,150원)</td><td class="fail">하회발생(47,150원)</td><td class="fail">하회발생(47,150원)</td><td class="na">-</td></tr>
+<tr><td class="label">장대음봉없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="na">-</td></tr>
+<tr><td class="label">최종</td><td class="final-ok">✅ 해당</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="na">-</td></tr>
+<tr><td class="section" colspan="6">📊 김형준 기법 (KH)</td></tr>
+<tr><td class="label">기준봉TV폭발</td><td class="ok">10.4배</td><td class="ok">10.4배</td><td class="ok">10.4배</td><td class="ok">10.4배</td><td class="na">-</td></tr>
+<tr><td class="label">기준봉TV최소</td><td class="ok">4801억</td><td class="ok">4801억</td><td class="ok">4801억</td><td class="ok">4801억</td><td class="na">-</td></tr>
+<tr><td class="label">TV수축</td><td class="ok">0.30</td><td class="ok">0.10</td><td class="ok">0.08</td><td class="ok">0.09</td><td class="na">-</td></tr>
+<tr><td class="label">가격유지</td><td class="ok">-3.0%</td><td class="fail">-17.2%</td><td class="fail">-11.8%</td><td class="fail">-11.5%</td><td class="na">-</td></tr>
+<tr><td class="label">5일선위</td><td class="ok">✓</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td><td class="na">-</td></tr>
+<tr><td class="label">신고가권</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td><td class="na">-</td></tr>
+<tr><td class="label">거래량증가음봉없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="na">-</td></tr>
+<tr><td class="label">최종</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="na">-</td></tr>
+</tbody></table></div>
+
+<div class="card">
+  <div class="card-header">
+    LS
+    <span class="badge market">KOSPI</span>
+    <span class="badge">006260</span>
+    <span style="font-size:12px;font-weight:400">기준봉: 05/18 (+11.8%) | 거래대금: 4468억</span>
+  </div>
+<table><thead><tr><th style="text-align:left;min-width:160px">조건</th><th>D+1<br>05/19<br><span style="color:#198754">+2.5%</span> 2013억○</th><th>D+2<br>05/20<br><span style="color:#dc3545">-7.6%</span> 1632억○</th><th>D+3<br>05/21<br><span style="color:#198754">+4.2%</span> 1245억○</th><th>D+4<br>05/22<br><span style="color:#198754">+4.4%</span> 1721억○</th><th>D+5<br><span class="no-data">데이터없음</span></th></tr></thead><tbody>
+<tr><td class="section" colspan="6">📊 고가횡보형</td></tr>
+<tr><td class="label">가격유지</td><td class="ok">-2.2%</td><td class="fail">-9.6%</td><td class="fail">-5.8%</td><td class="ok">-1.6%</td><td class="na">-</td></tr>
+<tr><td class="label">TV최소</td><td class="ok">0.45</td><td class="ok">0.37</td><td class="ok">0.28</td><td class="ok">0.39</td><td class="na">-</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td><td class="na">-</td></tr>
+<tr><td class="label">최종</td><td class="final-ok">✅ 해당</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="na">-</td></tr>
+<tr><td class="section" colspan="6">📊 고가수축형 (HTC)</td></tr>
+<tr><td class="label">가격(고가기준)</td><td class="ok">-2.2%</td><td class="fail">-9.6%</td><td class="fail">-5.8%</td><td class="ok">-1.6%</td><td class="na">-</td></tr>
+<tr><td class="label">가격(종가기준)</td><td class="ok">+2.5%</td><td class="fail">-5.3%</td><td class="ok">-1.3%</td><td class="ok">+3.0%</td><td class="na">-</td></tr>
+<tr><td class="label">중간일최저종가</td><td class="ok">+2.5%</td><td class="ok">-5.3%</td><td class="ok">-5.3%</td><td class="ok">-5.3%</td><td class="na">-</td></tr>
+<tr><td class="label">TV평균수축</td><td class="ok">0.45</td><td class="ok">0.41</td><td class="ok">0.36</td><td class="ok">0.37</td><td class="na">-</td></tr>
+<tr><td class="label">TV오늘수축</td><td class="ok">0.45</td><td class="ok">0.37</td><td class="ok">0.28</td><td class="ok">0.39</td><td class="na">-</td></tr>
+<tr><td class="label">TV최소(300억)</td><td class="ok">2013억</td><td class="ok">1632억</td><td class="ok">1245억</td><td class="ok">1721억</td><td class="na">-</td></tr>
+<tr><td class="label">고저변동폭</td><td class="ok">0.0%</td><td class="ok">7.7%</td><td class="fail">11.6%</td><td class="fail">17.9%</td><td class="na">-</td></tr>
+<tr><td class="label">종가변동폭</td><td class="ok">0.0%</td><td class="ok">7.6%</td><td class="ok">7.6%</td><td class="ok">8.1%</td><td class="na">-</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td><td class="na">-</td></tr>
+<tr><td class="label">몸통중간값유지</td><td class="ok">정상</td><td class="ok">정상</td><td class="fail">하회발생(500,750원)</td><td class="fail">하회발생(500,750원)</td><td class="na">-</td></tr>
+<tr><td class="label">장대음봉없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="na">-</td></tr>
+<tr><td class="label">최종</td><td class="final-ok">✅ 해당</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="na">-</td></tr>
+<tr><td class="section" colspan="6">📊 김형준 기법 (KH)</td></tr>
+<tr><td class="label">기준봉TV폭발</td><td class="ok">3.9배</td><td class="ok">3.9배</td><td class="ok">3.9배</td><td class="ok">3.9배</td><td class="na">-</td></tr>
+<tr><td class="label">기준봉TV최소</td><td class="ok">4468억</td><td class="ok">4468억</td><td class="ok">4468억</td><td class="ok">4468억</td><td class="na">-</td></tr>
+<tr><td class="label">TV수축</td><td class="ok">0.45</td><td class="ok">0.37</td><td class="ok">0.28</td><td class="ok">0.39</td><td class="na">-</td></tr>
+<tr><td class="label">가격유지</td><td class="ok">-2.2%</td><td class="fail">-9.6%</td><td class="fail">-5.8%</td><td class="ok">-1.6%</td><td class="na">-</td></tr>
+<tr><td class="label">5일선위</td><td class="ok">✓</td><td class="fail">✗</td><td class="ok">✓</td><td class="ok">✓</td><td class="na">-</td></tr>
+<tr><td class="label">신고가권</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td><td class="fail">✗</td><td class="na">-</td></tr>
+<tr><td class="label">거래량증가음봉없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="na">-</td></tr>
+<tr><td class="label">최종</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="na">-</td></tr>
+</tbody></table></div>
+
+<div class="card">
+  <div class="card-header">
+    엑스게이트
+    <span class="badge market">KOSDAQ</span>
+    <span class="badge">356680</span>
+    <span style="font-size:12px;font-weight:400">기준봉: 05/19 (+22.9%) | 거래대금: 4964억</span>
+  </div>
+<table><thead><tr><th style="text-align:left;min-width:160px">조건</th><th>D+1<br>05/20<br><span style="color:#dc3545">-13.4%</span> 275억○</th><th>D+2<br>05/21<br><span style="color:#198754">+3.7%</span> 221억○</th><th>D+3<br>05/22<br><span style="color:#198754">+24.2%</span> 1940억○</th><th>D+4<br><span class="no-data">데이터없음</span></th><th>D+5<br><span class="no-data">데이터없음</span></th></tr></thead><tbody>
+<tr><td class="section" colspan="6">📊 고가횡보형</td></tr>
+<tr><td class="label">가격유지</td><td class="fail">-15.3%</td><td class="fail">-12.1%</td><td class="ok">+9.1%</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="label">TV최소</td><td class="fail">0.06</td><td class="fail">0.04</td><td class="ok">0.39</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="label">최종</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="section" colspan="6">📊 고가수축형 (HTC)</td></tr>
+<tr><td class="label">가격(고가기준)</td><td class="fail">-15.3%</td><td class="fail">-12.1%</td><td class="ok">+9.1%</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="label">가격(종가기준)</td><td class="fail">-13.4%</td><td class="fail">-10.2%</td><td class="ok">+11.6%</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="label">중간일최저종가</td><td class="fail">-13.4%</td><td class="fail">-13.4%</td><td class="fail">-13.4%</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="label">TV평균수축</td><td class="ok">0.06</td><td class="ok">0.05</td><td class="ok">0.16</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="label">TV오늘수축</td><td class="ok">0.06</td><td class="ok">0.04</td><td class="ok">0.39</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="label">TV최소(300억)</td><td class="fail">275억</td><td class="fail">221억</td><td class="ok">1940억</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="label">고저변동폭</td><td class="ok">0.0%</td><td class="fail">10.2%</td><td class="fail">29.3%</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="label">종가변동폭</td><td class="ok">0.0%</td><td class="ok">3.6%</td><td class="fail">22.4%</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="fail">붕괴발생</td><td class="fail">붕괴발생</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="label">몸통중간값유지</td><td class="ok">정상</td><td class="fail">하회발생(17,530원)</td><td class="fail">하회발생(17,530원)</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="label">장대음봉없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="label">최종</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="section" colspan="6">📊 김형준 기법 (KH)</td></tr>
+<tr><td class="label">기준봉TV폭발</td><td class="ok">5.3배</td><td class="ok">5.3배</td><td class="ok">5.3배</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="label">기준봉TV최소</td><td class="ok">4964억</td><td class="ok">4964억</td><td class="ok">4964억</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="label">TV수축</td><td class="ok">0.06</td><td class="ok">0.04</td><td class="ok">0.39</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="label">가격유지</td><td class="fail">-15.3%</td><td class="fail">-12.1%</td><td class="ok">+9.1%</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="label">5일선위</td><td class="fail">✗</td><td class="ok">✓</td><td class="ok">✓</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="label">신고가권</td><td class="fail">✗</td><td class="fail">✗</td><td class="ok">✓</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="label">거래량증가음봉없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="ok">정상</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="label">최종</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="final-ok">✅ 해당</td><td class="na">-</td><td class="na">-</td></tr>
+</tbody></table></div>
+
+<div class="card">
+  <div class="card-header">
+    삼화콘덴서
+    <span class="badge market">KOSPI</span>
+    <span class="badge">001820</span>
+    <span style="font-size:12px;font-weight:400">기준봉: 05/20 (+23.0%) | 거래대금: 4501억</span>
+  </div>
+<table><thead><tr><th style="text-align:left;min-width:160px">조건</th><th>D+1<br>05/21<br><span style="color:#dc3545">-0.1%</span> 1014억○</th><th>D+2<br>05/22<br><span style="color:#198754">+29.9%</span> 2700억○</th><th>D+3<br><span class="no-data">데이터없음</span></th><th>D+4<br><span class="no-data">데이터없음</span></th><th>D+5<br><span class="no-data">데이터없음</span></th></tr></thead><tbody>
+<tr><td class="section" colspan="6">📊 고가횡보형</td></tr>
+<tr><td class="label">가격유지</td><td class="ok">-2.4%</td><td class="ok">+26.9%</td><td class="na">-</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="label">TV최소</td><td class="ok">0.23</td><td class="ok">0.60</td><td class="na">-</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="na">-</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="label">최종</td><td class="final-ok">✅ 해당</td><td class="final-ok">✅ 해당</td><td class="na">-</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="section" colspan="6">📊 고가수축형 (HTC)</td></tr>
+<tr><td class="label">가격(고가기준)</td><td class="ok">-2.4%</td><td class="ok">+26.9%</td><td class="na">-</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="label">가격(종가기준)</td><td class="ok">-0.1%</td><td class="ok">+29.8%</td><td class="na">-</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="label">중간일최저종가</td><td class="ok">-0.1%</td><td class="ok">-0.1%</td><td class="na">-</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="label">TV평균수축</td><td class="ok">0.23</td><td class="ok">0.41</td><td class="na">-</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="label">TV오늘수축</td><td class="ok">0.23</td><td class="fail">0.60</td><td class="na">-</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="label">TV최소(300억)</td><td class="ok">1014억</td><td class="ok">2700억</td><td class="na">-</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="label">고저변동폭</td><td class="ok">0.0%</td><td class="fail">27.1%</td><td class="na">-</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="label">종가변동폭</td><td class="ok">0.0%</td><td class="fail">23.0%</td><td class="na">-</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="na">-</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="label">몸통중간값유지</td><td class="ok">정상</td><td class="ok">정상</td><td class="na">-</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="label">장대음봉없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="na">-</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="label">최종</td><td class="final-ok">✅ 해당</td><td class="final-fail">❌ 탈락</td><td class="na">-</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="section" colspan="6">📊 김형준 기법 (KH)</td></tr>
+<tr><td class="label">기준봉TV폭발</td><td class="ok">24.8배</td><td class="ok">24.8배</td><td class="na">-</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="label">기준봉TV최소</td><td class="ok">4501억</td><td class="ok">4501억</td><td class="na">-</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="label">TV수축</td><td class="ok">0.23</td><td class="fail">0.60</td><td class="na">-</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="label">가격유지</td><td class="ok">-2.4%</td><td class="ok">+26.9%</td><td class="na">-</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="label">5일선위</td><td class="ok">✓</td><td class="ok">✓</td><td class="na">-</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="label">신고가권</td><td class="ok">✓</td><td class="ok">✓</td><td class="na">-</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="label">거래량증가음봉없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="na">-</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="label">최종</td><td class="final-ok">✅ 해당</td><td class="final-fail">❌ 탈락</td><td class="na">-</td><td class="na">-</td><td class="na">-</td></tr>
+</tbody></table></div>
+
+<div class="card">
+  <div class="card-header">
+    이수화학
+    <span class="badge market">KOSPI</span>
+    <span class="badge">005950</span>
+    <span style="font-size:12px;font-weight:400">기준봉: 05/20 (+15.4%) | 거래대금: 1550억</span>
+  </div>
+<table><thead><tr><th style="text-align:left;min-width:160px">조건</th><th>D+1<br>05/21<br><span style="color:#198754">+12.6%</span> 1315억○</th><th>D+2<br>05/22<br><span style="color:#198754">+2.5%</span> 662억○</th><th>D+3<br><span class="no-data">데이터없음</span></th><th>D+4<br><span class="no-data">데이터없음</span></th><th>D+5<br><span class="no-data">데이터없음</span></th></tr></thead><tbody>
+<tr><td class="section" colspan="6">📊 고가횡보형</td></tr>
+<tr><td class="label">가격유지</td><td class="ok">+10.1%</td><td class="ok">+12.8%</td><td class="na">-</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="label">TV최소</td><td class="ok">0.85</td><td class="ok">0.43</td><td class="na">-</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="na">-</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="label">최종</td><td class="final-ok">✅ 해당</td><td class="final-ok">✅ 해당</td><td class="na">-</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="section" colspan="6">📊 고가수축형 (HTC)</td></tr>
+<tr><td class="label">가격(고가기준)</td><td class="ok">+10.1%</td><td class="ok">+12.8%</td><td class="na">-</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="label">가격(종가기준)</td><td class="ok">+12.6%</td><td class="ok">+15.3%</td><td class="na">-</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="label">중간일최저종가</td><td class="ok">+12.6%</td><td class="ok">+12.6%</td><td class="na">-</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="label">TV평균수축</td><td class="fail">0.85</td><td class="fail">0.64</td><td class="na">-</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="label">TV오늘수축</td><td class="fail">0.85</td><td class="ok">0.43</td><td class="na">-</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="label">TV최소(300억)</td><td class="ok">1315억</td><td class="ok">662억</td><td class="na">-</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="label">고저변동폭</td><td class="ok">0.0%</td><td class="fail">27.5%</td><td class="na">-</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="label">종가변동폭</td><td class="ok">0.0%</td><td class="ok">2.4%</td><td class="na">-</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="label">구조붕괴없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="na">-</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="label">몸통중간값유지</td><td class="ok">정상</td><td class="ok">정상</td><td class="na">-</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="label">장대음봉없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="na">-</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="label">최종</td><td class="final-fail">❌ 탈락</td><td class="final-fail">❌ 탈락</td><td class="na">-</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="section" colspan="6">📊 김형준 기법 (KH)</td></tr>
+<tr><td class="label">기준봉TV폭발</td><td class="ok">7.2배</td><td class="ok">7.2배</td><td class="na">-</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="label">기준봉TV최소</td><td class="ok">1550억</td><td class="ok">1550억</td><td class="na">-</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="label">TV수축</td><td class="fail">0.85</td><td class="ok">0.43</td><td class="na">-</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="label">가격유지</td><td class="ok">+10.1%</td><td class="ok">+12.8%</td><td class="na">-</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="label">5일선위</td><td class="ok">✓</td><td class="ok">✓</td><td class="na">-</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="label">신고가권</td><td class="ok">✓</td><td class="ok">✓</td><td class="na">-</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="label">거래량증가음봉없음</td><td class="ok">정상</td><td class="ok">정상</td><td class="na">-</td><td class="na">-</td><td class="na">-</td></tr>
+<tr><td class="label">최종</td><td class="final-fail">❌ 탈락</td><td class="final-ok">✅ 해당</td><td class="na">-</td><td class="na">-</td><td class="na">-</td></tr>
+</tbody></table></div>
+
+</body></html>
