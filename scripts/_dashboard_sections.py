@@ -649,6 +649,7 @@ def _section_stock_panel(candidates: list, rejected: list, market_regime: str = 
         if new_high:    tags.append("🔺신고가")
         elif near_hi:   tags.append("📍고점권")
         if near_h52w:   tags.append("📈52w")
+        if tv >= 1_000_000_000_000: tags.append("💰1조+")
         if consol_flag: tags.append("📊기간조정")
         if pbs_flag:    tags.append("↩되돌림지지")
         if pat.get("high_tight_consolidation_flag"): tags.append("🔶고가수축")
@@ -691,6 +692,7 @@ def _section_stock_panel(candidates: list, rejected: list, market_regime: str = 
             "in_inter":     in_inter,
             "high_tag":     high_tag,
             "near_h52w":    near_h52w,
+            "tv_1t":        tv >= 1_000_000_000_000,
             "consol_flag":  consol_flag,
             "pbs_flag":     pbs_flag,
             "status":       status,
@@ -734,6 +736,7 @@ function renderDetail(idx) {{
 
   const chgCls  = c.chg_pos ? 'td-pos' : 'td-neg';
   const extraTags = (c.near_h52w   ? ' <span style="color:var(--green)">📈52w</span>' : '') +
+                   (c.tv_1t       ? ' <span style="color:var(--yellow)">💰1조+</span>' : '') +
                    (c.consol_flag ? ' <span style="color:var(--blue)">📊기간조정</span>' : '') +
                    (c.pbs_flag    ? ' <span style="color:var(--purple)">↩되돌림지지</span>' : '') +
                    (c.htc_flag    ? ' <span style="color:var(--yellow)">🔶고가수축' + (c.htc_reignite ? '⚡' : '') + (c.htc_avg_str ? ' ' + c.htc_avg_str : '') + (c.htc_chg_str ? ' ' + c.htc_chg_str : '') + '</span>' : '');

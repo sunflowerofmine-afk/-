@@ -411,6 +411,7 @@ def _format_candidate_card(seq: int, c: dict) -> str:
     if new_high:    tags.append("🔺신고가")
     elif near_high: tags.append("📍고점권")
     if near_h52w:   tags.append("📈52w")
+    if tv >= 1_000_000_000_000: tags.append("💰1조+")
     if consol_flag: tags.append("📊기간조정")
     if pbs_flag:    tags.append("↩되돌림지지(±5%)")
     if htc_flag:    tags.append("🔶고가수축" + ("⚡" if htc_reignite else ""))
