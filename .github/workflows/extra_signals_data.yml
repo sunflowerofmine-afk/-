@@ -1,0 +1,50 @@
+name: Extra Signals Data
+
+on:
+  workflow_dispatch:           # cron-job.org 21:00 KST 트리거
+
+jobs:
+  fetch-extra:
+    runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Sync latest signals (17:50 신호 복원)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PREV_RUN=$(gh run list --workflow run_bot.yml --status success --limit 1 \
+            --json databaseId --jq '.[0].databaseId' 2>/dev/null || echo "")
+          if [ -n "$PREV_RUN" ]; then
+            echo "이전 run: $PREV_RUN"
+            mkdir -p data/signals
+            gh run download "$PREV_RUN" -n "bot-output-${PREV_RUN}" -D /tmp/prev_art 2>/dev/null && \
+              cp /tmp/prev_art/data/signals/* data/signals/ 2>/dev/null || true
+            echo "복원: $(ls data/signals/ 2>/dev/null | wc -l)개 파일"
+          else
+            echo "이전 run 없음 → skip"
+          fi
+
+      - name: Fetch extra signals data
+        env:
+          TZ: Asia/Seoul
+        run: python -m scripts.fetch_extra_signals_data
+
+      - name: Upload extra signals artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: extra-signals-${{ github.run_id }}
+          path: data/signals_extra/
+          retention-days: 30
