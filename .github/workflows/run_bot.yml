@@ -34,6 +34,24 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Sync previous signals (review.py용)
+        # 직전 실행 artifact의 signals 파일을 복원 → review.py가 어제 신호 복기 가능
+        # GITHUB_TOKEN은 같은 레포 artifact 읽기 권한 보유
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PREV_RUN=$(gh run list --workflow run_bot.yml --status success --limit 1 \
+            --json databaseId --jq '.[0].databaseId' 2>/dev/null || echo "")
+          if [ -n "$PREV_RUN" ]; then
+            echo "이전 run: $PREV_RUN"
+            mkdir -p data/signals
+            gh run download "$PREV_RUN" -n "bot-output-${PREV_RUN}" -D /tmp/prev_art 2>/dev/null && \
+              cp /tmp/prev_art/data/signals/* data/signals/ 2>/dev/null || true
+            echo "복원 완료: $(ls data/signals/ | wc -l)개 파일"
+          else
+            echo "이전 run 없음 → skip"
+          fi
+
       - name: Run pipeline
         env:
           TELEGRAM_BOT_TOKEN:    ${{ secrets.TELEGRAM_BOT_TOKEN }}
