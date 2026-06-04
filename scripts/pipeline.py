@@ -399,6 +399,14 @@ def _enrich_candidates(codes: list[str], all_df: pd.DataFrame, run_type: str) ->
                 high_52w=              _52w.get("high_52w", 0.0),
                 near_high_52w=         _52w.get("near_high_52w", False),
             )
+            _ma5  = row0.get("ma5")  or 0
+            _ma10 = row0.get("ma10") or 0
+            _ma20 = row0.get("ma20") or 0
+            _ma60 = row0.get("ma60") or 0
+            _ma_aligned = bool(
+                _ma5 and _ma10 and _ma20 and _ma60
+                and _ma5 > _ma10 > _ma20 > _ma60
+            )
             enr["indicators"] = {
                 **bc, **fbc,
                 "ma_cluster":    mac["cluster"],
@@ -407,6 +415,7 @@ def _enrich_candidates(codes: list[str], all_df: pd.DataFrame, run_type: str) ->
                 "tv_peak":       tvpk,
                 "high_52w":      _52w.get("high_52w", 0.0),
                 "near_high_52w": _52w.get("near_high_52w", False),
+                "ma_aligned":    _ma_aligned,
             }
             enr["processed"] = processed
 

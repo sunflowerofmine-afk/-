@@ -644,6 +644,7 @@ def _section_stock_panel(candidates: list, rejected: list, market_regime: str = 
         new_high    = pat.get("new_high_60d", False)
         near_hi     = pat.get("near_high_60d", False)
         near_h52w   = c.get("near_high_52w", False)
+        ma_aligned  = c.get("indicators", {}).get("ma_aligned", False)
         consol_flag = pat.get("consolidation_flag", False)
         pbs_flag    = pat.get("pullback_support_flag", False)
 
@@ -652,6 +653,7 @@ def _section_stock_panel(candidates: list, rejected: list, market_regime: str = 
         if new_high:    tags.append("🔺신고가")
         elif near_hi:   tags.append("📍고점권")
         if near_h52w:   tags.append("📈52w")
+        if ma_aligned:  tags.append("📶정배열")
         if tv >= 1_000_000_000_000: tags.append("💰1조+")
         if consol_flag: tags.append("📊기간조정")
         if pbs_flag:    tags.append("↩되돌림지지")
@@ -697,6 +699,7 @@ def _section_stock_panel(candidates: list, rejected: list, market_regime: str = 
             "in_inter":     in_inter,
             "high_tag":     high_tag,
             "near_h52w":    near_h52w,
+            "ma_aligned":   ma_aligned,
             "tv_1t":        tv >= 1_000_000_000_000,
             "consol_flag":  consol_flag,
             "pbs_flag":     pbs_flag,
@@ -743,6 +746,7 @@ function renderDetail(idx) {{
 
   const chgCls  = c.chg_pos ? 'td-pos' : 'td-neg';
   const extraTags = (c.near_h52w   ? ' <span style="color:var(--green)">📈52w</span>' : '') +
+                   (c.ma_aligned  ? ' <span style="color:var(--blue)">📶정배열</span>' : '') +
                    (c.tv_1t       ? ' <span style="color:var(--yellow)">💰1조+</span>' : '') +
                    (c.consol_flag ? ' <span style="color:var(--blue)">📊기간조정</span>' : '') +
                    (c.pbs_flag    ? ' <span style="color:var(--purple)">↩되돌림지지</span>' : '') +
