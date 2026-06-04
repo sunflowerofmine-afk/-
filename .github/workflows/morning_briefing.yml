@@ -1,15 +1,14 @@
 name: Morning Briefing
 
 on:
-  schedule:
-    - cron: "0 0 * * 1-5"     # 09:00 KST 월~금 (UTC 기준 00:00)
-  workflow_dispatch:           # 수동 실행
+  workflow_dispatch:           # cron-job.org 08:50 KST 트리거 (schedule 제거 — 중복 발송 방지)
 
 jobs:
   briefing:
     runs-on: ubuntu-latest
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
     steps:
       - uses: actions/checkout@v4
 
@@ -20,6 +19,23 @@ jobs:
 
       - name: Install dependencies
         run: pip install -r requirements.txt
+
+      - name: Sync previous signals (어제 신호 복원)
+        # 직전 파이프라인 artifact에서 signals 파일 복원 → morning_briefing.py가 어제 신호 참조 가능
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PREV_RUN=$(gh run list --workflow run_bot.yml --status success --limit 1 \
+            --json databaseId --jq '.[0].databaseId' 2>/dev/null || echo "")
+          if [ -n "$PREV_RUN" ]; then
+            echo "이전 run: $PREV_RUN"
+            mkdir -p data/signals
+            gh run download "$PREV_RUN" -n "bot-output-${PREV_RUN}" -D /tmp/prev_art 2>/dev/null && \
+              cp /tmp/prev_art/data/signals/* data/signals/ 2>/dev/null || true
+            echo "복원: $(ls data/signals/ 2>/dev/null | wc -l)개 파일"
+          else
+            echo "이전 run 없음 → skip"
+          fi
 
       - name: Run morning briefing
         env:
