@@ -1,10 +1,10 @@
 {
-  "total_measured": 124,
+  "total_measured": 130,
   "pattern": {
     "당일돌파형": {
-      "total": 119,
+      "total": 125,
       "success": 75,
-      "rate": 63.0
+      "rate": 60.0
     },
     "없음": {
       "total": 4,
@@ -24,30 +24,66 @@
       "rate": 50.0
     },
     "6~9": {
-      "total": 60,
+      "total": 62,
       "success": 36,
-      "rate": 60.0
+      "rate": 58.1
     },
     "10~13": {
-      "total": 55,
+      "total": 58,
       "success": 37,
-      "rate": 67.3
+      "rate": 63.8
     },
     "14+": {
-      "total": 7,
+      "total": 8,
       "success": 4,
-      "rate": 57.1
+      "rate": 50.0
     }
   },
   "multiday": {
-    "d1_count": 132,
+    "d1_count": 138,
     "d3_count": 109,
     "d5_count": 96,
     "d1_open_by_pattern": {
       "당일돌파형": {
-        "count": 126,
-        "mean": 1.6,
+        "count": 132,
+        "mean": 1.34,
         "stocks": [
+          {
+            "code": "454910",
+            "name": "두산로보틱스",
+            "date": "2026-06-03",
+            "pct": -7.49
+          },
+          {
+            "code": "043260",
+            "name": "성호전자",
+            "date": "2026-06-03",
+            "pct": -0.11
+          },
+          {
+            "code": "032830",
+            "name": "삼성생명",
+            "date": "2026-06-03",
+            "pct": -4.97
+          },
+          {
+            "code": "454910",
+            "name": "두산로보틱스",
+            "date": "2026-06-02",
+            "pct": -4.95
+          },
+          {
+            "code": "043260",
+            "name": "성호전자",
+            "date": "2026-06-02",
+            "pct": -0.11
+          },
+          {
+            "code": "032830",
+            "name": "삼성생명",
+            "date": "2026-06-02",
+            "pct": -6.28
+          },
           {
             "code": "064400",
             "name": "LG씨엔에스",
@@ -2127,49 +2163,49 @@
     },
     "result_type_counts": {
       "즉시성공형": {
-        "count": 41,
-        "pct": 31.1
+        "count": 43,
+        "pct": 31.2
       },
       "눌림후재상승형": {
         "count": 20,
-        "pct": 15.2
+        "pct": 14.5
       },
       "스윙전환가능형": {
         "count": 1,
-        "pct": 0.8
+        "pct": 0.7
       },
       "과열소멸형": {
         "count": 45,
-        "pct": 34.1
+        "pct": 32.6
       },
       "실패형": {
-        "count": 25,
-        "pct": 18.9
+        "count": 29,
+        "pct": 21.0
       }
     },
     "inter_comparison": {
-      "inter_d1_mean": 1.53,
-      "inter_d1_count": 37,
+      "inter_d1_mean": 1.13,
+      "inter_d1_count": 39,
       "inter_d3_mean": 13.13,
       "inter_d3_count": 28,
-      "ninter_d1_mean": 1.61,
-      "ninter_d1_count": 95
+      "ninter_d1_mean": 1.43,
+      "ninter_d1_count": 99
     }
   },
   "inter_full_stats": {
     "inter": {
       "d1_open": {
-        "n": 37,
-        "mean": 1.53,
-        "median": 0.53,
-        "win_rate": 54.1,
+        "n": 39,
+        "mean": 1.13,
+        "median": 0.17,
+        "win_rate": 51.3,
         "sample_label": "관찰가능"
       },
       "d1_close": {
-        "n": 37,
-        "mean": 0.63,
-        "median": -1.11,
-        "win_rate": 48.6,
+        "n": 39,
+        "mean": 0.35,
+        "median": -1.22,
+        "win_rate": 46.2,
         "sample_label": "관찰가능"
       },
       "d3_close": {
@@ -2180,33 +2216,33 @@
         "sample_label": "관찰가능"
       },
       "mfe": {
-        "n": 37,
-        "mean": 19.61,
-        "median": 13.17,
-        "win_rate": 89.2,
+        "n": 39,
+        "mean": 18.59,
+        "median": 12.94,
+        "win_rate": 87.2,
         "sample_label": "관찰가능"
       },
       "mae": {
-        "n": 37,
-        "mean": -13.47,
+        "n": 39,
+        "mean": -13.43,
         "median": -12.57,
-        "win_rate": 8.1,
+        "win_rate": 7.7,
         "sample_label": "관찰가능"
       }
     },
     "ninter": {
       "d1_open": {
-        "n": 95,
-        "mean": 1.61,
-        "median": 0.95,
-        "win_rate": 58.9,
+        "n": 99,
+        "mean": 1.43,
+        "median": 0.83,
+        "win_rate": 56.6,
         "sample_label": "관찰가능"
       },
       "d1_close": {
-        "n": 95,
+        "n": 99,
         "mean": 0.96,
         "median": -0.95,
-        "win_rate": 42.1,
+        "win_rate": 42.4,
         "sample_label": "관찰가능"
       },
       "d3_close": {
@@ -2217,17 +2253,17 @@
         "sample_label": "관찰가능"
       },
       "mfe": {
-        "n": 95,
-        "mean": 16.87,
+        "n": 99,
+        "mean": 16.58,
         "median": 9.64,
-        "win_rate": 88.4,
+        "win_rate": 86.9,
         "sample_label": "관찰가능"
       },
       "mae": {
-        "n": 95,
-        "mean": -10.86,
-        "median": -11.28,
-        "win_rate": 9.5,
+        "n": 99,
+        "mean": -10.75,
+        "median": -11.18,
+        "win_rate": 9.1,
         "sample_label": "관찰가능"
       }
     }
@@ -2268,13 +2304,13 @@
     },
     {
       "label": "+15~20%",
-      "n": 33,
+      "n": 35,
       "sample_label": "관찰가능",
       "d1_open": {
-        "n": 33,
-        "mean": 0.9,
-        "median": 0.75,
-        "win_rate": 51.5,
+        "n": 35,
+        "mean": 0.52,
+        "median": 0.0,
+        "win_rate": 48.6,
         "sample_label": "관찰가능"
       },
       "d3_close": {
@@ -2285,29 +2321,29 @@
         "sample_label": "관찰가능"
       },
       "mfe": {
-        "n": 33,
-        "mean": 17.42,
-        "median": 12.94,
-        "win_rate": 84.8,
+        "n": 35,
+        "mean": 16.32,
+        "median": 12.59,
+        "win_rate": 80.0,
         "sample_label": "관찰가능"
       },
       "mae": {
-        "n": 33,
-        "mean": -12.44,
-        "median": -12.57,
-        "win_rate": 12.1,
+        "n": 35,
+        "mean": -12.34,
+        "median": -12.01,
+        "win_rate": 11.4,
         "sample_label": "관찰가능"
       }
     },
     {
       "label": "+20~25%",
-      "n": 27,
+      "n": 31,
       "sample_label": "관찰가능",
       "d1_open": {
-        "n": 27,
-        "mean": 0.86,
-        "median": 0.17,
-        "win_rate": 51.9,
+        "n": 31,
+        "mean": 0.34,
+        "median": 0.0,
+        "win_rate": 45.2,
         "sample_label": "관찰가능"
       },
       "d3_close": {
@@ -2318,17 +2354,17 @@
         "sample_label": "관찰가능"
       },
       "mfe": {
-        "n": 27,
-        "mean": 17.96,
+        "n": 31,
+        "mean": 17.01,
         "median": 9.64,
-        "win_rate": 77.8,
+        "win_rate": 77.4,
         "sample_label": "관찰가능"
       },
       "mae": {
-        "n": 27,
-        "mean": -13.85,
-        "median": -16.27,
-        "win_rate": 11.1,
+        "n": 31,
+        "mean": -13.26,
+        "median": -14.97,
+        "win_rate": 9.7,
         "sample_label": "관찰가능"
       }
     },
