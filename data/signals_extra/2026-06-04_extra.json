@@ -1,0 +1,15 @@
+{
+  "date": "2026-06-04",
+  "generated": "2026-06-06",
+  "stocks": {
+    "036930": {
+      "name": "주성엔지니어링",
+      "signal_price": 250500,
+      "52w_high": 255000,
+      "52w_low": 26050,
+      "pct_from_52w_high": -1.76,
+      "is_near_52w_high": true,
+      "days_since_52w_high": 1
+    }
+  }
+}
