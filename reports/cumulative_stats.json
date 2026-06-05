@@ -72,8 +72,8 @@
       },
       "d1_close": {
         "n": 1,
-        "mean": -14.37,
-        "median": -14.37,
+        "mean": -16.17,
+        "median": -16.17,
         "win_rate": 0.0,
         "sample_label": "데이터부족"
       },
