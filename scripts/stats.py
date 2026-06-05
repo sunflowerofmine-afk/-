@@ -291,9 +291,18 @@ def _save_cached_stats(data: dict) -> None:
 def run() -> dict:
     reviews = _load_all_reviews()
     measured = [r for r in reviews if r.get("result") in ("성공", "실패")]
+
+    cached = _load_cached_stats()
+    cached_total = cached.get("total_measured", 0)
+
+    if len(measured) < cached_total:
+        # 복원된 review.json이 캐시보다 적음 (GitHub Actions 부분 복원 케이스)
+        # 캐시 우선 사용 — 덮어쓰지 않음
+        logger.info(f"캐시 우선 사용: measured={len(measured)} < cached={cached_total}")
+        return cached
+
     if not measured:
-        # GitHub Actions: data/signals/ 없음 → 커밋된 캐시 사용
-        return _load_cached_stats()
+        return cached
 
     result: dict = {
         "total_measured": len(measured),
