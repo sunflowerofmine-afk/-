@@ -1,0 +1,15 @@
+{
+  "date": "2026-06-08",
+  "generated": "2026-06-09",
+  "stocks": {
+    "010690": {
+      "name": "화신",
+      "signal_price": 11490,
+      "52w_high": 16380,
+      "52w_low": 7500,
+      "pct_from_52w_high": -29.85,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 17
+    }
+  }
+}
