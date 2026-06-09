@@ -39,3 +39,4 @@ reports/weekly_reviews/
 CLAUDE.md
 .claude/
 "test_artifact_check/" 
+data/backtest_cache/
