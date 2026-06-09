@@ -1,0 +1,41 @@
+{
+  "run_date": "2026-06-09 20:23",
+  "universe": 100,
+  "hold_days": 5,
+  "cost_pct": 0.21,
+  "strategies": {
+    "A": {
+      "label": "기본 골든크로스",
+      "total_trades": 1818,
+      "win_rate": 54.6,
+      "avg_pct": 1.87,
+      "median_pct": 0.68,
+      "profit_factor": 1.84,
+      "trades_per_year": 827.4,
+      "annual_return_simple": 1549.0,
+      "note": "annual_return_simple = avg_pct × 연간거래수 (단일종목 순차투자 근사값)"
+    },
+    "B": {
+      "label": "0선 위 재골든크로스",
+      "total_trades": 850,
+      "win_rate": 55.6,
+      "avg_pct": 2.72,
+      "median_pct": 0.91,
+      "profit_factor": 2.1,
+      "trades_per_year": 388.8,
+      "annual_return_simple": 1059.3,
+      "note": "annual_return_simple = avg_pct × 연간거래수 (단일종목 순차투자 근사값)"
+    },
+    "C": {
+      "label": "0선 위 + 20일선 지지",
+      "total_trades": 850,
+      "win_rate": 55.6,
+      "avg_pct": 2.72,
+      "median_pct": 0.91,
+      "profit_factor": 2.1,
+      "trades_per_year": 388.8,
+      "annual_return_simple": 1059.3,
+      "note": "annual_return_simple = avg_pct × 연간거래수 (단일종목 순차투자 근사값)"
+    }
+  }
+}
