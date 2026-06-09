@@ -1408,6 +1408,32 @@ def run(preview: bool = False):
         ntf.send_message(msg)
         logger.info(f"2차 알림 전송 완료 (핵심 {len(core_candidates)}개 / 관심 {len(watch_candidates)}개)")
 
+        # ── 눌림생존 스윙 연장 알림 (TELEGRAM_CHAT_ID 전용) ─────────────
+        try:
+            swing_alive = [r for r in review_results if r.get("alive_pullback") is True]
+            if swing_alive:
+                swing_lines = [f"📌 <b>눌림생존 스윙 후보</b> — D+1 장마감 기준 ({run_time} KST)\n"]
+                for r in swing_alive:
+                    name        = r.get("name", "")
+                    code        = r.get("code", "")
+                    d1c         = r.get("d1_close_pct")
+                    d1c_str     = f"{d1c:+.1f}%" if d1c is not None else "?"
+                    sector      = r.get("sector", "")
+                    pattern     = r.get("pattern_type", "")
+                    sector_str  = f"[{sector}] " if sector else ""
+                    swing_lines.append(
+                        f"• <b>{name}</b>({code}) {sector_str}{pattern}\n"
+                        f"  D+1 종가 {d1c_str} | 눌림 유지 ✅\n"
+                        f"  ※ NXT 거래 가능 여부 별도 확인"
+                    )
+                swing_lines.append("\n💡 기준: D+1 종가 -5% 이내, 저가 -7% 이내, 거래대금 300억↑, 장대음봉 아님")
+                ntf.send_private("\n".join(swing_lines))
+                logger.info(f"눌림생존 스윙 알림 전송: {len(swing_alive)}개")
+            else:
+                logger.info("눌림생존 스윙 후보 없음 — 알림 생략")
+        except Exception as e:
+            logger.warning(f"눌림생존 스윙 알림 실패 (무시): {e}")
+
         # ── 시장 흐름 심층 요약 (TELEGRAM_CHAT_ID 전용) ────────────────
         try:
             from scripts.llm_analyzer import summarize_market_flow
