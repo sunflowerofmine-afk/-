@@ -181,10 +181,15 @@ def summarize_market_flow(
     if not client:
         return "[요약 불가 - Gemini 미설정]"
 
-    sector_text = "\n".join(
-        f"  {i+1}. {s.get('sector_name','?')} ({s.get('ratio',0):.1f}%)"
-        for i, s in enumerate(leading_sectors[:5])
-    ) or "  (없음)"
+    sector_lines = []
+    for i, s in enumerate(leading_sectors[:5]):
+        ratio = s.get("market_ratio_pct") or s.get("ratio") or 0
+        top = s.get("top_stocks", [])
+        top_names = ", ".join(t.get("종목명", "") for t in top[:3]) if top else "확인 필요"
+        sector_lines.append(
+            f"  {i+1}. {s.get('sector_name','?')} ({ratio:.1f}%) — 주요종목: {top_names}"
+        )
+    sector_text = "\n".join(sector_lines) or "  (없음)"
 
     limit_up_text = ", ".join(limit_up_names[:10]) if limit_up_names else "없음"
 
