@@ -968,14 +968,8 @@ def run(preview: bool = False):
 
                 if _obs_pat.get("structure_broken_flag"):
                     continue
-                # base_date가 1~7역일(≈5거래일) 이내인지로 유효성 확인
-                # (detect_patterns 재실행 시 base_idx가 달라질 수 있어 날짜 기반으로 대체)
-                try:
-                    from datetime import datetime as _dt
-                    _days_since_base = (_dt.strptime(report_date, "%Y-%m-%d") - _dt.strptime(_base_date, "%Y-%m-%d")).days
-                except Exception:
-                    _days_since_base = 999
-                if _days_since_base < 1 or _days_since_base > 7:
+                _base_idx = (_obs_pat.get("details") or {}).get("base_idx")
+                if (_base_idx is None or _base_idx < 1) and not _obs_pat.get("kim_hyungjun_flag"):
                     continue
 
                 _obs_today_high  = _obs_enr.get("today_high", 0)
