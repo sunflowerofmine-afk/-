@@ -14,7 +14,7 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from config.settings import SIGNALS_DIR
 from scripts.fetch_us_market import fetch_indices
-from scripts.notifier import send_message
+from scripts.notifier import send_message, send_private
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -129,11 +129,6 @@ def build_message(df: pd.DataFrame, signal_date: str) -> str:
     except Exception as e:
         logger.debug(f"지수 조회 실패: {e}")
 
-    # 복기 링크
-    lines.append(
-        '\n📝 <a href="https://docs.google.com/forms/d/e/1FAIpQLSdBJ9Nel88ILckZzCqTVuROPACKaFYaBz8wAlRzZ22MKl_pWA/viewform">어제 복기하기</a>'
-    )
-
     return "\n".join(lines)
 
 
@@ -151,6 +146,11 @@ def main():
 
     ok = send_message(msg)
     logger.info(f"발송 {'성공' if ok else '실패'}")
+
+    # 복기 링크 — 봇 전용 채널(TELEGRAM_CHAT_ID)에만 발송
+    review_link = '📝 <a href="https://docs.google.com/forms/d/e/1FAIpQLSdBJ9Nel88ILckZzCqTVuROPACKaFYaBz8wAlRzZ22MKl_pWA/viewform">어제 복기하기</a>'
+    send_private(review_link)
+    logger.info("복기 링크 봇 전용 채널 발송 완료")
 
 
 if __name__ == "__main__":
