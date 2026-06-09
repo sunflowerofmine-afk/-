@@ -19,7 +19,7 @@ from config.settings import (
     TV_RATIO_WATCH_MIN, TV_RATIO_P2P3_MIN,
     ENABLE_SECTOR_FETCH, SECTOR_TOP_N,
     ENABLE_NXT_FETCH,
-    ENABLE_DART_FETCH,
+    ENABLE_DART_FETCH, DART_API_KEY,
     ENABLE_SHORT_BALANCE,
     ENABLE_PENSION_FETCH,
     MARKET_REGIME_BULL_ADL, MARKET_REGIME_BEAR_ADL, MARKET_REGIME_BULL_TV1500,
@@ -1195,7 +1195,7 @@ def run(preview: bool = False):
     # ── DART 공시 수집 (1차/2차/수동 모두 실행) ─────────────────────
     dart_data: dict[str, list[str]] = {}
     _dart_fetch_ok = False
-    if ENABLE_DART_FETCH:
+    if ENABLE_DART_FETCH and DART_API_KEY:
         try:
             from scripts.fetch_dart import fetch_dart_for_candidates
             _dart_codes = [c["code"] for c in key_candidates]
@@ -1204,6 +1204,8 @@ def run(preview: bool = False):
             logger.info(f"DART 공시 수집 완료: {len([v for v in dart_data.values() if v])}개 종목 공시 있음")
         except Exception as e:
             logger.warning(f"DART 공시 수집 실패 (무시): {e}")
+    elif ENABLE_DART_FETCH and not DART_API_KEY:
+        logger.info("DART_API_KEY 미설정 — 공시 조회 건너뜀")
 
     # dart_data를 각 후보 dict에 주입
     # _dart_fetch_ok=False(비활성/실패) → None(미조회), True → [](없음) or [공시들]

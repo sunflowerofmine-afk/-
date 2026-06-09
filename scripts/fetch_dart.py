@@ -127,10 +127,8 @@ def _fetch_disclosures(corp_code: str, date_str: str) -> list[dict]:
 def _format_disclosure(item: dict, classify: str) -> str:
     """공시 1건 → 텔레그램 표시 문자열."""
     title = item.get("report_nm", "").strip()
-    time_ = item.get("rcept_dt", "")[-4:] if len(item.get("rcept_dt", "")) >= 8 else ""
     badge = "⚠️" if classify == "neg" else ("📈" if classify == "pos" else "📋")
-    time_str = f" ({time_[:2]}:{time_[2:]})" if len(time_) == 4 else ""
-    return f"{badge} {title}{time_str}"
+    return f"{badge} {title}"
 
 
 def fetch_dart_for_candidates(
