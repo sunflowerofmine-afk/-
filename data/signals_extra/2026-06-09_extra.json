@@ -1,0 +1,78 @@
+{
+  "date": "2026-06-09",
+  "generated": "2026-06-10",
+  "stocks": {
+    "403870": {
+      "name": "HPSP",
+      "signal_price": 57000,
+      "52w_high": 67800,
+      "52w_low": 21700,
+      "pct_from_52w_high": -15.93,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 9
+    },
+    "000660": {
+      "name": "SK하이닉스",
+      "signal_price": 2215000,
+      "52w_high": 2407000,
+      "52w_low": 200000,
+      "pct_from_52w_high": -7.98,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 4
+    },
+    "009150": {
+      "name": "삼성전기",
+      "signal_price": 1970000,
+      "52w_high": 2192000,
+      "52w_low": 118000,
+      "pct_from_52w_high": -10.13,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 6
+    },
+    "095610": {
+      "name": "테스",
+      "signal_price": 161400,
+      "52w_high": 167500,
+      "52w_low": 22050,
+      "pct_from_52w_high": -3.64,
+      "is_near_52w_high": true,
+      "days_since_52w_high": 0
+    },
+    "085620": {
+      "name": "미래에셋생명",
+      "signal_price": 24150,
+      "52w_high": 25500,
+      "52w_low": 5350,
+      "pct_from_52w_high": -5.29,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 0
+    },
+    "402340": {
+      "name": "SK스퀘어",
+      "signal_price": 1269000,
+      "52w_high": 1392000,
+      "52w_low": 99500,
+      "pct_from_52w_high": -8.84,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 3
+    },
+    "093370": {
+      "name": "후성",
+      "signal_price": 13520,
+      "52w_high": 15420,
+      "52w_low": 3955,
+      "pct_from_52w_high": -12.32,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 29
+    },
+    "196170": {
+      "name": "알테오젠",
+      "signal_price": 326500,
+      "52w_high": 569000,
+      "52w_low": 286000,
+      "pct_from_52w_high": -42.62,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 136
+    }
+  }
+}
