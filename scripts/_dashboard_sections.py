@@ -758,6 +758,7 @@ def _section_stock_panel(candidates: list, rejected: list, market_regime: str = 
             "strengths":    _compute_strengths(c),
             "weaknesses":   _compute_weaknesses(c),
             "checkpoints":  _compute_checkpoints(c),
+            "dart":         c.get("dart_notices"),   # None=미조회, []=공시없음
         })
 
     cands_json = _json.dumps(js_data, ensure_ascii=False)
@@ -819,6 +820,12 @@ function renderDetail(idx) {{
   h += '<div class="detail-section"><div class="detail-section-title">강점</div>' + strHtml + '</div>';
   h += '<div class="detail-section"><div class="detail-section-title">약점</div>' + wkHtml + '</div>';
   h += supHtml;
+  const dartHtml = (c.dart === null || c.dart === undefined)
+    ? ''
+    : (c.dart.length
+      ? '<div class="detail-section"><div class="detail-section-title">공시 (DART)</div>' + c.dart.slice(0,3).map(n => '<div style="font-size:13px;padding:2px 0">' + n + '</div>').join('') + '</div>'
+      : '<div class="detail-section"><div class="detail-section-title">공시 (DART)</div><div style="color:var(--muted);font-size:13px">당일 공시 없음</div></div>');
+  h += dartHtml;
   h += '<div class="detail-section"><div class="detail-section-title">체크포인트</div>' + ckHtml + '</div>';
   document.getElementById('stock-detail').innerHTML = h;
 }}
