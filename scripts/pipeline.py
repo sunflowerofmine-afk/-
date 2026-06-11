@@ -610,6 +610,9 @@ def run(preview: bool = False):
             "tv_top20_count":     sum(1 for c in sec_codes_str if c in _tv20_codes),
         })
 
+    # 시장 비중(거래대금) 내림차순 정렬 — 대시보드 카드·섹터 캘린더·알림 표시 순서 통일
+    leading_sectors.sort(key=lambda s: s.get("market_ratio_pct") or 0, reverse=True)
+
     # gainers_top20, trading_value_top20에 sector 태그 추가
     def _add_sector(records: list) -> list:
         for r in records:
