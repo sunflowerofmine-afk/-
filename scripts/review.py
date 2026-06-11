@@ -25,6 +25,17 @@ _BACKFILL_DAYS = 12   # 백필 대상 최대 달력 일수 (≈ 9 거래일)
 
 # ── 유틸 ────────────────────────────────────────────────────────────
 
+def _safe_float(v) -> float | None:
+    """NaN/None/빈값 → None, 그 외 float 변환."""
+    if v is None:
+        return None
+    try:
+        f = float(v)
+        return None if pd.isna(f) else f
+    except (TypeError, ValueError):
+        return None
+
+
 def _find_yesterday_signals(today: date) -> tuple[pd.DataFrame | None, str | None]:
     """최근 거래일(최대 7일 이내) signals CSV 탐색. 같은 날 여러 개면 타임스탬프 최신 우선."""
     for days_back in range(1, 8):
@@ -426,6 +437,8 @@ def run(today: date, kospi_chg_today: float | None) -> list[dict]:
             "signal_change_pct": float(row.get("등락률") or 0) or None,
             "in_inter":          bool(row.get("in_inter", False)),
             "base_high_gap_pct": row.get("base_high_gap_pct"),
+            "signal_inst_net":    _safe_float(row.get("inst_net")),
+            "signal_foreign_net": _safe_float(row.get("foreign_net")),
             # ── 멀티데이 수익률 ─────────────────────────
             "d1_open_pct":  None,
             "d1_high_pct":  None,
