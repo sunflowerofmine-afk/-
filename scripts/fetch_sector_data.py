@@ -159,6 +159,7 @@ def run(top_n: int = 5) -> dict:
         if not theme_overview.empty:
             top_themes    = theme_overview.nlargest(top_n * 2, "change_pct")
             theme_sectors = []
+            _theme_assigned: set[str] = set()   # 복수 테마 소속 종목: 최고 상승률 테마 라벨 유지
             for _, trow in top_themes.iterrows():
                 tno   = int(trow["sector_no"])
                 tname = str(trow["sector_name"])
@@ -166,7 +167,9 @@ def run(top_n: int = 5) -> dict:
                 try:
                     tcodes = fetch_sector_stock_codes(tno, "theme")
                     for c in tcodes:
-                        code_to_sector[c] = tname
+                        if c not in _theme_assigned:
+                            code_to_sector[c] = tname
+                            _theme_assigned.add(c)
                     theme_sectors.append({
                         "sector_name": tname,
                         "change_pct":  tchg,

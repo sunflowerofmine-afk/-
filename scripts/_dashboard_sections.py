@@ -429,8 +429,15 @@ def _section_leading_sectors(sectors: list) -> str:
     for sec in sectors:
         chg = float(sec.get("change_pct", 0))
         chg_cls = "pos" if chg >= 0 else "neg"
-        mkt_r = sec.get("market_ratio_pct")
-        ratio_str = f'<span class="s-tv">시장{mkt_r:.1f}%</span>' if mkt_r is not None else ""
+        mkt_r    = sec.get("market_ratio_pct")
+        mkt_r_ex = sec.get("market_ratio_ex_large_pct")
+        if mkt_r is not None and mkt_r_ex is not None:
+            ratio_str = (f'<span class="s-tv">시장{mkt_r:.1f}% '
+                         f'<span style="color:var(--muted)">(대형주 제외 {mkt_r_ex:.1f}%)</span></span>')
+        elif mkt_r is not None:
+            ratio_str = f'<span class="s-tv">시장{mkt_r:.1f}%</span>'
+        else:
+            ratio_str = ""
         stocks_html = ""
         for s in sec.get("top_stocks", [])[:4]:
             s_chg = float(s.get("등락률", 0))

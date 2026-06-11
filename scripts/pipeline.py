@@ -598,12 +598,20 @@ def run(preview: bool = False):
         avg_chg = float(pos_df["등락률"].mean()) if not pos_df.empty else 0.0
         sec_tv_eok = round(float(sec_df["거래대금"].sum()) / 1e8, 0)
         market_ratio_pct = round(sec_tv_eok / _total_market_tv_eok * 100, 1) if _total_market_tv_eok > 0 else None
+        # 대형주(거래대금 10조↑) 제외 비중 — 삼전/하이닉스 등으로 부풀려진 테마 비중 보정용
+        _ex_large_df = sec_df[sec_df["거래대금"] < 10_000_000_000_000]
+        _ex_large_tv_eok = round(float(_ex_large_df["거래대금"].sum()) / 1e8, 0)
+        market_ratio_ex_large_pct = (
+            round(_ex_large_tv_eok / _total_market_tv_eok * 100, 1)
+            if _total_market_tv_eok > 0 and len(_ex_large_df) < len(sec_df) else None
+        )   # 대형주가 없는 섹터는 None → 표시 생략
         sec_codes_str = set(sec_df["종목코드"].astype(str))
         leading_sectors.append({
             "sector_name":        sec["sector_name"],
             "change_pct":         avg_chg,
             "tv_eok":             sec_tv_eok,
             "market_ratio_pct":   market_ratio_pct,
+            "market_ratio_ex_large_pct": market_ratio_ex_large_pct,
             "top_stocks":         top_stocks,
             "tv1500_count":       int((sec_df["거래대금"] >= _min_tv_won_sec).sum()),
             "gainer_top20_count": sum(1 for c in sec_codes_str if c in _gainer_codes),
