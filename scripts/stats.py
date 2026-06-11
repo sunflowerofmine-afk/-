@@ -84,6 +84,17 @@ def _load_all_reviews() -> list[dict]:
 
 # ── 기존 통계 (변경 없음) ────────────────────────────────────────────
 
+def _stock_entry(r: dict) -> dict:
+    """드릴다운용 종목 1건 요약 (D+1 갭 수익률 기준)."""
+    return {
+        "date":   r.get("signal_date", ""),
+        "name":   r.get("name", ""),
+        "code":   r.get("code", ""),
+        "pct":    float(r.get("gap_pct") or 0),
+        "result": r.get("result", ""),
+    }
+
+
 def _calc_pattern_stats(reviews: list[dict]) -> dict:
     counts: dict[str, dict] = {}
     for r in reviews:
@@ -91,15 +102,17 @@ def _calc_pattern_stats(reviews: list[dict]) -> dict:
             continue
         pat = r.get("pattern_type") or "없음"
         if pat not in counts:
-            counts[pat] = {"total": 0, "success": 0}
+            counts[pat] = {"total": 0, "success": 0, "stocks": []}
         counts[pat]["total"] += 1
         if r["result"] == "성공":
             counts[pat]["success"] += 1
+        counts[pat]["stocks"].append(_stock_entry(r))
     return {
         pat: {
             "total":   v["total"],
             "success": v["success"],
             "rate":    round(v["success"] / v["total"] * 100, 1),
+            "stocks":  v["stocks"],
         }
         for pat, v in sorted(counts.items(), key=lambda x: -x[1]["total"])
     }
@@ -115,10 +128,11 @@ def _calc_score_stats(reviews: list[dict]) -> dict:
             continue
         band = _score_band(int(score))
         if band not in counts:
-            counts[band] = {"total": 0, "success": 0}
+            counts[band] = {"total": 0, "success": 0, "stocks": []}
         counts[band]["total"] += 1
         if r["result"] == "성공":
             counts[band]["success"] += 1
+        counts[band]["stocks"].append(_stock_entry(r))
 
     result = {}
     for label, _, _ in _SCORE_BANDS:
@@ -128,6 +142,7 @@ def _calc_score_stats(reviews: list[dict]) -> dict:
                 "total":   v["total"],
                 "success": v["success"],
                 "rate":    round(v["success"] / v["total"] * 100, 1),
+                "stocks":  v["stocks"],
             }
     return result
 

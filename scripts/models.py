@@ -84,6 +84,7 @@ class ScoreDetail:
     supply_score:         int   = 0   # 가점
     bonus_score:          int   = 0   # 교집합, 거래량60최고
     total_score:          int   = 0
+    reasons:              list  = field(default_factory=list)  # 항목별 산출 근거 문자열
 
     def calc_total(self) -> int:
         self.total_score = (

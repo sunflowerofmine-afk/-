@@ -66,6 +66,8 @@ def calc_score(
 
     # 뉴스 점수 (0~3)
     s.news_score = max(0, min(3, news.score))
+    if s.news_score > 0:
+        s.reasons.append(f"뉴스 +{s.news_score} (뉴스 재료 점수)")
 
     # 거래대금 점수 (0~3): 1조→3, 5천억→2, 1천억→1
     tv_eok = trading_value / 100_000_000
@@ -75,39 +77,53 @@ def calc_score(
         s.trading_value_score = 2
     elif tv_eok >= TV_SCORE_1_MIN_EOK:
         s.trading_value_score = 1
+    if s.trading_value_score > 0:
+        s.reasons.append(f"대금 +{s.trading_value_score} (거래대금 {tv_eok:,.0f}억)")
 
     # 캔들 점수 (0~3)
     if processed.big_candle_flag:
         s.candle_score = 3
+        s.reasons.append("캔들 +3 (장대양봉 15%↑)")
     elif processed.loose_big_candle_flag:
         s.candle_score = 2
+        s.reasons.append("캔들 +2 (양봉 10%↑)")
 
     # 수급 점수 (가점): 기관 순매수 +1, 외국인 순매수 +1
     if supply.status == "ok":
         if (supply.institution_net or 0) > 0:
             s.supply_score += 1
+            s.reasons.append("수급 +1 (기관 순매수)")
         if (supply.foreign_net or 0) > 0:
             s.supply_score += 1
+            s.reasons.append("수급 +1 (외국인 순매수)")
     supply.supply_label = calc_supply_label(supply, trading_value)
 
     # 보너스 점수
     if in_intersection:
         s.bonus_score += 2
+        s.reasons.append("보너스 +2 (교집합)")
     if is_leading_sector:
         s.bonus_score += 1
+        s.reasons.append("보너스 +1 (주도 섹터)")
     if processed.volume_peak_60d:
         s.bonus_score += 1
+        s.reasons.append("보너스 +1 (거래량 60일 최고)")
     if processed.trading_value_peak_60d:
         s.bonus_score += 1
+        s.reasons.append("보너스 +1 (거래대금 60일 최고)")
     if patterns:
         if patterns.get("consolidation_flag"):
             s.bonus_score += 1
+            s.reasons.append("보너스 +1 (기간조정 패턴)")
         if patterns.get("pullback_support_flag"):
             s.bonus_score += 1
+            s.reasons.append("보너스 +1 (되돌림 지지 패턴)")
         if patterns.get("high_tight_consolidation_flag"):
             s.bonus_score += 1
+            s.reasons.append("보너스 +1 (고가수축형)")
         if patterns.get("high_tight_reignite_flag"):
             s.bonus_score += 1
+            s.reasons.append("보너스 +1 (고가수축 재점화)")
 
     s.calc_total()
     return s

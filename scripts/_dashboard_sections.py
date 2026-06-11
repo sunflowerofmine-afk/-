@@ -564,7 +564,7 @@ def _section_watch_candidates(rejected: list) -> str:
 def _section_rejected_summary(rejected: list) -> str:
     if not rejected:
         return ""
-    counts: dict[str, int] = {}
+    groups: dict[str, list] = {}
     for r in rejected:
         reason = r.get("reason", "기타")
         if "거래대금 부족" in reason:
@@ -573,12 +573,27 @@ def _section_rejected_summary(rejected: list) -> str:
             key = "패턴 없음 + 교집합 아님"
         else:
             key = reason
-        counts[key] = counts.get(key, 0) + 1
+        groups.setdefault(key, []).append(r)
 
-    items = " ".join(
-        f'<span class="status-badge status-no">매수불가</span> {_e(k)}: {v}개'
-        for k, v in counts.items()
-    )
+    items_parts = []
+    for k, rows in groups.items():
+        stock_lines = "".join(
+            f'<div style="font-size:12px;padding:2px 0">'
+            f'{_e(r.get("name",""))} <span style="color:var(--muted);font-size:11px">{_e(r.get("code",""))}</span>'
+            f' &nbsp;<span class="{"td-pos" if float(r.get("change_pct",0)) >= 0 else "td-neg"}">{_sign(float(r.get("change_pct",0)))}</span>'
+            f' &nbsp;<span style="color:var(--muted)">{_tv_eok(r.get("trading_value",0))}</span>'
+            f'</div>'
+            for r in sorted(rows, key=lambda x: -(x.get("trading_value") or 0))
+        )
+        items_parts.append(
+            f'<details style="display:inline-block;vertical-align:top;margin-right:14px">'
+            f'<summary style="cursor:pointer;user-select:none">'
+            f'<span class="status-badge status-no">매수불가</span> {_e(k)}: '
+            f'<span style="color:var(--blue);text-decoration:underline dotted">{len(rows)}개</span></summary>'
+            f'<div style="margin:4px 0 6px 8px">{stock_lines}</div>'
+            f'</details>'
+        )
+    items = "".join(items_parts)
 
     watches = sorted(
         [r for r in rejected if "패턴 없음" in r.get("reason", "")],
@@ -723,6 +738,7 @@ def _section_stock_panel(candidates: list, rejected: list, market_regime: str = 
             "score_candle": getattr(c.get("score"), "candle_score",        "-"),
             "score_supply": getattr(c.get("score"), "supply_score",        "-"),
             "score_bonus":  getattr(c.get("score"), "bonus_score",         "-"),
+            "score_reasons": getattr(c.get("score"), "reasons", []) or [],
             "tv_ratio":     f"{pat.get('tv_ratio'):.2f}" if pat.get("tv_ratio") is not None else "-",
             "inst_str":     f"{sup_inst/1e8:+.0f}억" if sup_inst is not None else "-",
             "frgn_str":     f"{sup_frgn/1e8:+.0f}억" if sup_frgn is not None else "-",
@@ -794,7 +810,10 @@ function renderDetail(idx) {{
   h += '<div class="detail-kv"><span class="k">등락률</span><span class="v ' + chgCls + '">' + c.chg_str + '</span></div>';
   h += '<div class="detail-kv"><span class="k">거래대금</span><span class="v">' + c.tv_str + '</span></div>';
   h += '<div class="detail-kv"><span class="k">패턴</span><span class="v">' + c.pat_str + '</span></div>';
-  h += '<div class="detail-kv"><span class="k">점수</span><span class="v" style="color:var(--blue);font-weight:700">' + c.score + '점</span><div style="font-size:11px;color:var(--muted);margin-top:2px">뉴스 ' + c.score_news + ' · 대금 ' + c.score_tv + ' · 캔들 ' + c.score_candle + ' · 수급 ' + c.score_supply + ' · 보너스 ' + c.score_bonus + '</div></div>';
+  const reasonsHtml = (c.score_reasons && c.score_reasons.length)
+    ? '<details style="margin-top:3px"><summary style="cursor:pointer;font-size:11px;color:var(--blue)">산출 근거 보기</summary><div style="font-size:11px;color:var(--text);margin-top:3px;line-height:1.7">' + c.score_reasons.map(r => '· ' + r).join('<br>') + '</div></details>'
+    : '';
+  h += '<div class="detail-kv"><span class="k">점수</span><span class="v" style="color:var(--blue);font-weight:700">' + c.score + '점</span><div style="font-size:11px;color:var(--muted);margin-top:2px">뉴스 ' + c.score_news + ' · 대금 ' + c.score_tv + ' · 캔들 ' + c.score_candle + ' · 수급 ' + c.score_supply + ' · 보너스 ' + c.score_bonus + '</div>' + reasonsHtml + '</div>';
   h += '<div class="detail-kv"><span class="k">신호가</span><span class="v">' + c.entry_ref_str + (c.price_src ? ' <span style="color:var(--muted);font-size:11px">(' + c.price_src + ')</span>' : '') + '</span></div>';
   h += '</div></div>';
   h += '<div class="detail-section"><div class="detail-section-title">강점</div>' + strHtml + '</div>';
@@ -1207,15 +1226,28 @@ def _section_cumulative_stats(stats: dict) -> str:
 
     total = stats["total_measured"]
 
-    def _win_rows(data: dict) -> str:
+    # 드릴다운 종목 데이터 수집 (패턴별/스코어별)
+    _win_stocks: dict[str, list] = {}
+    for _prefix, _src in [("pat", "pattern"), ("score", "score_band")]:
+        for _k, _v in (stats.get(_src) or {}).items():
+            if _v.get("stocks"):
+                _win_stocks[f"{_prefix}|{_k}"] = _v["stocks"]
+
+    def _win_rows(data: dict, prefix: str) -> str:
         html = ""
         for key, v in data.items():
             rate  = v["rate"]
             color = "var(--green)" if rate >= 60 else ("var(--yellow)" if rate >= 40 else "var(--red)")
+            _wkey = f"{prefix}|{key}"
+            cnt_html = (
+                f'<span style="cursor:pointer;color:var(--blue);text-decoration:underline dotted" '
+                f'onclick="showMdStocks(\'{_e(_wkey)}\',\'{_e(key)}\',\'{prefix}\')">{v["total"]}</span>'
+                if _wkey in _win_stocks else str(v["total"])
+            )
             html += (
                 f"<tr>"
                 f"<td>{_e(key)}</td>"
-                f'<td style="text-align:center">{v["total"]}</td>'
+                f'<td style="text-align:center">{cnt_html}</td>'
                 f'<td style="text-align:center">{v["success"]}</td>'
                 f'<td style="text-align:center;color:{color};font-weight:600">{rate}%</td>'
                 f"</tr>"
@@ -1238,22 +1270,20 @@ def _section_cumulative_stats(stats: dict) -> str:
     html = (
         f'<div class="section-title">📊 누적 승률 ({total}개 측정)</div>'
         f'<div style="display:flex;gap:24px;flex-wrap:wrap;margin-bottom:16px">'
-        f'{_tbl("패턴별", stats.get("pattern", {}), win_head, _win_rows)}'
-        f'{_tbl("스코어 구간별", stats.get("score_band", {}), win_head, _win_rows)}'
+        f'{_tbl("패턴별", stats.get("pattern", {}), win_head, lambda d: _win_rows(d, "pat"))}'
+        f'{_tbl("스코어 구간별", stats.get("score_band", {}), win_head, lambda d: _win_rows(d, "score"))}'
         f"</div>"
     )
 
     # ── 멀티데이 통계 ────────────────────────────────────────────
-    md = stats.get("multiday")
-    if not md or md.get("d1_count", 0) == 0:
-        return html
+    md = stats.get("multiday") or {}
 
     d1c = md.get("d1_count", 0)
     d3c = md.get("d3_count", 0)
     d5c = md.get("d5_count", 0)
 
-    # 종목 팝업용 JS 데이터 수집
-    _all_stocks: dict[str, dict] = {}  # key: "d1|당일돌파형" → {count, stocks}
+    # 종목 팝업용 JS 데이터 수집 (승률 드릴다운 + 멀티데이)
+    _all_stocks: dict[str, dict] = dict(_win_stocks)  # key: "pat|당일돌파형" 등
     for _key, _src in [("d1", "d1_open_by_pattern"), ("d3", "d3_mfe_by_pattern"), ("d5", "d5_mfe_by_pattern")]:
         for _pat, _v in md.get(_src, {}).items():
             if _v.get("stocks"):
@@ -1298,7 +1328,7 @@ const _MD_STOCKS = """ + _stocks_json + """;
 function showMdStocks(key, pat, prefix) {
   const stocks = _MD_STOCKS[key];
   if (!stocks || !stocks.length) return;
-  const label = {d1:'D+1 시가', d3:'D+3 고가', d5:'D+5 MFE'}[prefix] || prefix;
+  const label = {d1:'D+1 시가', d3:'D+3 고가', d5:'D+5 MFE', pat:'패턴별 승률', score:'스코어 구간'}[prefix] || prefix;
   document.getElementById('md-modal-title').textContent = label + ' · ' + pat + ' (' + stocks.length + '개)';
   const rows = stocks.map(s => {
     const cls = s.pct >= 0 ? 'td-pos' : 'td-neg';
@@ -1317,9 +1347,14 @@ function showMdStocks(key, pat, prefix) {
 }
 </script>"""
 
+    # 모달은 승률 드릴다운에서도 사용하므로 멀티데이 유무와 무관하게 출력
+    html += modal_html
+
+    if d1c == 0:
+        return html
+
     avg_head = "<tr><th>패턴</th><th>종목수</th><th>평균</th></tr>"
     html += (
-        f'{modal_html}'
         f'<div class="section-title">📈 멀티데이 수익률 통계</div>'
         f'<div style="display:flex;gap:24px;flex-wrap:wrap;margin-bottom:16px">'
         f'{_tbl(f"D+1 시가 평균 ({d1c}개) ★09:30 이전 매도 기준", md.get("d1_open_by_pattern", {}), avg_head, lambda d: _avg_rows(d, "d1"))}'
