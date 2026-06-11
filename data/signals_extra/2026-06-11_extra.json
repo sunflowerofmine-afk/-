@@ -1,0 +1,33 @@
+{
+  "date": "2026-06-11",
+  "generated": "2026-06-12",
+  "stocks": {
+    "240810": {
+      "name": "원익IPS",
+      "signal_price": 141000,
+      "52w_high": 151500,
+      "52w_low": 22150,
+      "pct_from_52w_high": -6.93,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 21
+    },
+    "001820": {
+      "name": "삼화콘덴서",
+      "signal_price": 133300,
+      "52w_high": 172800,
+      "52w_low": 24200,
+      "pct_from_52w_high": -22.86,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 8
+    },
+    "196170": {
+      "name": "알테오젠",
+      "signal_price": 347000,
+      "52w_high": 569000,
+      "52w_low": 286000,
+      "pct_from_52w_high": -39.02,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 138
+    }
+  }
+}
