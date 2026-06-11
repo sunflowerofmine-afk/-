@@ -840,8 +840,9 @@ def run(preview: bool = False):
                                    "trading_value": tv, "change_pct": float(row.get("등락률", 0))})
             continue
 
+        # 이격 판정은 정규장 종가 기준 (NXT 실시간가의 일시 변동으로 인한 오탈락 방지)
         _today_high  = enr.get("today_high", 0)
-        _today_close = float(row.get("현재가", 0))
+        _today_close = float(enr.get("regular_close_price") or row.get("현재가", 0) or 0)
         if _today_high > 0 and _today_close > 0:
             _intraday_gap = (_today_close - _today_high) / _today_high * 100
             if _intraday_gap < INTRADAY_CLOSE_FROM_HIGH_MIN_PCT:
