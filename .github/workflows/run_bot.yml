@@ -148,3 +148,30 @@ jobs:
             logs/
             reports/
           retention-days: 30
+
+      # 신호/복기 데이터 영구 백업 (비공개 레포 jongbe-data-backup)
+      # DATA_BACKUP_SSH_KEY 시크릿(deploy key 개인키) 미설정 시 자동 skip
+      - name: Backup signals to private repo
+        if: always()
+        env:
+          BACKUP_KEY: ${{ secrets.DATA_BACKUP_SSH_KEY }}
+        run: |
+          if [ -z "$BACKUP_KEY" ]; then
+            echo "DATA_BACKUP_SSH_KEY 미설정 — 백업 skip"
+            exit 0
+          fi
+          mkdir -p ~/.ssh
+          echo "$BACKUP_KEY" > ~/.ssh/backup_key
+          chmod 600 ~/.ssh/backup_key
+          export GIT_SSH_COMMAND="ssh -i ~/.ssh/backup_key -o StrictHostKeyChecking=accept-new"
+          git clone --depth 1 git@github.com:sunflowerofmine-afk/jongbe-data-backup.git /tmp/backup
+          mkdir -p /tmp/backup/data
+          cp -r data/signals /tmp/backup/data/ 2>/dev/null || true
+          cp -r data/pullback_observation /tmp/backup/data/ 2>/dev/null || true
+          cd /tmp/backup
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet && echo "변경 없음" || \
+            git commit -m "backup: $(TZ=Asia/Seoul date +%Y-%m-%d_%H%M)"
+          git push || echo "백업 push 실패 (파이프라인은 정상)"
