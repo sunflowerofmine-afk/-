@@ -27,6 +27,7 @@ from config.settings import (
     KH_CRAWL_MIN_TV_EOK,
     OBS_CRAWL_MIN_TV_EOK,
     INTRADAY_CLOSE_FROM_HIGH_MIN_PCT,
+    BIG_CANDLE_MIN_PCT,
 )
 from scripts.market_calendar import get_now_kst, is_trading_day, get_run_type
 from scripts.storage import save_raw, save_processed, save_signals
@@ -797,11 +798,30 @@ def run(preview: bool = False):
         struct_broken = pat.get("structure_broken_flag", False)
         tv_ratio      = pat.get("tv_ratio")
 
-        # 구조 붕괴 제외
+        # 구조 붕괴 제외 — 단, 재돌파형 예외:
+        # 당일 +15% 이상 장대양봉 + 종가가 기준봉 고가 -5% 이내 + 외인/기관 양매수
+        # (백테스트: 재돌파형 D+3 승률 57.1% / 평균 +4.12%, 단기 청산 전제)
         if struct_broken:
-            rejected_list.append({"code": code, "name": name, "reason": "구조 붕괴",
-                                   "trading_value": tv, "change_pct": float(row.get("등락률", 0))})
-            continue
+            _chg_today = float(row.get("등락률", 0))
+            _bh_gap    = pat.get("base_high_gap_pct")
+            _both_buy  = (
+                supply.status == "ok"
+                and (supply.institution_net or 0) > 0
+                and (supply.foreign_net or 0) > 0
+            )
+            if (_chg_today >= BIG_CANDLE_MIN_PCT
+                    and _bh_gap is not None and _bh_gap >= -5.0
+                    and _both_buy):
+                pat["pattern_type_label"] = "재돌파형"
+                if pat.get("pattern_summary", "없음") == "없음":
+                    pat["pattern_summary"] = "재돌파형"
+                has_pattern = True
+                logger.info(f"[{code}] {name}: 구조 붕괴이나 재돌파형 예외 적용 "
+                            f"(등락 {_chg_today:+.1f}%, 기준봉고가 대비 {_bh_gap:+.1f}%, 양매수)")
+            else:
+                rejected_list.append({"code": code, "name": name, "reason": "구조 붕괴",
+                                       "trading_value": tv, "change_pct": _chg_today})
+                continue
 
         # 거래대금 급감 제외 (패턴 타입별 임계값 분리)
         # 당일돌파형: 강한 거래대금 지속 필요 → 0.2 유지
@@ -881,12 +901,12 @@ def run(preview: bool = False):
         })
 
     # 정렬: 교집합 > 패턴타입 > score > supply_ok > 거래대금 > 상승률
-    _PATTERN_TYPE_ORDER = {"당일돌파형": 0, "고가수축형": 1, "고가횡보형": 2, "없음": 3}
+    _PATTERN_TYPE_ORDER = {"당일돌파형": 0, "재돌파형": 1, "고가수축형": 2, "고가횡보형": 3, "없음": 4}
 
     def _priority(item):
         pat        = item.get("patterns", {})
         sc         = item.get("score")
-        type_order = _PATTERN_TYPE_ORDER.get(pat.get("pattern_type_label", "없음"), 3)
+        type_order = _PATTERN_TYPE_ORDER.get(pat.get("pattern_type_label", "없음"), 4)
         total      = sc.total_score if sc else 0
         return (
             not item["in_inter"],

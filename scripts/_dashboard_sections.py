@@ -88,15 +88,17 @@ def _score_val(score) -> str:
 # ─── 상수 ─────────────────────────────────────────────────────────────────────
 
 _OFFSET_LABEL = {0: "당일", 1: "1일전", 2: "2일전", 3: "3일전"}
-_PATTERN_TYPE_ORDER = ["당일돌파형", "고가수축형", "고가횡보형", "없음"]
+_PATTERN_TYPE_ORDER = ["당일돌파형", "재돌파형", "고가수축형", "고가횡보형", "없음"]
 _PATTERN_SECTION_TITLE = {
     "당일돌파형": "🚀 당일 돌파형",
+    "재돌파형":   "🔁 재돌파형 (구조붕괴 후 전고점 복귀 + 양매수 · 단기 청산 권장)",
     "고가수축형": "🔶 고가수축형 (거래대금 수축 대기)",
     "고가횡보형": "📊 1~3일전 기준봉 후 고가횡보형",
     "없음":       "📌 기타 (교집합)",
 }
 _PATTERN_CARD_COLOR = {
     "당일돌파형": "#3fb950",
+    "재돌파형":   "#f0883e",
     "고가수축형": "#e3b341",
     "고가횡보형": "#58a6ff",
     "없음":       "#8b949e",
@@ -113,6 +115,10 @@ def _compute_status(c: dict, market_regime: str = "중립") -> str:
 
     # 당일돌파형: 교집합 필수
     if pat_label == "당일돌파형" and in_inter:
+        return "BUY_REVIEW"
+
+    # 재돌파형: 파이프라인에서 이미 장대양봉+전고점복귀+양매수 검증 완료
+    if pat_label == "재돌파형":
         return "BUY_REVIEW"
 
     # 고가수축형: 교집합 불요, 구조 미붕괴만 확인
@@ -208,6 +214,12 @@ def _compute_checkpoints(c: dict) -> list:
         sup_msg = (f"기관 {inst_net/1e8:+.0f}억 매수 — 내일 수급 지속 확인"
                    if inst_net is not None and inst_net > 0 else "재료 지속성 및 외인·기관 수급 확인")
         return [tv_msg, gap_msg, sup_msg]
+
+    if pl == "재돌파형":
+        gap_msg = (f"기준봉 고가 {gap_pct:+.1f}% — 전고점 돌파 확정 여부 확인"
+                   if gap_pct is not None else "전고점 돌파 확정 여부 확인")
+        return [gap_msg, "단기 청산 원칙 (D+3 이내) — 길게 끌지 말 것",
+                "외인·기관 양매수 지속 여부 확인"]
 
     if pl == "고가수축형":
         htc_avg  = pat.get("high_tight_tv_ratio_avg")
@@ -613,7 +625,7 @@ def _section_stock_panel(candidates: list, rejected: list, market_regime: str = 
             '<div class="empty-msg">조건 충족 핵심 후보 없음</div>'
         )
 
-    _PAT_CLS = {"당일돌파형": "pat-break", "고가수축형": "pat-htc", "고가횡보형": "pat-hold"}
+    _PAT_CLS = {"당일돌파형": "pat-break", "재돌파형": "pat-rebreak", "고가수축형": "pat-htc", "고가횡보형": "pat-hold"}
 
     list_cards = []
     js_data    = []
@@ -805,8 +817,8 @@ function filterPat(cls) {{
 </script>"""
 
     # ── 패턴별 필터 버튼 ───────────────────────────────────────
-    _pat_colors = {"pat-break": "var(--green)", "pat-htc": "var(--yellow)", "pat-hold": "var(--blue)"}
-    _pat_labels = [("당일돌파형", "pat-break"), ("고가수축형", "pat-htc"), ("고가횡보형", "pat-hold")]
+    _pat_colors = {"pat-break": "var(--green)", "pat-rebreak": "#f0883e", "pat-htc": "var(--yellow)", "pat-hold": "var(--blue)"}
+    _pat_labels = [("당일돌파형", "pat-break"), ("재돌파형", "pat-rebreak"), ("고가수축형", "pat-htc"), ("고가횡보형", "pat-hold")]
     _pat_cnt    = {}
     for c in candidates:
         pl = c.get("patterns", {}).get("pattern_type_label", "없음")

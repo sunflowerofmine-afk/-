@@ -421,9 +421,10 @@ tbody tr:hover td { background: var(--bg3); }
 }
 .list-card:hover  { background: var(--bg3); }
 .list-card.active { background: var(--bg3); border-left-color: var(--blue); border-color: var(--blue); }
-.list-card.pat-break { border-left-color: var(--green); }
-.list-card.pat-hold  { border-left-color: var(--blue); }
-.list-card.pat-htc   { border-left-color: var(--yellow); }
+.list-card.pat-break   { border-left-color: var(--green); }
+.list-card.pat-hold    { border-left-color: var(--blue); }
+.list-card.pat-htc     { border-left-color: var(--yellow); }
+.list-card.pat-rebreak { border-left-color: #f0883e; }
 .list-card.pat-watch { border-left-color: var(--yellow); }
 .pat-filter-bar { display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;padding:2px 0; }
 .pat-filter-btn { background:transparent;border:1px solid var(--border);color:var(--muted);
