@@ -1,0 +1,42 @@
+{
+  "date": "2026-06-12",
+  "generated": "2026-06-13",
+  "stocks": {
+    "039030": {
+      "name": "이오테크닉스",
+      "signal_price": 612000,
+      "52w_high": 623000,
+      "52w_low": 142800,
+      "pct_from_52w_high": -1.77,
+      "is_near_52w_high": true,
+      "days_since_52w_high": 0
+    },
+    "042700": {
+      "name": "한미반도체",
+      "signal_price": 361000,
+      "52w_high": 426000,
+      "52w_low": 79800,
+      "pct_from_52w_high": -15.26,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 21
+    },
+    "357780": {
+      "name": "솔브레인",
+      "signal_price": 441500,
+      "52w_high": 530000,
+      "52w_low": 158800,
+      "pct_from_52w_high": -16.7,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 87
+    },
+    "000990": {
+      "name": "DB하이텍",
+      "signal_price": 174300,
+      "52w_high": 230500,
+      "52w_low": 38950,
+      "pct_from_52w_high": -24.38,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 11
+    }
+  }
+}
