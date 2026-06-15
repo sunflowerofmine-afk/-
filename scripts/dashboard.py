@@ -39,6 +39,7 @@ from scripts._dashboard_sections import (
     _section_table_gainers,
     _section_table_tv,
     _section_pullback_observer,
+    _section_tracked,
     _section_52w_trend,
 )
 
@@ -248,6 +249,7 @@ def _build_html(data: dict, nav_entries: list | None = None, current_filename: s
             scope=data.get("kh_candidates_scope", "top40_only"),
         ),
         _section_recent_base_pool(data.get("obs_candidates", [])),
+        _section_tracked(data.get("tracked_candidates", [])),
         _section_review(data.get("review_results", [])),
         _section_cumulative_stats(data.get("cumulative_stats", {})),
         _section_52w_trend(),

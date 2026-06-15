@@ -480,6 +480,79 @@ def _enrich_candidates(codes: list[str], all_df: pd.DataFrame, run_type: str) ->
     return enriched
 
 
+_GRADE_ORDER = {"수축형": 0, "횡보형": 1, "생존": 2}
+_GRADE_EMOJI = {"수축형": "🟢", "횡보형": "🟡", "생존": "⚪"}
+
+
+def _collect_tracked() -> list[dict]:
+    """최근 review.json에서 D+1~D+2 추적 등급 종목 수집 → 등급순 정렬. 알림/대시보드 공용."""
+    import json as _json
+    from pathlib import Path as _Path
+
+    tracked: list[dict] = []
+    seen: set = set()
+    for rp in sorted(_Path("data/signals").glob("*_review.json"), reverse=True)[:3]:
+        try:
+            for r in _json.loads(rp.read_text(encoding="utf-8")):
+                if r.get("track_stage") in ("D+1", "D+2") and r.get("track_grade"):
+                    key = (r.get("code"), r.get("signal_date"))
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    tracked.append(r)
+        except Exception:
+            continue
+    tracked.sort(key=lambda r: (_GRADE_ORDER.get(r.get("track_grade"), 9),
+                                r.get("track_stage", "D+9")))
+    return tracked
+
+
+def _send_track_alert(run_type: str, run_time: str) -> None:
+    """기준봉 후 추적 알림 (눌림생존+고가수축형+고가횡보형 통합).
+    D+1~D+2 추적 등급 종목을 등급순으로 발송. 1차/2차 공통. 검출은 참고 정보 — 매수 신호 아님."""
+    from scripts.fetch_supply_data import fetch_supply as _fetch_supply
+
+    tracked = _collect_tracked()
+    if not tracked:
+        logger.info("기준봉 후 추적 후보 없음 — 알림 생략")
+        return
+
+    # 수급 연속성: 좁혀진 후보만 조회 (선 가격필터 → 후 소수 수급)
+    for r in tracked:
+        try:
+            sup = _fetch_supply(str(r.get("code", "")))
+            r["_inst_consec"] = sup.institution_consecutive_days
+            r["_frgn_consec"] = sup.foreign_consecutive_days
+        except Exception:
+            r["_inst_consec"] = r["_frgn_consec"] = None
+
+    def _consec_txt(v, label) -> str:
+        if not v:
+            return ""
+        return f"{label} {abs(int(v))}일 연속 {'순매수' if v > 0 else '순매도'}"
+
+    lines = [f"🔄 <b>기준봉 후 추적</b> — {run_type} ({run_time} KST)",
+             "※ 참고 정보 (매수 신호 아님) · 최고점은 자주 오나 종가까지 들면 빠질 수 있음"]
+    if run_type == "1차":
+        lines.append("⚠ 오늘 수급은 장중 잠정 (어제까지 확정 기준)")
+    lines.append("")
+    for r in tracked:
+        g = r.get("track_grade"); st = r.get("track_stage")
+        nm = r.get("name", ""); cd = r.get("code", ""); sec = r.get("sector", "")
+        supply = " · ".join(x for x in [_consec_txt(r.get("_inst_consec"), "기관"),
+                                        _consec_txt(r.get("_frgn_consec"), "외인")] if x)
+        sec_str = f"[{sec}] " if sec else ""
+        lines.append(
+            f"{_GRADE_EMOJI.get(g, '•')} <b>{nm}</b>({cd}) {sec_str}{g} · {st}\n"
+            f"  {supply if supply else '수급 정보 없음'}"
+        )
+    lines.append("\n───────────────────\n"
+                 "🟢수축형 🟡횡보형 ⚪생존 (성과 우선순위순)\n"
+                 "청산 기준: 단기 · 기준봉 고가/신호가 이탈 시 정리")
+    ntf.send_private("\n".join(lines))
+    logger.info(f"기준봉 후 추적 알림 전송: {len(tracked)}개")
+
+
 def run(preview: bool = False):
     if preview:
         ntf.set_preview_mode(True)
@@ -1388,6 +1461,7 @@ def run(preview: bool = False):
     report_data["obs_candidates"]         = obs_candidates
     report_data["followup_data"]          = followup_data
     report_data["pullback_obs_candidates"] = pullback_obs_candidates
+    report_data["tracked_candidates"]      = _collect_tracked()
 
     dashboard_links = {}
     if ENABLE_DASHBOARD:
@@ -1448,42 +1522,6 @@ def run(preview: bool = False):
         ntf.send_message(msg)
         logger.info(f"2차 알림 전송 완료 (핵심 {len(core_candidates)}개 / 관심 {len(watch_candidates)}개)")
 
-        # ── 눌림생존 스윙 연장 알림 (TELEGRAM_CHAT_ID 전용) ─────────────
-        try:
-            swing_alive = [r for r in review_results if r.get("alive_pullback") is True]
-            if swing_alive:
-                swing_lines = [f"📌 <b>눌림생존 스윙 후보</b> — D+1 장마감 기준 ({run_time} KST)\n"]
-                for r in swing_alive:
-                    name       = r.get("name", "")
-                    code       = r.get("code", "")
-                    d1c        = r.get("d1_close_pct")
-                    d1c_str    = f"{d1c:+.1f}%" if d1c is not None else "?"
-                    bullish    = "🟢 양봉" if (d1c is not None and d1c > 0) else "🔴 음봉"
-                    sector     = r.get("sector", "")
-                    pattern    = r.get("pattern_type", "")
-                    sector_str = f"[{sector}] " if sector else ""
-                    swing_lines.append(
-                        f"• <b>{name}</b>({code}) {sector_str}{pattern}\n"
-                        f"  D+1 종가 {d1c_str} ({bullish}) | 눌림 유지 ✅"
-                    )
-                swing_lines.append(
-                    "\n───────────────────\n"
-                    "📋 <b>매수 전 체크리스트</b>\n"
-                    "① D+1 종가 양봉(🟢)인 종목만 매수 검토\n"
-                    "② NXT 거래 가능 여부 확인\n"
-                    "   가능 → 지금 바로 진입 가능\n"
-                    "   불가 → 내일 아침 시가 갭 확인 후 판단\n"
-                    "③ 종목당 한도 10만원-20만원 (1-2주)\n"
-                    "④ 청산 기준: D+3 기본 / 그 전 -7% 손절\n"
-                    "\n💡 눌림생존 조건: D+1 종가 -5% 이내, 저가 -7% 이내, 거래대금 300억 이상, 장대음봉 아님"
-                )
-                ntf.send_private("\n".join(swing_lines))
-                logger.info(f"눌림생존 스윙 알림 전송: {len(swing_alive)}개")
-            else:
-                logger.info("눌림생존 스윙 후보 없음 — 알림 생략")
-        except Exception as e:
-            logger.warning(f"눌림생존 스윙 알림 실패 (무시): {e}")
-
         # ── 시장 흐름 심층 요약 (TELEGRAM_CHAT_ID 전용) ────────────────
         try:
             from scripts.llm_analyzer import summarize_market_flow
@@ -1500,6 +1538,12 @@ def run(preview: bool = False):
             logger.info("시장 흐름 요약 전송 완료")
         except Exception as e:
             logger.warning(f"시장 흐름 요약 실패 (무시): {e}")
+
+    # ── 기준봉 후 추적 알림 (1차/2차 공통) ──────────────────────────
+    try:
+        _send_track_alert(run_type, run_time)
+    except Exception as e:
+        logger.warning(f"기준봉 후 추적 알림 실패 (무시): {e}")
 
     if ENABLE_DASHBOARD:
         try:

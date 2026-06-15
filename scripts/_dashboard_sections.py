@@ -1885,6 +1885,40 @@ def _section_recent_base_pool(obs_candidates: list) -> str:
 
 # ─── 일반 눌림 관찰 섹션 (완전 별도 체계) ──────────────────────────────────────
 
+def _section_tracked(candidates: list) -> str:
+    """기준봉 후 추적 — 눌림생존·고가수축형·고가횡보형 통합. D+1~D+2. 참고 정보(매수 신호 아님)."""
+    if not candidates:
+        return ""
+
+    _badge = {"수축형": ("🟢", "#3fb950"), "횡보형": ("🟡", "#e3b341"), "생존": ("⚪", "#8b949e")}
+    rows = []
+    for c in candidates:
+        g  = c.get("track_grade", "")
+        st = c.get("track_stage", "")
+        emoji, color = _badge.get(g, ("•", "#8b949e"))
+        rows.append(
+            "<tr>"
+            f'<td class="td-name">{_e(c.get("name",""))}'
+            f'<br><small class="muted">{_e(c.get("code",""))}</small></td>'
+            f'<td><small style="color:var(--muted)">{_e(c.get("sector","") or "-")}</small></td>'
+            f'<td style="color:{color};font-weight:600">{emoji} {_e(g)}</td>'
+            f'<td style="text-align:center">{_e(st)}</td>'
+            f'<td><small class="muted">{_e(c.get("signal_date","") or "-")}</small></td>'
+            "</tr>"
+        )
+    return (
+        '<div class="section-title">🔄 기준봉 후 추적</div>'
+        '<div style="font-size:12px;color:var(--muted);margin-bottom:8px">'
+        '눌림생존·고가수축형·고가횡보형 통합 · D+1~D+2 · 참고 정보 (매수 신호 아님)</div>'
+        '<table style="width:100%;border-collapse:collapse;font-size:13px">'
+        '<thead><tr style="text-align:left;color:var(--muted);font-size:12px">'
+        '<th>종목</th><th>섹터</th><th>등급</th><th style="text-align:center">단계</th><th>신호일</th>'
+        '</tr></thead><tbody>' + "".join(rows) + '</tbody></table>'
+        '<div style="font-size:11px;color:var(--muted);margin-top:6px">'
+        '🟢수축형 🟡횡보형 ⚪생존 (성과 우선순위순) · 청산 기준: 단기, 기준봉 고가/신호가 이탈 시 정리</div>'
+    )
+
+
 def _section_pullback_observer(candidates: list) -> str:
     """일반 눌림 관찰 — 매수 신호 아님. 기존 종가베팅/김형준 기법과 완전 분리."""
     if not candidates:

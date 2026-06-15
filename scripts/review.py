@@ -10,6 +10,7 @@ from pathlib import Path
 import pandas as pd
 
 from scripts.fetch_stock_data import fetch_daily_history
+from scripts.pattern_detector import detect_patterns
 
 try:
     from config.settings import REQUEST_DELAY
@@ -291,6 +292,67 @@ def _check_alive_pullback(r: dict, signal_tv: float, failed: bool) -> bool | Non
     return True
 
 
+# ── 기준봉 후 추적 등급 판정 ────────────────────────────────────────
+
+def _classify_track_grade(entry: dict, hist: pd.DataFrame) -> tuple[str | None, str | None]:
+    """
+    오늘 시점 패턴 재검사로 추적 등급 판정. D+1~D+2만 대상 (D+3 이상 제외).
+    반환: (등급, 단계) — 등급 ∈ {"수축형","횡보형","생존"}, 단계 ∈ {"D+1","D+2"}. 해당 없으면 (None, None).
+    """
+    sp = float(entry.get("signal_price") or 0)
+    sd = entry.get("signal_date", "")
+    if sp <= 0 or not sd or hist is None or hist.empty:
+        return None, None
+
+    h = (hist.drop_duplicates("date")
+             .sort_values("date", ascending=False)
+             .reset_index(drop=True))
+    sig_dot = sd.replace("-", ".")
+    idxs = h.index[h["date"] == sig_dot].tolist()
+    if not idxs:
+        return None, None
+
+    stage_n = int(idxs[0])           # 신호일 행의 위치 = 신호 후 경과 거래일 (0=오늘이 신호일)
+    if stage_n not in (1, 2):        # D+1, D+2만
+        return None, None
+    if len(h) < 6:
+        return None, None
+
+    today = h.iloc[0]
+
+    def _f(row, col) -> float:
+        try:
+            v = float(row[col])
+            return v if v > 0 else 0.0
+        except (TypeError, ValueError, KeyError):
+            return 0.0
+
+    try:
+        res = detect_patterns(
+            code=str(entry.get("code", "")),
+            today_open=_f(today, "open"),
+            today_high=_f(today, "high"),
+            today_low=_f(today, "low"),
+            today_close=_f(today, "close"),
+            today_change_pct=float(today.get("change_pct", 0) or 0),
+            today_tv=_f(today, "trading_value"),
+            daily_df=h,
+        )
+    except Exception:
+        return None, None
+
+    stage = f"D+{stage_n}"
+    if res.get("high_tight_consolidation_flag"):
+        return "수축형", stage
+    if res.get("pattern3"):
+        return "횡보형", stage
+    # 생존: 신호가 -5% 이내 유지 + 구조 붕괴 아님
+    tclose = _f(today, "close")
+    if tclose > 0 and (tclose - sp) / sp * 100 >= -5 and not res.get("structure_broken_flag"):
+        return "생존", stage
+    return None, None
+
+
 # ── 멀티데이 데이터 entry 보강 ──────────────────────────────────────
 
 def _enrich_entry_with_returns(entry: dict, hist: pd.DataFrame) -> None:
@@ -321,6 +383,11 @@ def _enrich_entry_with_returns(entry: dict, hist: pd.DataFrame) -> None:
     entry["alive_pullback"]      = alive
     entry["interim_result_type"] = _classify_interim_result_type(r)
     entry["final_result_type"]   = _classify_final_result_type(r)  # None if D+5 미확보
+
+    # 기준봉 후 추적 등급 (D+1~D+2 한정, 오늘 시점 패턴 재검사)
+    track_grade, track_stage = _classify_track_grade(entry, hist)
+    entry["track_grade"] = track_grade
+    entry["track_stage"] = track_stage
 
     # 섹터 주도성 (D+1 날짜 daily_summary 참조, 없으면 None)
     d1_date = r.get("_d1_date_str")
@@ -459,6 +526,9 @@ def run(today: date, kospi_chg_today: float | None) -> list[dict]:
             "alive_pullback":      None,
             "failed_structure":    None,
             "sector_still_active": None,
+            # ── 기준봉 후 추적 ─────────────────────────
+            "track_grade":         None,
+            "track_stage":         None,
         }
 
         try:
