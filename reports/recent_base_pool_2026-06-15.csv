@@ -1,0 +1,3 @@
+﻿종목명,종목코드,시장,등락률,거래대금,signal_price,sector,source_pool,observation_only,pattern_type_label,is_htc_candidate,is_high_range_candidate,kim_hyungjun_flag,base_candle_date,base_candle_offset,today_tv_ratio,close_from_base_high_pct,above_ma5,supply_label,note
+솔브레인,357780,KOSDAQ,-3.28,28744786000.0,427000.0,반도체와반도체장비,recent_base_pool,True,없음,False,False,False,2026-06-12,1,0.13743301253175844,-7.475622968580716,,,최근 기준봉 이후 관찰 후보 (매수 신호 아님)
+미래에셋생명,085620,KOSPI,1.24,138009954850.0,28400.0,생명보험,recent_base_pool,True,없음,False,False,False,2026-06-09,2,0.7600619777132055,-3.2367972742759794,,,최근 기준봉 이후 관찰 후보 (매수 신호 아님)
