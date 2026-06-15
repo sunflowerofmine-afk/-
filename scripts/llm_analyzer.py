@@ -4,6 +4,7 @@
 import json
 import logging
 import sys
+import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -33,6 +34,33 @@ def _get_client():
     except Exception as e:
         logger.warning(f"Gemini 초기화 실패: {e}")
     return _client
+
+
+def _generate(prompt: str, temperature: float = 0.3) -> str:
+    """Gemini 호출 + 503 일시 과부하 시 최대 3회 재시도."""
+    from google.genai import types as _gtypes
+    client = _get_client()
+    if not client:
+        raise RuntimeError("Gemini 클라이언트 없음")
+    cfg = _gtypes.GenerateContentConfig(
+        temperature=temperature,
+        thinking_config=_gtypes.ThinkingConfig(thinking_budget=0),
+    )
+    for attempt in range(3):
+        try:
+            resp = client.models.generate_content(
+                model=GEMINI_MODEL, contents=prompt, config=cfg,
+            )
+            return resp.text.strip()
+        except Exception as e:
+            is_503 = "503" in str(e) or "UNAVAILABLE" in str(e)
+            if is_503 and attempt < 2:
+                wait = 10 * (attempt + 1)
+                logger.warning(f"Gemini 503 — {wait}초 후 재시도 ({attempt+1}/3)")
+                time.sleep(wait)
+            else:
+                raise
+    raise RuntimeError("Gemini 재시도 초과")
 
 
 def _check_danger(titles: list[str]) -> str:
@@ -243,16 +271,7 @@ N. [섹터명]
 - 형식을 정확히 지킬 것. 추가 설명·인사말 없이 바로 출력."""
 
     try:
-        from google.genai import types as _gtypes
-        resp = client.models.generate_content(
-            model=GEMINI_MODEL,
-            contents=prompt,
-            config=_gtypes.GenerateContentConfig(
-                temperature=0.3,
-                thinking_config=_gtypes.ThinkingConfig(thinking_budget=0),
-            ),
-        )
-        return resp.text.strip()
+        return _generate(prompt)
     except Exception as e:
         logger.warning(f"시장 흐름 요약 실패: {e}")
         return f"[요약 실패: {e}]"
@@ -288,16 +307,7 @@ def summarize_us_market(indices: dict, headlines: list[str]) -> str:
 - 전체 3줄 이내"""
 
     try:
-        from google.genai import types as _gtypes
-        resp = client.models.generate_content(
-            model=GEMINI_MODEL,
-            contents=prompt,
-            config=_gtypes.GenerateContentConfig(
-                temperature=0.3,
-                thinking_config=_gtypes.ThinkingConfig(thinking_budget=0),
-            ),
-        )
-        return resp.text.strip()
+        return _generate(prompt)
     except Exception as e:
         logger.warning(f"미국장 요약 실패: {e}")
         return "[요약] " + " / ".join(headlines[:2]) if headlines else "[요약 실패]"
