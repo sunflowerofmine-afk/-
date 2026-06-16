@@ -480,6 +480,8 @@ def _enrich_candidates(codes: list[str], all_df: pd.DataFrame, run_type: str) ->
     return enriched
 
 
+logger = logging.getLogger(__name__)
+
 _GRADE_ORDER = {"수축형": 0, "횡보형": 1, "생존": 2}
 _GRADE_EMOJI = {"수축형": "🟢", "횡보형": "🟡", "생존": "⚪"}
 
