@@ -1,0 +1,15 @@
+{
+  "date": "2026-06-18",
+  "generated": "2026-06-19",
+  "stocks": {
+    "001820": {
+      "name": "삼화콘덴서",
+      "signal_price": 190100,
+      "52w_high": 196800,
+      "52w_low": 24950,
+      "pct_from_52w_high": -3.4,
+      "is_near_52w_high": true,
+      "days_since_52w_high": 0
+    }
+  }
+}
