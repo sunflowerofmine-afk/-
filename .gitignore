@@ -40,3 +40,6 @@ CLAUDE.md
 .claude/
 "test_artifact_check/" 
 data/backtest_cache/
+
+# ── 개인 공부용 매매일지 수집 데이터 (공개 금지) ──
+매매일지분석/
