@@ -57,6 +57,7 @@ def calc_score(
     in_intersection: bool = False,
     patterns:   dict | None = None,
     is_leading_sector: bool = False,
+    near_high_52w: bool = False,
 ) -> ScoreDetail:
     """
     ScoreDetail 계산.
@@ -124,6 +125,9 @@ def calc_score(
         if patterns.get("high_tight_reignite_flag"):
             s.bonus_score += 1
             s.reasons.append("보너스 +1 (고가수축 재점화)")
+    if near_high_52w:
+        s.bonus_score += 1
+        s.reasons.append("보너스 +1 (52주 신고가 근접)")
 
     s.calc_total()
     return s

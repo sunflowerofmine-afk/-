@@ -1286,6 +1286,105 @@ def _generate_html(
   </table>
 </div>"""
 
+    # ── 3축 피드백 카드 ────────────────────────────────────────
+    tc = s.get("tag_counts", {})
+
+    _w_stocks = [r for r in stocks if r.get("weight_pct") is not None]
+    _avg_w    = round(sum(r["weight_pct"] for r in _w_stocks) / len(_w_stocks), 1) if _w_stocks else None
+    _max_w_st = max(_w_stocks, key=lambda r: r["weight_pct"]) if _w_stocks else None
+    _max_w    = _max_w_st["weight_pct"] if _max_w_st else None
+    _max_w_nm = _max_w_st["name"]       if _max_w_st else ""
+
+    _oversized_n      = tc.get("OVERSIZED_POSITION", 0)
+    _avgdown_n        = tc.get("AVERAGING_DOWN", 0)
+    _d1_targets_n     = tc.get("D1_EXIT_RULE_TARGET", 0)
+    _d1_ok_n          = tc.get("D1_EXIT_ON_TIME", 0) + tc.get("NXT_MORNING_EXIT", 0)
+    _d1_missed_n      = tc.get("D1_EXIT_MISSED", 0)
+    _d1_delayed_n     = tc.get("D1_EXIT_DELAYED", 0)
+    _gapdown_missed_n = tc.get("GAP_DOWN_STOP_MISSED", 0)
+    _non_signal_n     = tc.get("NON_SIGNAL_TRADE", 0)
+    _non_inter_n      = tc.get("NON_INTERSECTION_TRADE", 0)
+    _d1_chase_tot_n   = es.get("d1_chase_n", 0) + es.get("reverse_n", 0)
+    _nxt_chase_tot_n  = es.get("nxt_chase_n", 0) + es.get("nxt_caution_n", 0)
+
+    def _ax(n, warn=1, crit=3):
+        if n == 0:  return "#4caf50"
+        if n < crit: return "#fb8c00"
+        return "#ef5350"
+
+    _d1_exit_color = (
+        "#4caf50" if _d1_targets_n == 0 or _d1_ok_n == _d1_targets_n
+        else "#fb8c00" if _d1_missed_n == 0
+        else "#ef5350"
+    )
+
+    three_axis_html = f"""
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px">
+  <div class="card" style="border-top:3px solid #7c4dff;margin-bottom:0">
+    <div style="font-size:13px;font-weight:600;color:#bdbdbd;margin-bottom:10px">비중 규율</div>
+    <div style="display:flex;flex-direction:column;gap:7px;font-size:13px">
+      <div style="display:flex;justify-content:space-between">
+        <span style="color:#888">평균 비중</span>
+        <span>{f"{_avg_w:.1f}%" if _avg_w is not None else "-"}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between">
+        <span style="color:#888">최대 비중</span>
+        <span>{f"{_max_w:.1f}% ({_e(_max_w_nm)})" if _max_w is not None else "-"}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between">
+        <span style="color:#888">과대포지션(&gt;30%)</span>
+        <span style="color:{_ax(_oversized_n)};font-weight:600">{_oversized_n}건</span>
+      </div>
+      <div style="display:flex;justify-content:space-between">
+        <span style="color:#888">물타기</span>
+        <span style="color:{_ax(_avgdown_n)};font-weight:600">{_avgdown_n}건</span>
+      </div>
+    </div>
+  </div>
+  <div class="card" style="border-top:3px solid #ef5350;margin-bottom:0">
+    <div style="font-size:13px;font-weight:600;color:#bdbdbd;margin-bottom:10px">손절 규율</div>
+    <div style="display:flex;flex-direction:column;gap:7px;font-size:13px">
+      <div style="display:flex;justify-content:space-between">
+        <span style="color:#888">D+1 청산 이행</span>
+        <span style="color:{_d1_exit_color};font-weight:600">{_d1_ok_n}/{_d1_targets_n}건</span>
+      </div>
+      <div style="display:flex;justify-content:space-between">
+        <span style="color:#888">D+1 미청산</span>
+        <span style="color:{_ax(_d1_missed_n)};font-weight:600">{_d1_missed_n}건</span>
+      </div>
+      <div style="display:flex;justify-content:space-between">
+        <span style="color:#888">청산 지연(09:30↑)</span>
+        <span style="color:{_ax(_d1_delayed_n)};font-weight:600">{_d1_delayed_n}건</span>
+      </div>
+      <div style="display:flex;justify-content:space-between">
+        <span style="color:#888">갭하락 손절 미이행</span>
+        <span style="color:{_ax(_gapdown_missed_n)};font-weight:600">{_gapdown_missed_n}건</span>
+      </div>
+    </div>
+  </div>
+  <div class="card" style="border-top:3px solid #ff9800;margin-bottom:0">
+    <div style="font-size:13px;font-weight:600;color:#bdbdbd;margin-bottom:10px">심리 상태</div>
+    <div style="display:flex;flex-direction:column;gap:7px;font-size:13px">
+      <div style="display:flex;justify-content:space-between">
+        <span style="color:#888">비신호 매매</span>
+        <span style="color:{_ax(_non_signal_n)};font-weight:600">{_non_signal_n}건</span>
+      </div>
+      <div style="display:flex;justify-content:space-between">
+        <span style="color:#888">비교집합 매매</span>
+        <span style="color:{_ax(_non_inter_n)};font-weight:600">{_non_inter_n}건</span>
+      </div>
+      <div style="display:flex;justify-content:space-between">
+        <span style="color:#888">D+1 추격 매수</span>
+        <span style="color:{_ax(_d1_chase_tot_n)};font-weight:600">{_d1_chase_tot_n}건</span>
+      </div>
+      <div style="display:flex;justify-content:space-between">
+        <span style="color:#888">NXT 추격 진입</span>
+        <span style="color:{_ax(_nxt_chase_tot_n)};font-weight:600">{_nxt_chase_tot_n}건</span>
+      </div>
+    </div>
+  </div>
+</div>"""
+
     return f"""<!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -1307,31 +1406,26 @@ def _generate_html(
 
 {lesson_html}
 
-<div class="card">
-  <div style="display:flex;gap:32px;flex-wrap:wrap">
+{three_axis_html}
+
+<div class="card" style="padding:12px 16px">
+  <div style="display:flex;gap:32px;flex-wrap:wrap;font-size:13px">
     <div>
-      <div style="font-size:12px;color:#888">엄격 준수율</div>
-      <div style="font-size:32px;font-weight:700;color:{cr_color}">{f"{cr:.1f}%" if cr is not None else "-"}</div>
-      <div style="font-size:12px;color:#aaa">{s['compliant_stocks']}/{s['total_stocks']} 종목 (위반 태그 없음)</div>
+      <span style="color:#888">기간 실현 손익</span>
+      <span style="font-size:18px;font-weight:700;margin-left:8px;{_pct_color(rp)}">{_fmt_krw(s['total_realized'])}</span>
+      <span style="color:#888;margin-left:4px">{_fmt_pct(rp)}</span>
     </div>
     <div>
-      <div style="font-size:12px;color:#888">기간 실현 손익</div>
-      <div style="font-size:28px;font-weight:700;{_pct_color(rp)}">{_fmt_krw(s['total_realized'])}</div>
-      <div style="font-size:12px;color:#aaa">{_fmt_pct(rp)} (매수금액 기준)</div>
+      <span style="color:#888">신호/교집합</span>
+      <span style="font-size:16px;font-weight:600;margin-left:8px">{s['signal_count']} / {s['inter_count']}</span>
+      <span style="color:#888;font-size:12px;margin-left:4px">총 {s['total_stocks']}종목</span>
     </div>
     <div>
-      <div style="font-size:12px;color:#888">신호 종목 / 교집합</div>
-      <div style="font-size:24px;font-weight:700">{s['signal_count']} / {s['inter_count']}</div>
-      <div style="font-size:12px;color:#aaa">총 {s['total_stocks']}개 종목</div>
-    </div>
-    <div>
-      <div style="font-size:12px;color:#888">총 매수금액</div>
-      <div style="font-size:20px;font-weight:600">{s['total_buy_value']:,.0f}원</div>
+      <span style="color:#888">총 매수금액</span>
+      <span style="font-size:15px;font-weight:600;margin-left:8px">{s['total_buy_value']:,.0f}원</span>
     </div>
   </div>
 </div>
-
-{item_compliance_html}
 
 {trend_html}
 
@@ -1356,6 +1450,19 @@ def _generate_html(
     ※ 조건부 NXT는 준수율 위반으로 집계되나 별도 추적 | 누적 손익은 trade_history.json 전체 기준
   </div>
 </div>
+
+<div class="card" style="border-left:3px solid #444">
+  <div style="font-size:12px;color:#555;margin-bottom:8px">참고 지표 — 준수율</div>
+  <div style="display:flex;gap:24px;flex-wrap:wrap;font-size:13px">
+    <div>
+      <span style="color:#888">엄격 준수율</span>
+      <span style="font-size:15px;font-weight:600;color:{cr_color};margin-left:6px">{f"{cr:.1f}%" if cr is not None else "-"}</span>
+      <span style="color:#555;font-size:11px;margin-left:4px">({s['compliant_stocks']}/{s['total_stocks']}종목 위반 없음)</span>
+    </div>
+  </div>
+</div>
+
+{item_compliance_html}
 
 <div style="font-size:14px;font-weight:600;margin-bottom:8px">종목별 분석</div>
 {stock_cards}

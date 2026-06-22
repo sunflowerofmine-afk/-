@@ -18,6 +18,7 @@ _SYMBOLS = {
     "VIX":           "^VIX",
     "필라델피아반도체": "^SOX",
     "달러/원":        "USDKRW=X",
+    "WTI유가":        "CL=F",
 }
 
 _RSS_URLS = [

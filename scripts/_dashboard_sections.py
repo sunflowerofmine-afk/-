@@ -766,6 +766,11 @@ def _section_stock_panel(candidates: list, rejected: list, market_regime: str = 
             "weaknesses":   _compute_weaknesses(c),
             "checkpoints":  _compute_checkpoints(c),
             "dart":         c.get("dart_notices"),   # None=미조회, []=공시없음
+            "guide_txt":    (_position_guide_parts(c) or ("", ""))[0],
+            "guide_cls":    (_position_guide_parts(c) or ("", ""))[1],
+            "oversupply_txt": _oversupply_text(c),
+            "fresh_txt":    (_freshness_text(c) or ("", ""))[0],
+            "fresh_cls":    (_freshness_text(c) or ("", ""))[1],
         })
 
     cands_json = _json.dumps(js_data, ensure_ascii=False)
@@ -824,9 +829,22 @@ function renderDetail(idx) {{
   h += '<div class="detail-kv"><span class="k">점수</span><span class="v" style="color:var(--blue);font-weight:700">' + c.score + '점</span><div style="font-size:11px;color:var(--muted);margin-top:2px">뉴스 ' + c.score_news + ' · 대금 ' + c.score_tv + ' · 캔들 ' + c.score_candle + ' · 수급 ' + c.score_supply + ' · 보너스 ' + c.score_bonus + '</div>' + reasonsHtml + '</div>';
   h += '<div class="detail-kv"><span class="k">신호가</span><span class="v">' + c.entry_ref_str + (c.price_src ? ' <span style="color:var(--muted);font-size:11px">(' + c.price_src + ')</span>' : '') + '</span></div>';
   h += '</div></div>';
+  const _colMap = {{pos:'var(--green)', neg:'var(--red)', warn:'var(--yellow)'}};
+  const guideHtml = c.guide_txt
+    ? '<div class="detail-section"><div class="detail-section-title">💼 비중 가이드</div><div style="font-size:14px;font-weight:600;color:' + (_colMap[c.guide_cls]||'var(--text)') + '">' + c.guide_txt + '</div></div>'
+    : '';
+  h += guideHtml;
   h += '<div class="detail-section"><div class="detail-section-title">강점</div>' + strHtml + '</div>';
   h += '<div class="detail-section"><div class="detail-section-title">약점</div>' + wkHtml + '</div>';
   h += supHtml;
+  const overHtml = c.oversupply_txt
+    ? '<div class="detail-section"><div class="detail-section-title">🔥 오버수급 (5일/상장주식수)</div><div style="font-size:13px;color:var(--green);font-weight:600">' + c.oversupply_txt + '</div></div>'
+    : '';
+  h += overHtml;
+  const freshHtml = c.fresh_txt
+    ? '<div class="detail-section"><div class="detail-section-title">재료 신선도</div><div style="font-size:13px;color:' + (c.fresh_cls === 'pos' ? 'var(--green)' : 'var(--yellow)') + '">' + (c.fresh_cls === 'pos' ? '🆕 ' : '♻️ ') + c.fresh_txt + '</div></div>'
+    : '';
+  h += freshHtml;
   const dartHtml = (c.dart === null || c.dart === undefined)
     ? ''
     : (c.dart.length
@@ -927,26 +945,73 @@ def _pension_html(c: dict) -> str:
     )
 
 
-def _position_guide_html(c: dict) -> str:
-    """손절남 기준 비중 가이드 행 HTML"""
+def _position_guide_parts(c: dict) -> tuple[str, str] | None:
+    """비중 가이드 (텍스트, 클래스) — 5-6월 백테스트 기반.
+
+    검증: 10-12점 최적(60.9%) > 13점+ 과열(50%). 코스닥 약세국면 13점+=20%(자살골).
+    cls: pos/neg/warn. 해당 없으면 None.
+    """
     chg   = float(c.get("change_pct", 0))
     _sc   = c.get("score")
     score = int(_sc.total_score) if _sc and hasattr(_sc, "total_score") else int(c.get("total_score") or 0)
     inter = c.get("in_inter", False)
+    regime = c.get("kosdaq_regime")  # 강세/혼조/약세/None (pipeline 주입)
+
+    if regime == "약세":
+        if score >= 13:
+            return "⚠ 회피 (약세장 과열주 승률 20%)", "neg"
+        if score >= 10:
+            return "약세장 소액만 (10~15%)", "warn"
+        return "약세장 — 관망 권고", "neg"
     if chg >= 25:
-        txt = "⚠ 축소 권고 (급등25%↑ · 승률 50%)"
-        cls = "val neg"
-    elif score >= 13 or (score >= 10 and inter):
-        txt = "강한 후보 (30~50%)"
-        cls = "val pos"
-    elif score >= 10:
-        txt = "일반 후보 (20~30%)"
-        cls = "val"
-    elif score >= 7:
-        txt = "소액 테스트 (10~20%)"
-        cls = "val warn"
-    else:
+        return "⚠ 축소 (급등25%↑ · 승률 50%)", "neg"
+    if score >= 13:
+        return "⚠ 과열 주의 비중축소 (13점+=50%)", "warn"
+    if score >= 10:
+        base = "최적 비중대 (30~40%, 10-12점=61%)"
+        if regime == "혼조":
+            base = "최적·적극 (혼조장 76% · 30~40%)"
+        elif inter:
+            base = "최적+교집합 (35~45%)"
+        return base, "pos"
+    if score >= 7:
+        return "소액 테스트 (10~20%)", "warn"
+    return None
+
+
+def _oversupply_text(c: dict) -> str:
+    """오버수급 텍스트 (1%↑만). 없으면 빈 문자열."""
+    from config.settings import OVERSUPPLY_RATIO_PCT
+    parts = []
+    inst = c.get("inst_oversupply_pct")
+    frgn = c.get("frgn_oversupply_pct")
+    if inst is not None and inst >= OVERSUPPLY_RATIO_PCT:
+        parts.append(f"기관 {inst:.1f}%")
+    if frgn is not None and frgn >= OVERSUPPLY_RATIO_PCT:
+        parts.append(f"외인 {frgn:.1f}%")
+    return ", ".join(parts)
+
+
+def _freshness_text(c: dict) -> tuple[str, str] | None:
+    """재료 신선도 (텍스트, 클래스). 없으면 None."""
+    from config.settings import FRESHNESS_STALE_MIN_COUNT
+    f = c.get("freshness_count")
+    if f is None:
+        return None
+    if f == 0:
+        return "신규 등장", "pos"
+    if f >= FRESHNESS_STALE_MIN_COUNT:
+        return f"{f}일째 등장 (식상 가능)", "warn"
+    return None
+
+
+def _position_guide_html(c: dict) -> str:
+    """비중 가이드 행 HTML (card-row용). _position_guide_parts 사용."""
+    r = _position_guide_parts(c)
+    if not r:
         return ""
+    txt, cls = r
+    cls = "val " + cls
     return (
         f'<div class="card-row"><span class="lbl">💼 비중 가이드</span>'
         f'<span class="{cls}">{txt}</span></div>'
@@ -962,10 +1027,14 @@ def _risk_tags_html(c: dict) -> str:
     tags  = []
     if chg >= 25:
         tags.append("⚠ 급등25%↑")
+    if score >= 13:
+        tags.append("⚠ 고점수 과열(13+)")   # 검증: 13점+ 승률 50%, 10-12점 61%보다 낮음
     if 0 < score <= 9:
         tags.append("⚠ 저스코어")
     if 0 < tv < 250_000_000_000:
         tags.append("⚠ 대금근접")
+    if c.get("kosdaq_regime") == "약세":
+        tags.append("⚠ 코스닥 약세국면(39%)")
     if not tags:
         return ""
     badges = "".join(
@@ -988,6 +1057,97 @@ def _dart_html(c: dict) -> str:
         for n in notices[:3]
     )
     return f'<div style="margin-top:6px;padding:6px 8px;background:var(--bg3);border-radius:4px">{rows}</div>'
+
+
+def _section_regime_guide(data: dict) -> str:
+    """코스닥 지수 국면 + 행동 가이드 상단 배너 (backtest_regime_largecap).
+
+    승률의 1차 변수가 시장 국면(혼조 76% / 약세 39%)이므로 종목보다 먼저 보이게 한다.
+    """
+    ir = (data.get("market_summary", {}) or {}).get("index_regime")
+    if not ir:
+        return ""
+    kd = ir.get("kosdaq_regime", "?")
+    kp = ir.get("kospi_regime", "?")
+    guide = ir.get("guide", "")
+    color = {"강세": "#d97706", "혼조": "#16a34a", "약세": "#dc2626", "?": "#888"}.get(kd, "#888")
+    emoji = {"강세": "🟢", "혼조": "🟡", "약세": "🔴", "?": "⚪"}.get(kd, "")
+    decoup = ""
+    if ir.get("decoupled_largecap"):
+        decoup = ('<div style="margin-top:6px;font-size:13px;color:#b45309">'
+                  '⚠ 코스피 강세·코스닥 약세 <b>디커플링</b> → 추세 좋은 대형주 우위 국면 '
+                  '(코스닥 테마 종베는 약세장 39%)</div>')
+    return (
+        f'<div style="margin:10px 0;padding:12px 14px;border-radius:8px;'
+        f'background:var(--bg2);border-left:5px solid {color}">'
+        f'<div style="font-size:15px;font-weight:700;color:{color}">'
+        f'{emoji} 코스닥 국면: {kd} <span style="font-size:12px;color:var(--muted)">'
+        f'(코스피 {kp})</span></div>'
+        f'<div style="margin-top:4px;font-size:13px">{_e(guide)}</div>'
+        f'{decoup}'
+        f'<div style="margin-top:6px;font-size:12px;color:var(--muted)">'
+        f'공통 타점: 종가 진입 → <b>D+1 오전 분할 매도</b> (천장 D+1 48% · 종가까지 보유 시 수익 반납)</div>'
+        f'</div>'
+    )
+
+
+def _section_largecap(candidates: list) -> str:
+    """대형주 추세추종 관찰 섹션 (backtest_regime_largecap).
+
+    코스피 강세 국면일 때만 후보가 채워진다(약세장 미활성). 매수신호 아닌 관찰정보.
+    """
+    if not candidates:
+        return ""
+    rows = []
+    for c in candidates:
+        tv_eok = float(c.get("trading_value", 0)) / 1e8
+        rows.append(
+            f'<tr><td>{_e(c.get("name",""))}<span style="color:var(--muted);font-size:11px"> '
+            f'{_e(c.get("code",""))}</span></td>'
+            f'<td style="text-align:right">{c.get("change_pct",0):+.2f}%</td>'
+            f'<td style="text-align:right">5일선 +{c.get("ma5_gap_pct",0):.1f}%</td>'
+            f'<td style="text-align:right">{tv_eok:,.0f}억</td></tr>'
+        )
+    return (
+        '<div class="section-title">🏛 대형주 추세 관찰 '
+        '<span style="font-size:12px;color:var(--muted)">(코스피 강세 국면 · 5일선 위+당일양봉 · 검증 69%)</span></div>'
+        '<div style="font-size:12px;color:var(--muted);margin-bottom:6px">'
+        '안 올라도 추세 좋은 대형주. 5일선 이격 작은 순(추세 초입). D+1 시초가 매도 원칙 동일. 관찰 정보일 뿐 매수신호 아님.</div>'
+        '<table class="data-table"><thead><tr>'
+        '<th>종목</th><th>당일</th><th>5일선이격</th><th>거래대금</th></tr></thead>'
+        f'<tbody>{"".join(rows)}</tbody></table>'
+    )
+
+
+def _oversupply_html(c: dict) -> str:
+    """오버수급(상장주식수 대비 5일 누적 순매수 비율) 행 — 1%↑ 종목만 표시."""
+    from config.settings import OVERSUPPLY_RATIO_PCT
+    parts = []
+    inst = c.get("inst_oversupply_pct")
+    frgn = c.get("frgn_oversupply_pct")
+    if inst is not None and inst >= OVERSUPPLY_RATIO_PCT:
+        parts.append(f"기관 {inst:.1f}%")
+    if frgn is not None and frgn >= OVERSUPPLY_RATIO_PCT:
+        parts.append(f"외인 {frgn:.1f}%")
+    if not parts:
+        return ""
+    return (f'<div class="card-row"><span class="lbl">🔥 오버수급(5일/상장주식수)</span>'
+            f'<span class="val pos">{", ".join(parts)}</span></div>')
+
+
+def _freshness_html(c: dict) -> str:
+    """재료 신선도(과거 signals 등장 횟수 근사) 행."""
+    from config.settings import FRESHNESS_STALE_MIN_COUNT
+    f = c.get("freshness_count")
+    if f is None:
+        return ""
+    if f == 0:
+        return ('<div class="card-row"><span class="lbl">🆕 재료 신선도</span>'
+                '<span class="val pos">신규 등장</span></div>')
+    if f >= FRESHNESS_STALE_MIN_COUNT:
+        return (f'<div class="card-row"><span class="lbl">♻️ 재료 신선도</span>'
+                f'<span class="val warn">{f}일째 등장 (식상 가능)</span></div>')
+    return ""
 
 
 def _candidate_card_html(c: dict) -> str:
@@ -1122,6 +1282,8 @@ def _candidate_card_html(c: dict) -> str:
       <span class="val">{inst_str if sup_ok else '확인불가'}</span></div>
     <div class="card-row"><span class="lbl">외국인 순매수</span>
       <span class="val">{frgn_str if sup_ok else '확인불가'}</span></div>
+    {_oversupply_html(c)}
+    {_freshness_html(c)}
     {_short_html(c)}
     {_pension_html(c)}
     {_position_guide_html(c)}

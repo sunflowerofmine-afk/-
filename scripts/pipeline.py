@@ -22,6 +22,7 @@ from config.settings import (
     ENABLE_DART_FETCH, DART_API_KEY,
     ENABLE_SHORT_BALANCE,
     ENABLE_PENSION_FETCH,
+    ENABLE_LARGECAP_OBSERVER,
     MARKET_REGIME_BULL_ADL, MARKET_REGIME_BEAR_ADL, MARKET_REGIME_BULL_TV1500,
     CANDIDATES_MAX_BULL, CANDIDATES_MAX_NEUTRAL, CANDIDATES_MAX_BEAR, CANDIDATES_MAX_CONCENTRATED_BEAR,
     KH_CRAWL_MIN_TV_EOK,
@@ -359,7 +360,19 @@ def _enrich_candidates(codes: list[str], all_df: pd.DataFrame, run_type: str) ->
             today_high = _d0_high if _d0_high > 0 else _close
             today_low  = _d0_low  if _d0_low  > 0 else _close
             today_open = _d0_open if _d0_open > 0 else _open
-            enr["today_high"] = today_high
+            enr["today_high"]       = today_high
+            enr["today_open_price"] = today_open if today_open > 0 else None
+
+            # 전일 고가·종가 (청산 참고선)
+            if len(daily_df) > 1:
+                _d1 = daily_df.iloc[1]
+                _ph = float(_d1.get("high",  0) or 0)
+                _pc = float(_d1.get("close", 0) or 0)
+                enr["prev_high"]  = _ph if _ph > 0 else None
+                enr["prev_close"] = _pc if _pc > 0 else None
+            else:
+                enr["prev_high"]  = None
+                enr["prev_close"] = None
 
             bc = is_big_candle(
                 open_=today_open,
@@ -452,6 +465,13 @@ def _enrich_candidates(codes: list[str], all_df: pd.DataFrame, run_type: str) ->
                     else float(row.get("현재가", 0))
                 )
                 if sup.status == "ok" and _price > 0:
+                    # 오버수급 비율 (상장주식수 대비) — 주 단위 원본으로 곱하기 전 계산
+                    _shares = float(row.get("상장주식수", 0) or 0)
+                    if _shares > 0:
+                        _inst_5d_sh = sup.institution_net_5d or 0
+                        _frgn_5d_sh = sup.foreign_net_5d or 0
+                        enr["inst_oversupply_pct"] = round(_inst_5d_sh / _shares * 100, 2)
+                        enr["frgn_oversupply_pct"] = round(_frgn_5d_sh / _shares * 100, 2)
                     if sup.institution_net is not None:
                         sup.institution_net = sup.institution_net * _price
                     if sup.foreign_net is not None:
@@ -484,6 +504,38 @@ logger = logging.getLogger(__name__)
 
 _GRADE_ORDER = {"수축형": 0, "횡보형": 1, "생존": 2}
 _GRADE_EMOJI = {"수축형": "🟢", "횡보형": "🟡", "생존": "⚪"}
+
+
+def _build_freshness_map() -> dict[str, int]:
+    """과거 signals.csv에서 종목별 '며칠 등장했는지' 카운트 (재료 신선도 근사).
+
+    오늘 이전 최근 FRESHNESS_LOOKBACK_DAYS 거래일 중 해당 종목이 신호로 잡힌 고유 날짜 수.
+    0 = 신규 등장(신선), FRESHNESS_STALE_MIN_COUNT 이상 = 이미 진행된 재료(식상 가능).
+    """
+    import csv as _csv
+    from datetime import date as _date
+    from pathlib import Path as _P
+    from config.settings import FRESHNESS_LOOKBACK_DAYS
+
+    today_str = _date.today().strftime("%Y-%m-%d")
+    code_dates: dict[str, set] = {}
+    for p in sorted(_P("data/signals").glob("*_signals.csv")):
+        file_date = p.name[:10]  # YYYY-MM-DD
+        if file_date >= today_str:
+            continue
+        try:
+            with open(p, encoding="utf-8-sig") as f:
+                for r in _csv.DictReader(f):
+                    c = (r.get("종목코드") or "").strip().zfill(6)
+                    if c:
+                        code_dates.setdefault(c, set()).add(file_date)
+        except Exception:
+            continue
+    if not code_dates:
+        return {}
+    all_dates = sorted({d for ds in code_dates.values() for d in ds}, reverse=True)
+    recent = set(all_dates[:FRESHNESS_LOOKBACK_DAYS])
+    return {c: len(ds & recent) for c, ds in code_dates.items()}
 
 
 def _collect_tracked() -> list[dict]:
@@ -599,7 +651,8 @@ def run(preview: bool = False):
     all_df = pd.concat(raw_data.values(), ignore_index=True)
 
     # ── 1-1. NXT 데이터 합산 (2차/수동 실행 시) ─────────────────
-    nxt_codes: set[str] = set()  # NXT 거래 확인된 종목코드
+    nxt_codes: set[str] = set()      # NXT 거래 확인된 종목코드
+    nxt_top_codes: set[str] = set()  # NXT 거래대금 상위 5위 종목코드 (대장 표시용)
     nxt_fetch_ran = run_type in ("2차", "수동") and ENABLE_NXT_FETCH  # 카드에서 KRX전용 표시 여부 판단용
     if run_type in ("2차", "수동") and ENABLE_NXT_FETCH:
         try:
@@ -608,6 +661,8 @@ def run(preview: bool = False):
             nxt_dict = fetch_nxt_quant()
             if nxt_dict:
                 nxt_codes = set(nxt_dict.keys())
+                nxt_sorted = sorted(nxt_dict.items(), key=lambda x: x[1].get("nxt_tv", 0), reverse=True)
+                nxt_top_codes = {code for code, _ in nxt_sorted[:5]}
                 all_df = merge_nxt_into_df(all_df, nxt_dict)
             else:
                 logger.warning("NXT 수집 결과 없음 — KRX 데이터만 사용")
@@ -732,6 +787,16 @@ def run(preview: bool = False):
     market_direction = _calc_market_direction(_kospi_chg)
     logger.info(f"시장 상태: {market_regime}{' · ' + market_subtype if market_subtype else ''} | 장세: {market_type} | 방향: {market_direction}")
 
+    # 지수 5일선·추세 국면 (백테스트 검증: 코스닥 국면이 종베 승률 결정)
+    try:
+        from scripts.fetch_index_data import get_market_regime
+        index_regime = get_market_regime()
+        logger.info(f"지수 국면: 코스닥 {index_regime['kosdaq_regime']} / 코스피 {index_regime['kospi_regime']}"
+                    f"{' / 대형주 디커플링' if index_regime['decoupled_largecap'] else ''}")
+    except Exception as e:
+        logger.warning(f"지수 국면 판정 실패 (무시): {e}")
+        index_regime = None
+
     # ── 전일 복기 ───────────────────────────────────────────────────────────
     review_results = []
     try:
@@ -814,6 +879,7 @@ def run(preview: bool = False):
 
     key_candidates = []
     rejected_list  = []
+    freshness_map  = _build_freshness_map()
     MIN_TV_WON            = MIN_TRADING_VALUE_EOK * 100_000_000
     inter_codes           = set(intersection["종목코드"].dropna() if not intersection.empty else [])
     leading_sector_names  = {s["sector_name"] for s in leading_sectors}
@@ -946,7 +1012,8 @@ def run(preview: bool = False):
         checklist = build_checklist(code, tv, processed, supply)
         score     = calc_score(code=code, trading_value=tv, processed=processed,
                                supply=supply, news=news, in_intersection=in_inter,
-                               patterns=pat, is_leading_sector=_is_leading)
+                               patterns=pat, is_leading_sector=_is_leading,
+                               near_high_52w=processed.near_high_52w)
         supply_ok = checklist.supply_ok
 
         _regular_close = enr.get("regular_close_price")
@@ -984,7 +1051,14 @@ def run(preview: bool = False):
             "entry_reference_price":         _entry_ref,
             "price_source":                  _price_src,
             "is_nxt":                        code in nxt_codes,
+            "nxt_dominant":                  code in nxt_top_codes,
             "nxt_fetch_ran":                 nxt_fetch_ran,
+            "prev_high":                     enr.get("prev_high"),
+            "prev_close":                    enr.get("prev_close"),
+            "today_open_price":              enr.get("today_open_price"),
+            "inst_oversupply_pct":           enr.get("inst_oversupply_pct"),
+            "frgn_oversupply_pct":           enr.get("frgn_oversupply_pct"),
+            "freshness_count":               freshness_map.get(code, 0),
         })
 
     # 정렬: 교집합 > 패턴타입 > score > supply_ok > 거래대금 > 상승률
@@ -1408,6 +1482,11 @@ def run(preview: bool = False):
         "inst_net_5d":        getattr(c.get("supply"), "institution_net_5d", None),
         "foreign_net_5d":     getattr(c.get("supply"), "foreign_net_5d", None),
         "news_summary":       getattr(c.get("news"), "llm_summary", "") or "",
+        "is_nxt":             c.get("is_nxt", False),
+        "nxt_dominant":       c.get("nxt_dominant", False),
+        "inst_oversupply_pct": c.get("inst_oversupply_pct"),
+        "frgn_oversupply_pct": c.get("frgn_oversupply_pct"),
+        "freshness_count":    c.get("freshness_count"),
         "run_time":                      run_time,
         "run_type":                      run_type,
         "signal_time":                   run_time,
@@ -1455,8 +1534,23 @@ def run(preview: bool = False):
 
     # 대시보드 생성
     report_data["market_summary"]["core_count"] = len(core_candidates)
+    # 코스닥 지수 국면을 대시보드에 전달 + 각 후보에 주입 (비중 가이드·과열 경고용)
+    report_data["market_summary"]["index_regime"] = index_regime
+    _kd_regime = index_regime.get("kosdaq_regime") if index_regime else None
+    for _c in core_candidates + watch_candidates:
+        _c["kosdaq_regime"] = _kd_regime
     report_data["core_candidates"]        = core_candidates
     report_data["watch_candidates"]       = watch_candidates
+    # 대형주 추세추종 관찰 — 코스피 강세 국면에서만 활성 (약세장 28% 자살골 회피)
+    largecap_candidates = []
+    if (run_type in ("2차", "수동") and ENABLE_LARGECAP_OBSERVER and index_regime
+            and index_regime.get("kospi_regime") == "강세"):
+        try:
+            from scripts.largecap_observer import observe as _observe_largecap
+            largecap_candidates = _observe_largecap()
+        except Exception as e:
+            logger.warning(f"대형주 관찰 실패 (무시): {e}")
+    report_data["largecap_candidates"] = largecap_candidates
     report_data["rejected_candidates"]    = rejected_list
     report_data["kh_only_candidates"]     = kh_only_candidates
     report_data["kh_candidates_scope"]    = "top40_only"
@@ -1497,6 +1591,7 @@ def run(preview: bool = False):
         "limit_up_list":         limit_up_list,
         "code_to_sector":        code_to_sector,
         "inter_codes":           inter_codes,
+        "index_regime":          index_regime,
     }
     if run_type == "1차":
         msg = ntf.build_first_alert(

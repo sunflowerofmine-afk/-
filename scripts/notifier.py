@@ -263,15 +263,27 @@ def format_market_summary(market_totals: dict, run_time: str, run_type: str,
         direction_line = ""
 
     if run_type == "2차":
-        checklist = "─" * 16 + "\n[원칙] NXT는 보조 / 추격금지 / 물타기금지\n"
+        checklist = "─" * 16 + "\n[원칙] NXT 거래여부 우선확인 / 추격금지 / 물타기금지\n"
     else:
         checklist = "─" * 16 + "\n[원칙] 종가진입 / 물타기금지 / D+1장초계획\n"
+
+    # 지수 5일선·추세 국면 (백테스트 검증: 코스닥 국면이 종베 승률 결정)
+    index_regime = ex.get("index_regime")
+    regime_line = ""
+    if index_regime:
+        _kd = index_regime.get("kosdaq_regime", "?")
+        _emoji = {"강세": "🟢", "혼조": "🟡", "약세": "🔴", "?": "⚪"}.get(_kd, "")
+        _guide = index_regime.get("guide", "")
+        regime_line = f"[코스닥국면] {_emoji} {_kd} — {_guide}\n"
+        if index_regime.get("decoupled_largecap"):
+            regime_line += "  ⚠ 코스피 강세·코스닥 약세 디커플링 → 추세 좋은 대형주 우위 국면\n"
 
     return (
         f"<b>[종가베팅 스캔] {date_str} · {base_time} KST</b>\n"
         f"코스피 {_idx(kospi_level, kospi_chg)} | 코스닥 {_idx(kosdaq_level, kosdaq_chg)}\n"
         f"거래대금: 코스피 {kospi_tv:,.0f}억 | 코스닥 {kosdaq_tv:,.0f}억\n"
         f"[시장] {regime_str}{adl_str}{subtype_str} | 1500억↑ {tv1500}개\n"
+        f"{regime_line}"
         f"{direction_line}"
         f"{limit_up_line}"
         f"{pat_line}"
@@ -449,8 +461,18 @@ def _format_candidate_card(seq: int, c: dict) -> str:
     if is_danbal:   tags.append("⚡단발")
     prog_net = c.get("prog_net_eok")
     if prog_net is not None and prog_net > 0: tags.append("💹프로그램매수")
+    # 재료 신선도 (과거 signals 등장 횟수 근사)
+    from config.settings import FRESHNESS_STALE_MIN_COUNT
+    _fresh = c.get("freshness_count")
+    if _fresh == 0:
+        tags.append("🆕신규등장")
+    elif _fresh is not None and _fresh >= FRESHNESS_STALE_MIN_COUNT:
+        tags.append(f"♻️{_fresh}일째")
     if is_nxt:
-        tags.append("🔵NXT")
+        if c.get("nxt_dominant"):
+            tags.append("🔵NXT대장")
+        else:
+            tags.append("🔵NXT")
     elif c.get("nxt_fetch_ran"):
         tags.append("⚠KRX전용(15:20전)")
 
@@ -501,7 +523,29 @@ def _format_candidate_card(seq: int, c: dict) -> str:
 
     # ── Line 4: 수급 ──────────────────────────────────────
     supply_str  = _supply_str(sup)
-    supply_line = f"\n  수급: {supply_str}" if supply_str != "확인불가" else ""
+    supply_line = ""
+    if supply_str != "확인불가":
+        _sup_obj   = sup if hasattr(sup, "institution_consecutive_days") else None
+        _consec_parts = []
+        if _sup_obj:
+            ic = _sup_obj.institution_consecutive_days or 0
+            fc = _sup_obj.foreign_consecutive_days     or 0
+            if ic >= 2:
+                _consec_parts.append(f"기관{ic}일연속")
+            if fc >= 2:
+                _consec_parts.append(f"외인{fc}일연속")
+        _consec_str = f" ({', '.join(_consec_parts)})" if _consec_parts else ""
+        # 오버수급 비율 (상장주식수 대비 5일 누적)
+        from config.settings import OVERSUPPLY_RATIO_PCT
+        _over_parts = []
+        _inst_ov = c.get("inst_oversupply_pct")
+        _frgn_ov = c.get("frgn_oversupply_pct")
+        if _inst_ov is not None and _inst_ov >= OVERSUPPLY_RATIO_PCT:
+            _over_parts.append(f"기관 {_inst_ov:.1f}%")
+        if _frgn_ov is not None and _frgn_ov >= OVERSUPPLY_RATIO_PCT:
+            _over_parts.append(f"외인 {_frgn_ov:.1f}%")
+        _over_str = f"\n  오버수급(상장주식수 대비 5일): {', '.join(_over_parts)} 🔥" if _over_parts else ""
+        supply_line = f"\n  수급: {supply_str}{_consec_str}{_over_str}"
 
     # ── Line 5: 체크리스트 ────────────────────────────────
     checklist_line = ""
@@ -542,6 +586,18 @@ def _format_candidate_card(seq: int, c: dict) -> str:
 
     position_line = _position_guide(c)
 
+    # ── 청산 참고선 (전일고가·전일종가·당일시가) ─────────────────
+    exit_line = ""
+    _ph  = c.get("prev_high")
+    _pc  = c.get("prev_close")
+    _top = c.get("today_open_price")
+    _parts = []
+    if _ph:  _parts.append(f"전일고가 {_ph:,.0f}")
+    if _pc:  _parts.append(f"전일종가 {_pc:,.0f}")
+    if _top: _parts.append(f"당일시가 {_top:,.0f}")
+    if _parts:
+        exit_line = "\n  청산참고: " + " | ".join(_parts)
+
     return (
         f"\n{seq}) <b>{c.get('name','')}({c.get('code','')})</b>"
         f" [{c.get('market','')}]{tag_str}\n"
@@ -549,6 +605,7 @@ def _format_candidate_card(seq: int, c: dict) -> str:
         f"{llm_line}"
         f"{htc_line}"
         f"{supply_line}"
+        f"{exit_line}"
         f"{checklist_line}"
         f"{dart_line}"
         f"{short_line}"

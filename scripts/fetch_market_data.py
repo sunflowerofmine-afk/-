@@ -67,6 +67,12 @@ def _fetch_page(market_code: int, page: int) -> pd.DataFrame:
         except ValueError:
             tv_won = 0.0
 
+        # 상장주식수(col[7]) — 수급 비율 계산용 (천주 단위 표시 → 주 단위 환산)
+        try:
+            _shares = float(_parse_number(cols[7].text) or "0") * 1000  # 네이버는 천주 단위
+        except (ValueError, IndexError):
+            _shares = 0.0
+
         rows.append({
             "종목명":   name_tag.text.strip(),
             "종목코드": code,
@@ -75,6 +81,7 @@ def _fetch_page(market_code: int, page: int) -> pd.DataFrame:
             "등락률":   _parse_number(cols[4].text),
             "거래량":   _parse_number(cols[9].text),
             "거래대금": tv_won,   # 원 단위
+            "상장주식수": _shares,  # 주 단위
         })
 
     return pd.DataFrame(rows)

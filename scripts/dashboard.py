@@ -24,6 +24,8 @@ from scripts._dashboard_css import _css
 from scripts._dashboard_nav import _scan_report_entries, _date_map_from_entries, _nav_bar
 from scripts._dashboard_sections import (
     _section_header,
+    _section_regime_guide,
+    _section_largecap,
     _section_env_and_signals,
     _section_limit_up,
     _section_stock_panel,
@@ -232,8 +234,10 @@ def _build_html(data: dict, nav_entries: list | None = None, current_filename: s
 
     body_parts = [
         _section_header(data),
+        _section_regime_guide(data),
         _section_env_and_signals(data),
         _section_stock_panel(core, rejected, market_regime),
+        _section_largecap(data.get("largecap_candidates", [])),
         _section_watch_panel(data.get("watch_candidates", []), market_regime),
         _section_leading_sectors(data.get("leading_sectors", [])),
         _section_limit_up(data.get("market_summary", {})),

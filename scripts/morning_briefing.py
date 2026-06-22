@@ -79,6 +79,7 @@ def build_message(df: pd.DataFrame, signal_date: str) -> str:
     date_str = f"{now.month:02d}/{now.day:02d} ({_DAY_KO[now.weekday()]})"
 
     lines = [f"<b>🌅 아침 브리핑 | {date_str}</b>"]
+    # 직전 거래일 검증은 main()에서 수행 — 여기 도달하면 signal_date는 직전 거래일
     lines.append(f"전일({signal_date}) 신호 종목 현황\n")
 
     # 핵심 후보만 (in_inter 또는 점수 상위)
@@ -132,12 +133,35 @@ def build_message(df: pd.DataFrame, signal_date: str) -> str:
     return "\n".join(lines)
 
 
+def _build_no_signal_message(expected_fmt: str | None) -> str:
+    """직전 거래일 신호 0건일 때 관망 브리핑."""
+    now = datetime.now()
+    date_str = f"{now.month:02d}/{now.day:02d} ({_DAY_KO[now.weekday()]})"
+    exp = f"직전 거래일({expected_fmt})" if expected_fmt else "직전 거래일"
+    return (
+        f"<b>🌅 아침 브리핑 | {date_str}</b>\n"
+        f"전일 신호 없음 — 관망 국면\n\n"
+        f"{exp}에 종가베팅 조건을 충족한 종목이 없었습니다.\n"
+        f"신호 없는 날은 쉬는 것도 전략입니다."
+    )
+
+
 def main():
     logger.info("아침 브리핑 시작")
     df, signal_date = _load_prev_signals()
 
-    if df is None or df.empty:
-        logger.info("전일 신호 없음 — 브리핑 생략")
+    # 직전 거래일 계산 (오늘 기준)
+    from scripts.market_calendar import get_prev_trading_day
+    now = datetime.now()
+    expected = get_prev_trading_day(now.strftime("%Y%m%d"))
+    expected_fmt = f"{expected[4:6]}/{expected[6:]}" if expected else None
+
+    # 신호 파일이 없거나, 직전 거래일 신호가 아니면 → 관망 메시지 (오래된 종목 미표시)
+    sig8 = signal_date.replace("-", "") if signal_date else ""
+    if df is None or df.empty or (expected and sig8 != expected):
+        logger.info(f"직전 거래일({expected}) 신호 없음 — 관망 브리핑 발송")
+        ok = send_message(_build_no_signal_message(expected_fmt))
+        logger.info(f"관망 브리핑 발송 {'성공' if ok else '실패'}")
         return
 
     logger.info(f"전일 신호 {len(df)}개 ({signal_date})")

@@ -155,6 +155,20 @@ KH_SQUEEZE_CANDLE_BODY_MAX_RATIO = 0.5   # 거자름 캔들 몸통 비율 상한
 KH_CRAWL_MIN_TV_EOK             = 300    # KH 전용 크롤링 최소 거래대금 (억원, B안)
 OBS_CRAWL_MIN_TV_EOK            = 100    # 기준봉 관찰 풀(recent_base_pool) 최소 거래대금 (억원)
 
+# ── 오버수급 (상장주식수 대비 5일 누적 순매수 비율) ──────────────
+# 돌팬티 "기관 오버수급 → 종가고가 패턴" 근사. 유통주식수가 아닌 상장주식수 기준이라 보수적.
+OVERSUPPLY_RATIO_PCT                     = 1.0    # 5일 누적 순매수가 상장주식수의 1%↑이면 오버수급 강조
+
+# ── 재료 신선도 (과거 signals 등장 횟수 기반 근사) ───────────────
+# 종목이 최근 N거래일 signals에 여러 번 잡혔으면 "이미 진행된 재료"로 간주. 0회=신규 등장(신선).
+FRESHNESS_LOOKBACK_DAYS                  = 10     # 신선도 판정 탐색 거래일 수
+FRESHNESS_STALE_MIN_COUNT                = 3      # 이 횟수 이상 등장 시 "식상 가능" 표시
+
+# ── 대형주 추세추종 관찰 레이어 (backtest_regime_largecap 검증) ──
+# 코스피 시총 상위 중 5일선 위+당일양봉 관찰. 코스피 강세 국면에서만 활성(약세장 28% 자살골).
+ENABLE_LARGECAP_OBSERVER                = True
+LARGECAP_TOP_N                          = 50     # 코스피 시총 상위 N
+
 # ── 매매 분석 (trade_analyzer) ──────────────────────────────
 TRADE_ANALYZER_BASE_CAPITAL             = 0      # 포지션 비중 산정 기준 자본 (0=해당 기간 총 매수대금)
 
