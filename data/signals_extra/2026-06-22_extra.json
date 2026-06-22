@@ -1,0 +1,42 @@
+{
+  "date": "2026-06-22",
+  "generated": "2026-06-23",
+  "stocks": {
+    "080220": {
+      "name": "제주반도체",
+      "signal_price": 134000,
+      "52w_high": 138000,
+      "52w_low": 12900,
+      "pct_from_52w_high": -2.9,
+      "is_near_52w_high": true,
+      "days_since_52w_high": 0
+    },
+    "402340": {
+      "name": "SK스퀘어",
+      "signal_price": 1970000,
+      "52w_high": 1987000,
+      "52w_low": 128600,
+      "pct_from_52w_high": -0.86,
+      "is_near_52w_high": true,
+      "days_since_52w_high": 0
+    },
+    "240810": {
+      "name": "원익IPS",
+      "signal_price": 172500,
+      "52w_high": 183300,
+      "52w_low": 24150,
+      "pct_from_52w_high": -5.89,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 6
+    },
+    "067310": {
+      "name": "하나마이크론",
+      "signal_price": 56800,
+      "52w_high": 58500,
+      "52w_low": 10400,
+      "pct_from_52w_high": -2.91,
+      "is_near_52w_high": true,
+      "days_since_52w_high": 20
+    }
+  }
+}
