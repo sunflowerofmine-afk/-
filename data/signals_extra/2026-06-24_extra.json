@@ -1,0 +1,15 @@
+{
+  "date": "2026-06-24",
+  "generated": "2026-06-24",
+  "stocks": {
+    "196170": {
+      "name": "알테오젠",
+      "signal_price": 371500,
+      "52w_high": 569000,
+      "52w_low": 286000,
+      "pct_from_52w_high": -34.71,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 147
+    }
+  }
+}
