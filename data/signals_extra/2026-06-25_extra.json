@@ -1,0 +1,42 @@
+{
+  "date": "2026-06-25",
+  "generated": "2026-06-25",
+  "stocks": {
+    "034730": {
+      "name": "SK",
+      "signal_price": 858000,
+      "52w_high": 883000,
+      "52w_low": 176900,
+      "pct_from_52w_high": -2.83,
+      "is_near_52w_high": true,
+      "days_since_52w_high": 0
+    },
+    "000660": {
+      "name": "SK하이닉스",
+      "signal_price": 2917000,
+      "52w_high": 2987000,
+      "52w_low": 238000,
+      "pct_from_52w_high": -2.34,
+      "is_near_52w_high": true,
+      "days_since_52w_high": 0
+    },
+    "442580": {
+      "name": "PLUS 글로벌HBM반도체",
+      "signal_price": 151625,
+      "52w_high": 153355,
+      "52w_low": 18300,
+      "pct_from_52w_high": -1.13,
+      "is_near_52w_high": true,
+      "days_since_52w_high": 0
+    },
+    "001740": {
+      "name": "SK네트웍스",
+      "signal_price": 10800,
+      "52w_high": 16240,
+      "52w_low": 4235,
+      "pct_from_52w_high": -33.5,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 12
+    }
+  }
+}
