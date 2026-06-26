@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>주간 백테스트 2026-06-19 ~ 2026-06-26</title>
+<style>
+:root{--bg:#0d1117;--bg2:#161b22;--bg3:#21262d;--border:#30363d;
+  --text:#e6edf3;--muted:#8b949e;--green:#3fb950;--red:#f85149;
+  --yellow:#d29922;--blue:#58a6ff;--purple:#bc8cff}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  font-size:14px;padding:20px}
+.wrap{max-width:1100px;margin:0 auto}
+h1{font-size:18px;font-weight:700;margin-bottom:4px}
+.sub{color:var(--muted);font-size:12px;margin-bottom:20px}
+h2{font-size:14px;font-weight:600;color:var(--blue);margin:24px 0 10px;
+  border-bottom:1px solid var(--border);padding-bottom:6px}
+.cards{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:24px}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:8px;
+  padding:14px 18px;min-width:160px;flex:1}
+.card-label{font-size:11px;color:var(--muted);margin-bottom:6px}
+.card-val{font-size:22px;font-weight:700}
+.pos{color:var(--green)}.neg{color:var(--red)}.muted{color:var(--muted)}
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{background:var(--bg3);color:var(--muted);font-weight:500;padding:8px 10px;
+  text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+.badge{display:inline-block;padding:2px 6px;border-radius:4px;font-size:11px;font-weight:600}
+.b-buy{background:#1c3a1c;color:var(--green)}
+.b-watch{background:#1c2a3a;color:var(--blue)}
+.b-inter{background:#2a1c3a;color:var(--purple)}
+.b-pending{background:var(--bg3);color:var(--muted)}
+.date-header{background:var(--bg3);font-weight:600;color:var(--muted);font-size:12px}
+.name-col{font-weight:500}
+</style>
+</head>
+<body><div class="wrap">
+<h1>📊 주간 시스템 백테스트</h1>
+<div class="sub">2026-06-19 ~ 2026-06-26 &nbsp;·&nbsp; 종가베팅 D+1/D+2 수익률</div>
+<div class="cards"><div class="card"><div class="card-label">총 후보</div><div class="card-val ">9</div></div><div class="card"><div class="card-label">D+1 승률</div><div class="card-val neg">11%</div></div><div class="card"><div class="card-label">D+1 평균 수익률</div><div class="card-val neg">-1.72%</div></div><div class="card"><div class="card-label">매수검토 승률</div><div class="card-val neg">0%</div></div><div class="card"><div class="card-label">교집합 승률</div><div class="card-val neg">0%</div></div></div>
+
+<h2>등급·패턴별 성과 (D+1 시가 기준)</h2>
+<div class="tbl-wrap"><table>
+<tr><th>구분</th><th>후보 수</th><th>적중</th><th>D+1 승률</th><th>D+1 평균</th></tr>
+<tr><td colspan="5" style="background:var(--bg3);color:var(--blue);font-size:11px;font-weight:700;letter-spacing:0.5px;padding:5px 10px;border-top:2px solid var(--border)">▸ 등급별</td></tr><tr><td>매수검토</td><td>3</td><td>0</td><td><span class="neg">0%</span></td><td><span class="neg">-1.22%</span></td></tr><tr><td>관찰</td><td>6</td><td>1</td><td><span class="neg">17%</span></td><td><span class="neg">-1.97%</span></td></tr><tr><td colspan="5" style="background:var(--bg3);color:var(--blue);font-size:11px;font-weight:700;letter-spacing:0.5px;padding:5px 10px;border-top:2px solid var(--border)">▸ 교집합</td></tr><tr><td>★ 교집합</td><td>3</td><td>0</td><td><span class="neg">0%</span></td><td><span class="neg">-1.22%</span></td></tr>
+<tr><td colspan="5" style="background:var(--bg3);color:var(--blue);font-size:11px;font-weight:700;letter-spacing:0.5px;padding:5px 10px;border-top:2px solid var(--border)">▸ 패턴별</td></tr><tr><td>당일돌파형</td><td>9</td><td>1</td><td><span class="neg">11%</span></td><td><span class="neg">-1.72%</span></td></tr>
+</table></div>
+
+<h2>종목별 상세</h2>
+<div class="tbl-wrap"><table>
+<tr><th>종목</th><th>등급</th><th>패턴</th><th>당일등락</th><th>거래대금</th><th>뉴스/재료</th><th>D+1 시가</th><th>D+1 종가</th><th>D+2 종가</th><th>최고수익률</th><th>최대손실률</th></tr>
+<tr class="date-header"><td colspan="11">2026-06-22 (4종목) &nbsp;·&nbsp; 코스피 <span style="color:#f85149;font-weight:600">+0.69%</span> 코스닥 <span style="color:#f85149;font-weight:600">+0.19%</span> &nbsp;<span class="muted">[약세]</span></td></tr><tr><td class="name-col">제주반도체&nbsp;<span class="badge b-inter">★</span><br><small class="muted">080220·KOSDAQ</small></td><td><span class="badge b-buy">매수검토</span></td><td><span style="color:#d29922;font-weight:600">당일돌파형</span></td><td class="pos">+17.24%</td><td>14,677억</td><td><span style="font-size:11px;color:#8b949e">재료: [AI반도체] 온디바이스 AI 테마 동조 (섹터</span></td><td><span class="neg">-0.52%</span></td><td><span class="neg">-17.31%</span></td><td><span class="neg">-15.75%</span></td><td><span class="neg">-0.52%</span></td><td><span class="neg">-27.31%</span></td></tr><tr><td class="name-col">SK스퀘어<br><small class="muted">402340·KOSPI</small></td><td><span class="badge b-watch">관찰</span></td><td><span style="color:#d29922;font-weight:600">당일돌파형</span></td><td class="pos">+10.67%</td><td>48,256억</td><td><span style="font-size:11px;color:#8b949e">재료: [AI반도체] SK하이닉스 시총 1위 등극 수혜</span></td><td><span class="neg">-4.87%</span></td><td><span class="neg">-11.63%</span></td><td><span class="neg">-13.22%</span></td><td><span class="pos">+5.60%</span></td><td><span class="neg">-22.29%</span></td></tr><tr><td class="name-col">원익IPS<br><small class="muted">240810·KOSDAQ</small></td><td><span class="badge b-watch">관찰</span></td><td><span style="color:#d29922;font-weight:600">당일돌파형</span></td><td class="pos">+10.58%</td><td>6,167억</td><td><span style="font-size:11px;color:#8b949e">nan</span></td><td><span class="pos">+0.17%</span></td><td><span class="neg">-12.68%</span></td><td><span class="neg">-12.39%</span></td><td><span class="pos">+6.22%</span></td><td><span class="neg">-16.81%</span></td></tr><tr><td class="name-col">하나마이크론<br><small class="muted">067310·KOSDAQ</small></td><td><span class="badge b-watch">관찰</span></td><td><span style="color:#d29922;font-weight:600">당일돌파형</span></td><td class="pos">+15.92%</td><td>4,075억</td><td><span style="font-size:11px;color:#8b949e">nan</span></td><td><span class="neg">-2.64%</span></td><td><span class="neg">-12.59%</span></td><td><span class="neg">-15.05%</span></td><td><span class="neg">-1.58%</span></td><td><span class="neg">-18.84%</span></td></tr><tr class="date-header"><td colspan="11">2026-06-24 (1종목) &nbsp;·&nbsp; 코스피 <span style="color:#f85149;font-weight:600">+3.26%</span> 코스닥 <span style="color:#f85149;font-weight:600">+2.00%</span> &nbsp;<span class="muted">[강세]</span></td></tr><tr><td class="name-col">알테오젠<br><small class="muted">196170·KOSDAQ</small></td><td><span class="badge b-watch">관찰</span></td><td><span style="color:#d29922;font-weight:600">당일돌파형</span></td><td class="pos">+11.56%</td><td>5,027억</td><td><span style="font-size:11px;color:#8b949e">nan</span></td><td><span class="neg">-0.27%</span></td><td><span class="pos">+1.63%</span></td><td><span class="neg">-6.10%</span></td><td><span class="pos">+7.72%</span></td><td><span class="neg">-7.05%</span></td></tr><tr class="date-header"><td colspan="11">2026-06-25 (4종목) &nbsp;·&nbsp; 코스피 <span style="color:#f85149;font-weight:600">+5.42%</span> 코스닥 <span style="color:#3fb950;font-weight:600">-2.36%</span> &nbsp;<span class="muted">[중립]</span></td></tr><tr><td class="name-col">SK&nbsp;<span class="badge b-inter">★</span><br><small class="muted">034730·KOSPI</small></td><td><span class="badge b-buy">매수검토</span></td><td><span style="color:#d29922;font-weight:600">당일돌파형</span></td><td class="pos">+20.51%</td><td>12,306억</td><td><span style="font-size:11px;color:#8b949e">재료: [기타] 재료 불명확 (단순수급)</span></td><td><span class="neg">-0.34%</span></td><td><span class="neg">-6.77%</span></td><td><span class="muted">-</span></td><td><span class="pos">+1.03%</span></td><td><span class="neg">-8.84%</span></td></tr><tr><td class="name-col">SK하이닉스&nbsp;<span class="badge b-inter">★</span><br><small class="muted">000660·KOSPI</small></td><td><span class="badge b-buy">매수검토</span></td><td><span style="color:#d29922;font-weight:600">당일돌파형</span></td><td class="pos">+13.06%</td><td>318,236억</td><td><span style="font-size:11px;color:#8b949e">재료: [HBM] 삼전닉스 ETF 쓸어담자 (섹터동조)</span></td><td><span class="neg">-2.80%</span></td><td><span class="neg">-9.28%</span></td><td><span class="muted">-</span></td><td><span class="neg">-1.77%</span></td><td><span class="neg">-11.32%</span></td></tr><tr><td class="name-col">PLUS 글로벌HBM반도체<br><small class="muted">442580·KOSPI</small></td><td><span class="badge b-watch">관찰</span></td><td><span style="color:#d29922;font-weight:600">당일돌파형</span></td><td class="pos">+10.28%</td><td>3,706억</td><td><span style="font-size:11px;color:#8b949e">재료: [HBM] ETF 순자산 2조원 돌파 (개별호재</span></td><td><span class="neg">-1.46%</span></td><td><span class="neg">-4.87%</span></td><td><span class="muted">-</span></td><td><span class="neg">-0.50%</span></td><td><span class="neg">-7.31%</span></td></tr><tr><td class="name-col">SK네트웍스<br><small class="muted">001740·KOSPI</small></td><td><span class="badge b-watch">관찰</span></td><td><span style="color:#d29922;font-weight:600">당일돌파형</span></td><td class="pos">+13.33%</td><td>2,364억</td><td><span style="font-size:11px;color:#8b949e">nan</span></td><td><span class="neg">-2.78%</span></td><td><span class="neg">-10.74%</span></td><td><span class="muted">-</span></td><td><span class="neg">-2.78%</span></td><td><span class="neg">-14.54%</span></td></tr>
+</table></div>
+
+<p style="font-size:11px;color:var(--muted);margin-top:16px">
+생성: 2026-06-26 &nbsp;·&nbsp; 진입가 = entry_reference_price (regular_close 우선) &nbsp;·&nbsp; 수익률 미확인 = 가격 조회 중
+</p>
+</div></body></html>
