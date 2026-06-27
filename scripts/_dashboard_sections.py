@@ -1059,14 +1059,73 @@ def _dart_html(c: dict) -> str:
     return f'<div style="margin-top:6px;padding:6px 8px;background:var(--bg3);border-radius:4px">{rows}</div>'
 
 
+# 세부 섹터명 → 대분류 키워드 (먼저 매칭되는 순). 쏠림 판정용.
+_SECTOR_GROUP_KW = [
+    ("온디바이스", "반도체"), ("HBM", "반도체"), ("반도체", "반도체"),
+    ("디스플레이", "디스플레이"),
+    ("2차전지", "2차전지"), ("배터리", "2차전지"), ("전지", "2차전지"),
+    ("바이오", "바이오"), ("제약", "바이오"),
+    ("인공지능", "AI"), ("AI", "AI"),
+    ("로봇", "로봇"), ("방산", "방산"), ("우주", "우주항공"), ("항공", "우주항공"),
+    ("조선", "조선"), ("원전", "원전"), ("전력", "전력"), ("전선", "전력"),
+    ("자동차", "자동차"), ("게임", "게임"), ("엔터", "엔터"), ("화장품", "화장품"),
+]
+
+
+def _sector_group(sec: str) -> str:
+    """세부 섹터명을 대분류로 묶는다(반도체 쏠림 등 포착). 매칭 없으면 원본."""
+    for kw, grp in _SECTOR_GROUP_KW:
+        if kw in sec:
+            return grp
+    return sec
+
+
+def _signal_regime_line(data: dict) -> str:
+    """봇 신호 건수 + 섹터 쏠림 = 개별주 종베 레짐 온도계 (주간정제 2026-06-27).
+
+    신호 건수 자체가 개별주 종베 가능성의 척도(0~소수=관망, 8+=활발).
+    한 섹터로 쏠리면 자금 집중(디커플링) 신호 → 개별주보다 대형주 국면.
+    """
+    core  = data.get("core_candidates", []) or []
+    watch = data.get("watch_candidates", []) or []
+    n = len(core) + len(watch)
+    if n == 0:
+        lvl, col = "관망 국면 · 개별주 종베 자리 없음", "#dc2626"
+    elif n <= 3:
+        lvl, col = "신호 빈약 · 선별적 접근", "#d97706"
+    elif n <= 7:
+        lvl, col = "신호 보통", "#16a34a"
+    else:
+        lvl, col = "신호 활발 · 개별주 레짐 생존", "#16a34a"
+    sec_html = ""
+    sectors = [_sector_group(c.get("sector")) for c in (core + watch) if c.get("sector")]
+    if sectors:
+        from collections import Counter
+        top_sec, top_cnt = Counter(sectors).most_common(1)[0]
+        ratio = top_cnt / len(sectors) * 100
+        if ratio >= 60:
+            sec_html = (f' <span style="color:#b45309">· <b>{_e(top_sec)} 쏠림 '
+                        f'{ratio:.0f}%</b>({top_cnt}/{len(sectors)}) — 자금 집중, 대형주 국면 의심</span>')
+        else:
+            sec_html = f' <span style="color:var(--muted)">· 최다 {_e(top_sec)} {top_cnt}건</span>'
+    return f'<span style="color:{col};font-weight:700">📡 봇 신호 {n}건 — {lvl}</span>{sec_html}'
+
+
 def _section_regime_guide(data: dict) -> str:
-    """코스닥 지수 국면 + 행동 가이드 상단 배너 (backtest_regime_largecap).
+    """코스닥 지수 국면 + 신호 레짐 온도계 + 행동 가이드 상단 배너 (backtest_regime_largecap).
 
     승률의 1차 변수가 시장 국면(혼조 76% / 약세 39%)이므로 종목보다 먼저 보이게 한다.
     """
+    sig_line = _signal_regime_line(data)
     ir = (data.get("market_summary", {}) or {}).get("index_regime")
     if not ir:
-        return ""
+        # 국면 데이터가 없어도 신호 레짐 온도계는 단독으로 표시
+        if not sig_line:
+            return ""
+        return (
+            f'<div style="margin:10px 0;padding:12px 14px;border-radius:8px;'
+            f'background:var(--bg2);border-left:5px solid #888">{sig_line}</div>'
+        )
     kd = ir.get("kosdaq_regime", "?")
     kp = ir.get("kospi_regime", "?")
     guide = ir.get("guide", "")
@@ -1083,6 +1142,7 @@ def _section_regime_guide(data: dict) -> str:
         f'<div style="font-size:15px;font-weight:700;color:{color}">'
         f'{emoji} 코스닥 국면: {kd} <span style="font-size:12px;color:var(--muted)">'
         f'(코스피 {kp})</span></div>'
+        f'<div style="margin-top:5px;font-size:13px">{sig_line}</div>'
         f'<div style="margin-top:4px;font-size:13px">{_e(guide)}</div>'
         f'{decoup}'
         f'<div style="margin-top:6px;font-size:12px;color:var(--muted)">'
