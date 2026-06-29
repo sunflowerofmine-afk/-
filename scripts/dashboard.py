@@ -130,6 +130,16 @@ def generate_index_html(reports_dir: Path) -> bool:
             date_to_url[date_str] = best or entries[-1][1]
         date_map_js = _json.dumps(date_to_url)
 
+        # 주간 백테스트 최신 파일 링크 (대시보드에서 백테스트 접근 가능하도록)
+        wb_link = ""
+        wb_dir = reports_dir / "weekly_backtest"
+        if wb_dir.exists():
+            wbs = sorted(wb_dir.glob("weekly_backtest_*.html"),
+                         key=lambda p: p.stat().st_mtime)
+            if wbs:
+                wb_link = (f'<a href="reports/weekly_backtest/{wbs[-1].name}" '
+                           f'style="font-size:14px">📊 주간 백테스트</a>')
+
         html = f"""<!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -164,6 +174,7 @@ a:hover {{ text-decoration: underline; }}
 <div class="wrap">
   <div class="page-header">
     <h1>📈 종가베팅 대시보드</h1>
+    {wb_link}
   </div>
   <div class="date-picker-wrap">
     <input type="date" id="date-picker">

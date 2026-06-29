@@ -234,6 +234,81 @@ def collect(start: date, end: date) -> list[dict]:
     return rows
 
 
+# ── 폴백 수집: 커밋되는 signals_extra (gitignore된 CSV 부재 시) ──────────
+# 배경: data/signals/ 는 .gitignore 대상이라 로컬·신규 체크아웃엔 신호 CSV가
+# 없다. 또 collect()는 수동 실행(1845 등)을 제외한다. signals_extra/*.json은
+# 커밋되는 일별 후보 기록(코드·종목명·신호가)이므로, CSV가 못 잡은 날짜를
+# 이걸로 보충한다. → "수집된 후보 없음" 오류 및 백테스트 누락 재발 방지.
+
+_EXTRA_DIR = Path("data/signals_extra")
+
+
+def collect_extra(start: date, end: date, skip_dates: set[str]) -> list[dict]:
+    """signals_extra/*.json 에서 start~end 후보 수집. skip_dates는 이미 CSV로
+    수집한 날짜(중복 방지). CSV 대비 필드가 적어 패턴·점수·섹터는 기본값."""
+    if not _EXTRA_DIR.exists():
+        return []
+    rows: list[dict] = []
+    cache: dict[tuple, dict] = {}
+    for f in sorted(_EXTRA_DIR.glob("*_extra.json")):
+        date_str = f.name[:10]
+        try:
+            d = date.fromisoformat(date_str)
+        except ValueError:
+            continue
+        if not (start <= d <= end) or date_str in skip_dates:
+            continue
+        try:
+            data = json.loads(f.read_text(encoding="utf-8"))
+        except Exception as e:
+            logger.warning(f"signals_extra 로드 실패 {f}: {e}")
+            continue
+        stocks = data.get("stocks") or {}
+        if not isinstance(stocks, dict) or not stocks:
+            continue
+        review_map = _load_review(date_str)
+        mkt = _load_market_summary(date_str)
+        logger.info(f"{date_str}: {len(stocks)}개 후보 (signals_extra 폴백)")
+        for code, info in stocks.items():
+            code = str(code).zfill(6)
+            entry = float(info.get("signal_price") or 0)
+            if entry <= 0:
+                continue
+            if code in review_map:
+                rv = review_map[code]
+                ret = {k: rv.get(k) for k in
+                       ["d1_open_pct", "d1_close_pct", "d2_close_pct",
+                        "d3_close_pct", "mfe", "mae"]}
+            else:
+                key = (code, date_str)
+                if key not in cache:
+                    logger.info(f"  [{code}] {info.get('name','')} 가격 조회 중...")
+                    cache[key] = _fetch_returns(code, entry, date_str)
+                ret = cache[key]
+            rows.append({
+                "signal_date":  date_str,
+                "code":         code,
+                "name":         str(info.get("name", "")),
+                "market":       "",
+                "change_pct":   0.0,
+                "trading_value": 0.0,
+                "entry_price":  entry,
+                "pattern":      "없음",
+                "grade":        _grade("없음", False, None),
+                "in_inter":     False,
+                "total_score":  0.0,
+                "run_type":     "extra",
+                "news_summary": "",
+                "kospi_chg":    mkt.get("kospi_chg"),
+                "kosdaq_chg":   mkt.get("kosdaq_chg"),
+                "market_regime": mkt.get("market_regime", ""),
+                **{k: ret.get(k) for k in
+                   ["d1_open_pct", "d1_close_pct", "d2_close_pct",
+                    "d3_close_pct", "mfe", "mae"]},
+            })
+    return rows
+
+
 # ── 통계 ─────────────────────────────────────────────────────────────
 
 def _stats(rows: list[dict], key: str = "d1_open_pct") -> dict:
@@ -590,8 +665,13 @@ def main() -> None:
     logger.info(f"주간 백테스트: {start} ~ {today}")
     rows = collect(start, today)
 
+    # CSV(gitignore)에서 못 잡은 날짜는 커밋되는 signals_extra로 보충.
+    # 수동 실행일(예: 6/22 1845) 및 로컬·신규 체크아웃에서도 결과가 나오게 함.
+    csv_dates = {r["signal_date"] for r in rows}
+    rows += collect_extra(start, today, skip_dates=csv_dates)
+
     if not rows:
-        logger.error("수집된 후보 없음. 신호 파일 확인 필요.")
+        logger.error("수집된 후보 없음 (signals CSV·signals_extra 모두 비어있음).")
         sys.exit(1)
 
     html = generate_html(rows, start, today)

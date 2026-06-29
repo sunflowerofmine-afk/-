@@ -65,18 +65,14 @@ jobs:
           TZ: Asia/Seoul
         run: python -m scripts.pipeline
 
-      - name: Run weekly backtest (금요일 자동 실행)
+      - name: Run weekly backtest (매 거래일 갱신)
         continue-on-error: true   # 신호 파일 없어도 대시보드 커밋 차단 방지
         env:
           TZ: Asia/Seoul
-        run: |
-          DAY=$(python -c "from datetime import date; print(date.today().weekday())")
-          if [ "$DAY" = "4" ]; then
-            echo "금요일 → 주간 백테스트 실행"
-            python -m scripts.weekly_backtest
-          else
-            echo "금요일 아님 (weekday=$DAY) → skip"
-          fi
+        # 매 거래일 실행해 대시보드 백테스트를 항상 최신으로 유지.
+        # signals CSV(artifact)가 없어도 커밋되는 signals_extra 폴백으로 결과 산출.
+        # 직전 금요일~오늘 구간을 자동 집계(_period_start).
+        run: python -m scripts.weekly_backtest --no-notify
 
       # ── 방식 A (권장): reports/ 를 main 브랜치에 자동 커밋 ──
       # GitHub Pages 소스를 "main 브랜치 / (root)" 또는 "main 브랜치 / docs" 로

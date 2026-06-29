@@ -70,5 +70,23 @@
     "buy_review_n": 3,
     "buy_review_win_rate": 0.0,
     "buy_review_avg": -1.22
+  },
+  {
+    "week_start": "2026-06-26",
+    "n": 1,
+    "d1_win_rate": 100.0,
+    "d1_avg": 1.75,
+    "buy_review_n": 0,
+    "buy_review_win_rate": null,
+    "buy_review_avg": null
+  },
+  {
+    "week_start": "2026-06-22",
+    "n": 10,
+    "d1_win_rate": 20.0,
+    "d1_avg": -1.43,
+    "buy_review_n": 0,
+    "buy_review_win_rate": null,
+    "buy_review_avg": null
   }
 ]
