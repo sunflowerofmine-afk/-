@@ -3,6 +3,7 @@
 
 import sys
 import logging
+import datetime as _dt
 from pathlib import Path
 
 import requests
@@ -218,8 +219,26 @@ def format_market_summary(market_totals: dict, run_time: str, run_type: str,
 
     _regime_map = {"강세": "🟢 강세", "약세": "🔴 약세", "중립": "⚪ 중립"}
     regime_str  = _regime_map.get(regime, regime)
-    adl_str     = f" (ADL {market_adl*100:.0f}%)" if market_adl is not None else ""
+    # ADL = 오른 종목 비율 (용어 유지 + 괄호 설명)
+    adl_str     = f" · ADL {market_adl*100:.0f}%(오른종목 비율)" if market_adl is not None else ""
     subtype_str = f" · {market_subtype}" if market_subtype else ""
+
+    # 날짜에 요일 부착 (한눈에 보기)
+    _WD = ["월", "화", "수", "목", "금", "토", "일"]
+    try:
+        date_disp = f"{date_str}({_WD[_dt.date.fromisoformat(date_str).weekday()]})"
+    except Exception:
+        date_disp = date_str
+
+    # 등락폭에 따른 한 단어 주석 (해석 도움)
+    def _move_word(chg):
+        if chg is None:
+            return ""
+        if chg >= 5:   return ", 큰폭상승"
+        if chg >= 2:   return ", 상승"
+        if chg <= -5:  return ", 큰폭하락"
+        if chg <= -2:  return ", 하락"
+        return ""
 
     def _idx(level, chg):
         if level is None:
@@ -227,8 +246,15 @@ def format_market_summary(market_totals: dict, run_time: str, run_type: str,
         s = f"{level:,.2f}"
         if chg is not None:
             arrow = "▲" if chg >= 0 else "▼"
-            s += f" {arrow}{abs(chg):.2f}%"
+            s += f" ({arrow}{abs(chg):.2f}%{_move_word(chg)})"
         return s
+
+    # 거래대금: 억 → 조 환산 (한눈에)
+    def _tv_jo(eok):
+        try:
+            return f"{eok/10000:,.1f}조"
+        except Exception:
+            return "-"
 
     # 패턴별 후보 갯수
     pc = pattern_counts or {}
@@ -240,9 +266,9 @@ def format_market_summary(market_totals: dict, run_time: str, run_type: str,
     etc_n = pc.get("없음", 0)
     if etc_n > 0:
         pat_parts.append(f"기타 {etc_n}개")
-    pat_line = ("  ".join(pat_parts) + "\n") if pat_parts else "후보 없음\n"
+    pat_line = ("[후보] " + "  ".join(pat_parts) + "\n") if pat_parts else "[후보] 없음\n"
 
-    limit_up_line = f"상한가 {limit_up_n}개\n" if limit_up_n > 0 else ""
+    limit_up_line = f"[상한가] {limit_up_n}개\n" if limit_up_n > 0 else ""
 
     _direction_map = {
         "상승": "📈 상승",
@@ -262,6 +288,8 @@ def format_market_summary(market_totals: dict, run_time: str, run_type: str,
     else:
         direction_line = ""
 
+    _KD_PLAIN = {"강세": "강세", "혼조": "혼조(엇갈림)", "약세": "약세"}
+
     if run_type == "2차":
         checklist = "─" * 16 + "\n[원칙] NXT 거래여부 우선확인 / 추격금지 / 물타기금지\n"
     else:
@@ -273,16 +301,17 @@ def format_market_summary(market_totals: dict, run_time: str, run_type: str,
     if index_regime:
         _kd = index_regime.get("kosdaq_regime", "?")
         _emoji = {"강세": "🟢", "혼조": "🟡", "약세": "🔴", "?": "⚪"}.get(_kd, "")
+        _kd_disp = _KD_PLAIN.get(_kd, _kd)
         _guide = index_regime.get("guide", "")
-        regime_line = f"[코스닥국면] {_emoji} {_kd} — {_guide}\n"
+        regime_line = f"[판단] {_emoji} 코스닥 {_kd_disp} — {_guide}\n"
         if index_regime.get("decoupled_largecap"):
-            regime_line += "  ⚠ 코스피 강세·코스닥 약세 디커플링 → 추세 좋은 대형주 우위 국면\n"
+            regime_line += "  ⚠ 코스피만 강하고 코스닥 약함(디커플링) → 추세 좋은 대형주 우위\n"
 
     return (
-        f"<b>[종가베팅 스캔] {date_str} · {base_time} KST</b>\n"
-        f"코스피 {_idx(kospi_level, kospi_chg)} | 코스닥 {_idx(kosdaq_level, kosdaq_chg)}\n"
-        f"거래대금: 코스피 {kospi_tv:,.0f}억 | 코스닥 {kosdaq_tv:,.0f}억\n"
-        f"[시장] {regime_str}{adl_str}{subtype_str} | 1500억↑ {tv1500}개\n"
+        f"<b>📊 종가베팅 스캔 · {date_disp} · {base_time}</b>\n"
+        f"[지수] 코스피 {_idx(kospi_level, kospi_chg)} / 코스닥 {_idx(kosdaq_level, kosdaq_chg)}\n"
+        f"[자금] 코스피 {_tv_jo(kospi_tv)} · 코스닥 {_tv_jo(kosdaq_tv)}\n"
+        f"[강도] {regime_str}{adl_str}{subtype_str} · 굵은종목(1500억↑) {tv1500}개\n"
         f"{regime_line}"
         f"{direction_line}"
         f"{limit_up_line}"
