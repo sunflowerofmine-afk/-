@@ -1,0 +1,33 @@
+{
+  "date": "2026-06-30",
+  "generated": "2026-06-30",
+  "stocks": {
+    "222800": {
+      "name": "심텍",
+      "signal_price": 148700,
+      "52w_high": 151300,
+      "52w_low": 21400,
+      "pct_from_52w_high": -1.72,
+      "is_near_52w_high": true,
+      "days_since_52w_high": 0
+    },
+    "281820": {
+      "name": "케이씨텍",
+      "signal_price": 115100,
+      "52w_high": 116400,
+      "52w_low": 25200,
+      "pct_from_52w_high": -1.12,
+      "is_near_52w_high": true,
+      "days_since_52w_high": 0
+    },
+    "036930": {
+      "name": "주성엔지니어링",
+      "signal_price": 201000,
+      "52w_high": 283000,
+      "52w_low": 26050,
+      "pct_from_52w_high": -28.98,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 12
+    }
+  }
+}
