@@ -1,0 +1,110 @@
+name: Weekly Research (금요일 눌림 소급 + 백테스트)
+
+# 금요일 20:00 KST (= 11:00 UTC). 평일 파이프라인에서 제외한 눌림(pullback)을
+# 그 주 5거래일에 대해 소급 생성한 뒤, 주간 백테스트(신호·적중률·패턴별 승률·
+# 기대수익)를 산출·발송한다.
+on:
+  schedule:
+    - cron: "0 11 * * 5"      # 금요일 11:00 UTC = 20:00 KST
+  workflow_dispatch:          # 수동 실행도 허용
+
+jobs:
+  weekly-research:
+    runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Restore signals/summary/watch-log from latest run_bot artifact
+        # 눌림 소급은 signals.csv·daily_summary.json(base_pool·시장국면)이 필요하고,
+        # watch_log는 누적 멱등(이번 주 라인만 재생성)을 위해 직전 상태가 필요하다.
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PREV_RUN=$(gh run list --workflow run_bot.yml --status success --limit 1 \
+            --json databaseId --jq '.[0].databaseId' 2>/dev/null || echo "")
+          if [ -n "$PREV_RUN" ]; then
+            echo "이전 run_bot run: $PREV_RUN"
+            mkdir -p data/signals data/pullback_observation
+            gh run download "$PREV_RUN" -n "bot-output-${PREV_RUN}" -D /tmp/art 2>/dev/null || true
+            cp /tmp/art/data/signals/* data/signals/ 2>/dev/null || true
+            cp /tmp/art/data/pullback_observation/* data/pullback_observation/ 2>/dev/null || true
+            echo "복원: signals $(ls data/signals/ 2>/dev/null | wc -l)개, watch_log $([ -f data/pullback_observation/low_position_watch_log.jsonl ] && echo 있음 || echo 없음)"
+          else
+            echo "이전 run 없음 → signals_extra 폴백만으로 백테스트 진행"
+          fi
+
+      - name: Backfill pullback observations (그 주 5거래일 소급)
+        continue-on-error: true   # 소급 실패해도 백테스트는 진행
+        env:
+          TZ: Asia/Seoul
+        run: python -m scripts.weekly_research
+
+      - name: Run weekly backtest (신호·적중률·패턴별 승률·기대수익 → 발송)
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
+          TZ: Asia/Seoul
+        run: python -m scripts.weekly_backtest
+
+      - name: Commit backtest report
+        if: always()
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add reports/weekly_backtest/ data/weekly_backtest/ 2>/dev/null || true
+          git diff --cached --quiet && echo "No changes" || \
+            git commit -m "chore: weekly research report [skip ci]"
+          git pull --rebase --autostash origin main
+          git push
+
+      - name: Upload artifacts (watch_log 누적 보존)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: weekly-research-${{ github.run_id }}
+          path: |
+            data/pullback_observation/
+            data/weekly_backtest/
+            reports/weekly_backtest/
+          retention-days: 90
+
+      - name: Backup pullback log to private repo
+        if: always()
+        env:
+          BACKUP_KEY: ${{ secrets.DATA_BACKUP_SSH_KEY }}
+        run: |
+          if [ -z "$BACKUP_KEY" ]; then
+            echo "DATA_BACKUP_SSH_KEY 미설정 — 백업 skip"
+            exit 0
+          fi
+          mkdir -p ~/.ssh
+          echo "$BACKUP_KEY" > ~/.ssh/backup_key
+          chmod 600 ~/.ssh/backup_key
+          export GIT_SSH_COMMAND="ssh -i ~/.ssh/backup_key -o StrictHostKeyChecking=accept-new"
+          git clone --depth 1 git@github.com:sunflowerofmine-afk/jongbe-data-backup.git /tmp/backup
+          mkdir -p /tmp/backup/data
+          cp -r data/pullback_observation /tmp/backup/data/ 2>/dev/null || true
+          cd /tmp/backup
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet && echo "변경 없음" || \
+            git commit -m "backup(weekly): $(TZ=Asia/Seoul date +%Y-%m-%d_%H%M)"
+          git push || echo "백업 push 실패 (배치는 정상)"

@@ -23,6 +23,7 @@ from config.settings import (
     ENABLE_SHORT_BALANCE,
     ENABLE_PENSION_FETCH,
     ENABLE_LARGECAP_OBSERVER,
+    ENABLE_PULLBACK_OBS,
     MARKET_REGIME_BULL_ADL, MARKET_REGIME_BEAR_ADL, MARKET_REGIME_BULL_TV1500,
     CANDIDATES_MAX_BULL, CANDIDATES_MAX_NEUTRAL, CANDIDATES_MAX_BEAR, CANDIDATES_MAX_CONCENTRATED_BEAR,
     KH_CRAWL_MIN_TV_EOK,
@@ -1324,8 +1325,10 @@ def run(preview: bool = False):
     key_candidates.sort(key=_priority)
 
     # ── 일반 눌림 관찰 (2차/수동만, 기존 체계와 완전 분리) ─────────────────────
+    # ENABLE_PULLBACK_OBS=False(평일 기본): 비용 큰 눌림 수집을 평일에서 제외.
+    # 금요일 weekly_research가 그 주 5일치를 소급 생성.
     pullback_obs_candidates: list[dict] = []
-    if run_type != "1차":
+    if run_type != "1차" and ENABLE_PULLBACK_OBS:
         try:
             from scripts import pullback_observer as _pb_obs
             pullback_obs_candidates = _pb_obs.run(

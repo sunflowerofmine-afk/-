@@ -100,10 +100,16 @@ def run(
     adl: float,
     index_return_1d: float | None,
     signals_dir: Path,
+    asof_date: str | None = None,
 ) -> list[dict]:
     """
     일반 눌림 관찰 후보 탐색 + JSONL 저장.
     반환: 대시보드 표시용 관찰 후보 리스트.
+
+    asof_date (YYYY-MM-DD): 소급 모드. 주어지면 그 날짜를 '오늘'로 간주해
+      각 종목 일봉을 asof_date 이하로 잘라 그날 시점 종가·거래대금·등락률을
+      일봉에서 직접 산출(미래 데이터 누수 제거). filtered_df는 종목명·시장만
+      제공하면 됨(거래대금/등락률은 일봉에서 취함). weekly_research가 호출.
     """
     from config.settings import (
         PULLBACK_OBS_DIR,
@@ -125,24 +131,28 @@ def run(
     PULLBACK_OBS_DIR.mkdir(parents=True, exist_ok=True)
     obs_log = PULLBACK_OBS_DIR / "low_position_watch_log.jsonl"
 
-    # 과거 신호에서 당일돌파형 기준봉 pool 수집
-    base_pool = _load_base_pool(signals_dir, date, PULLBACK_OBS_SIGNALS_LOOKBACK_DAYS)
+    min_tv_won = PULLBACK_OBS_TODAY_TV_MIN_EOK * 1e8
+
+    # 과거 신호에서 당일돌파형 기준봉 pool 수집 (소급 시 asof_date 이전 신호만)
+    base_pool = _load_base_pool(signals_dir, asof_date or date, PULLBACK_OBS_SIGNALS_LOOKBACK_DAYS)
     if not base_pool:
         logger.info("pullback_observer: 과거 신호 없음")
         return []
 
-    # 오늘 거래대금/등락률 맵
-    tv_map  = filtered_df.set_index("종목코드")["거래대금"].to_dict()
-    chg_map = filtered_df.set_index("종목코드")["등락률"].to_dict()
-    min_tv_won = PULLBACK_OBS_TODAY_TV_MIN_EOK * 1e8
-
-    # TV >= 설정값, 상한가 아닌, filtered_df에 존재하는 종목
-    candidate_codes = [
-        code for code in base_pool
-        if float(tv_map.get(code, 0)) >= min_tv_won
-        and float(chg_map.get(code, 0)) < 29.5
-        and not filtered_df[filtered_df["종목코드"] == code].empty
-    ]
+    if asof_date:
+        # 소급 모드: 그날 거래대금/등락률은 루프 내 일봉에서 산출 → 후보는 pool 전체
+        candidate_codes = list(base_pool.keys())
+    else:
+        # 오늘 거래대금/등락률 맵
+        tv_map  = filtered_df.set_index("종목코드")["거래대금"].to_dict()
+        chg_map = filtered_df.set_index("종목코드")["등락률"].to_dict()
+        # TV >= 설정값, 상한가 아닌, filtered_df에 존재하는 종목
+        candidate_codes = [
+            code for code in base_pool
+            if float(tv_map.get(code, 0)) >= min_tv_won
+            and float(chg_map.get(code, 0)) < 29.5
+            and not filtered_df[filtered_df["종목코드"] == code].empty
+        ]
     logger.info(
         f"pullback_observer: pool {len(base_pool)}개 → TV필터 후 {len(candidate_codes)}개"
     )
@@ -150,26 +160,46 @@ def run(
     results: list[dict] = []
     thr = PULLBACK_OBS_NEAR_MA_THRESHOLD_PCT
 
+    asof_dot = asof_date.replace("-", ".") if asof_date else None
+
     for code in candidate_codes:
         try:
             row_df = filtered_df[filtered_df["종목코드"] == code]
-            if row_df.empty:
+            # 소급 모드: 종목명/시장만 참조(없어도 진행). 평시: 없으면 skip.
+            if row_df.empty and not asof_date:
                 continue
-            row = row_df.iloc[0]
+            row = row_df.iloc[0] if not row_df.empty else None
 
-            name        = str(row.get("종목명", ""))
-            market      = str(row.get("시장", ""))
-            today_close = float(row.get("현재가", 0) or 0)
-            today_chg   = float(row.get("등락률", 0) or 0)
-            today_tv    = float(row.get("거래대금", 0) or 0)
-            sector      = code_to_sector.get(code, "")
-
-            if today_close <= 0:
-                continue
+            name   = str(row.get("종목명", "")) if row is not None else ""
+            market = str(row.get("시장", ""))   if row is not None else ""
+            sector = code_to_sector.get(code, "")
 
             daily_df = fetch_chart_data(code)
             time.sleep(REQUEST_DELAY)
-            if daily_df.empty or len(daily_df) < 5:
+            if daily_df.empty:
+                continue
+
+            if asof_date:
+                # asof_date 이하로 잘라 그날을 '오늘'로 (미래 봉 제거)
+                daily_df = daily_df[daily_df["date"] <= asof_dot].reset_index(drop=True)
+                if len(daily_df) < 5:
+                    continue
+                _r0         = daily_df.iloc[0]
+                today_close = float(_r0.get("close", 0) or 0)
+                today_tv    = float(_r0.get("trading_value", 0) or 0)
+                _prev_c     = float(daily_df.iloc[1].get("close", 0) or 0) if len(daily_df) > 1 else 0.0
+                today_chg   = (today_close / _prev_c - 1) * 100 if _prev_c > 0 else 0.0
+                # 소급 TV/상한가 필터 (평시 candidate_codes 필터와 동일 기준)
+                if today_tv < min_tv_won or today_chg >= 29.5:
+                    continue
+            else:
+                if len(daily_df) < 5:
+                    continue
+                today_close = float(row.get("현재가", 0) or 0)
+                today_chg   = float(row.get("등락률", 0) or 0)
+                today_tv    = float(row.get("거래대금", 0) or 0)
+
+            if today_close <= 0:
                 continue
 
             daily_df = calc_all_ma(daily_df)
@@ -287,7 +317,7 @@ def run(
             if near_base_mid: tags.append("기준봉중심근접")
 
             results.append({
-                "date":                              date,
+                "date":                              asof_date or date,
                 "code":                              code,
                 "name":                              name,
                 "market":                            market,

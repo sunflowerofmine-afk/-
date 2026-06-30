@@ -173,6 +173,10 @@ LARGECAP_TOP_N                          = 50     # 코스피 시총 상위 N
 TRADE_ANALYZER_BASE_CAPITAL             = 0      # 포지션 비중 산정 기준 자본 (0=해당 기간 총 매수대금)
 
 # ── 일반 눌림 관찰 (Pullback Observer) — 기존 종가베팅 체계와 완전 분리 ───
+# 평일 파이프라인에선 OFF (수집 비용 큼·소급 가능). 금요일 weekly_research에서
+# 그 주 5일치를 소급 생성. weekly_research는 pullback_observer.run을 직접 호출하므로
+# 이 플래그와 무관하게 동작.
+ENABLE_PULLBACK_OBS                 = False
 PULLBACK_OBS_DIR                    = DATA_DIR / "pullback_observation"
 PULLBACK_OBS_SIGNALS_LOOKBACK_DAYS  = 20     # signals.csv 탐색 범위 (거래일)
 PULLBACK_OBS_BASE_CANDLE_MIN_PCT    = 10.0   # 기준봉 최소 상승률 (%)
