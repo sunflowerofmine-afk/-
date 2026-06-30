@@ -1152,29 +1152,36 @@ def _section_regime_guide(data: dict) -> str:
 
 
 def _section_largecap(candidates: list) -> str:
-    """대형주 추세추종 관찰 섹션 (backtest_regime_largecap).
+    """대형주 주도주 관찰 섹션 (2026-06-30 백테스트로 필터 재정렬).
 
-    코스피 강세 국면일 때만 후보가 채워진다(약세장 미활성). 매수신호 아닌 관찰정보.
+    신고가근접+거래대금+당일양봉 게이트. 외인·기관 동시매수는 보조 태그. 매수신호 아닌 관찰정보.
     """
     if not candidates:
         return ""
     rows = []
     for c in candidates:
         tv_eok = float(c.get("trading_value", 0)) / 1e8
+        nh = c.get("near_high_pct")
+        nh_str = (f'신고가 {nh:+.1f}%' if nh is not None and nh > -900 else "-")
+        dual = c.get("dual_buy")
+        dual_tag = ('<span class="pos">🔥 외인+기관</span>' if dual
+                    else ('<span style="color:var(--muted)">-</span>' if dual is not None else ""))
         rows.append(
             f'<tr><td>{_e(c.get("name",""))}<span style="color:var(--muted);font-size:11px"> '
             f'{_e(c.get("code",""))}</span></td>'
             f'<td style="text-align:right">{c.get("change_pct",0):+.2f}%</td>'
-            f'<td style="text-align:right">5일선 +{c.get("ma5_gap_pct",0):.1f}%</td>'
-            f'<td style="text-align:right">{tv_eok:,.0f}억</td></tr>'
+            f'<td style="text-align:right">{nh_str}</td>'
+            f'<td style="text-align:right">{tv_eok:,.0f}억</td>'
+            f'<td style="text-align:center">{dual_tag}</td></tr>'
         )
     return (
-        '<div class="section-title">🏛 대형주 추세 관찰 '
-        '<span style="font-size:12px;color:var(--muted)">(코스피 강세 국면 · 5일선 위+당일양봉 · 검증 69%)</span></div>'
+        '<div class="section-title">🏛 대형주 주도주 관찰 '
+        '<span style="font-size:12px;color:var(--muted)">(신고가근접+거래대금+양봉 · 검증 D+1 시가67%/종가58%)</span></div>'
         '<div style="font-size:12px;color:var(--muted);margin-bottom:6px">'
-        '안 올라도 추세 좋은 대형주. 5일선 이격 작은 순(추세 초입). D+1 시초가 매도 원칙 동일. 관찰 정보일 뿐 매수신호 아님.</div>'
+        '시장 자금이 몰린 신고가권 대형주. 신고가 가까운 순. 🔥=외인+기관 동시순매수(보조). '
+        'D+1 시초가 매도 원칙 동일. 관찰 정보일 뿐 매수신호 아님(약세장 분리검증 미완).</div>'
         '<table class="data-table"><thead><tr>'
-        '<th>종목</th><th>당일</th><th>5일선이격</th><th>거래대금</th></tr></thead>'
+        '<th>종목</th><th>당일</th><th>신고가대비</th><th>거래대금</th><th>수급</th></tr></thead>'
         f'<tbody>{"".join(rows)}</tbody></table>'
     )
 

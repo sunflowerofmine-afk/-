@@ -1544,10 +1544,11 @@ def run(preview: bool = False):
         _c["kosdaq_regime"] = _kd_regime
     report_data["core_candidates"]        = core_candidates
     report_data["watch_candidates"]       = watch_candidates
-    # 대형주 추세추종 관찰 — 코스피 강세 국면에서만 활성 (약세장 28% 자살골 회피)
+    # 대형주 주도주 관찰 — 코스피 강세 게이트를 신고가근접+거래대금 질적필터로 교체
+    # (2026-06-30 백테스트: 신고가근접+거래대금+양봉 D+1 시가67%/종가58%. 신고가 필터가
+    #  약세장 잡주를 자동 배제 → 혼조장 삼성전기도 포착). 관찰정보, 매수신호 아님.
     largecap_candidates = []
-    if (run_type in ("2차", "수동") and ENABLE_LARGECAP_OBSERVER and index_regime
-            and index_regime.get("kospi_regime") == "강세"):
+    if run_type in ("2차", "수동") and ENABLE_LARGECAP_OBSERVER:
         try:
             from scripts.largecap_observer import observe as _observe_largecap
             largecap_candidates = _observe_largecap()
