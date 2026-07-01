@@ -1,0 +1,42 @@
+{
+  "date": "2026-07-01",
+  "generated": "2026-07-01",
+  "stocks": {
+    "007660": {
+      "name": "이수페타시스",
+      "signal_price": 132900,
+      "52w_high": 164400,
+      "52w_low": 45000,
+      "pct_from_52w_high": -19.16,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 46
+    },
+    "010120": {
+      "name": "LS ELECTRIC",
+      "signal_price": 263500,
+      "52w_high": 907000,
+      "52w_low": 0,
+      "pct_from_52w_high": -70.95,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 69
+    },
+    "000500": {
+      "name": "가온전선",
+      "signal_price": 300500,
+      "52w_high": 635000,
+      "52w_low": 0,
+      "pct_from_52w_high": -52.68,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 33
+    },
+    "475150": {
+      "name": "SK이터닉스",
+      "signal_price": 59400,
+      "52w_high": 69300,
+      "52w_low": 17210,
+      "pct_from_52w_high": -14.29,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 59
+    }
+  }
+}
