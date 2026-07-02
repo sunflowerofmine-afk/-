@@ -295,6 +295,21 @@ def format_market_summary(market_totals: dict, run_time: str, run_type: str,
     else:
         checklist = "─" * 16 + "\n[원칙] 종가진입 / 물타기금지 / D+1장초계획\n"
 
+    # 거시 한 줄 (환율·WTI — 돌팬티 루틴: 미선물·유가·환율 확인)
+    macro = ex.get("macro") or {}
+    macro_line = ""
+    if macro.get("usdkrw") is not None:
+        _uc = macro.get("usdkrw_chg")
+        macro_line = f"[거시] 환율 {macro['usdkrw']:,.1f}원"
+        if _uc is not None:
+            macro_line += f"({'▲' if _uc >= 0 else '▼'}{abs(_uc):.1f})"
+        if macro.get("wti") is not None:
+            _wc = macro.get("wti_chg")
+            macro_line += f" · 유가(WTI) {macro['wti']:.1f}달러"
+            if _wc is not None:
+                macro_line += f"({'▲' if _wc >= 0 else '▼'}{abs(_wc):.1f})"
+        macro_line += "\n"
+
     # 지수 5일선·추세 국면 (백테스트 검증: 코스닥 국면이 종베 승률 결정)
     index_regime = ex.get("index_regime")
     regime_line = ""
@@ -311,6 +326,7 @@ def format_market_summary(market_totals: dict, run_time: str, run_type: str,
         f"<b>📊 종가베팅 스캔 · {date_disp} · {base_time}</b>\n"
         f"[지수] 코스피 {_idx(kospi_level, kospi_chg)} / 코스닥 {_idx(kosdaq_level, kosdaq_chg)}\n"
         f"[자금] 코스피 {_tv_jo(kospi_tv)} · 코스닥 {_tv_jo(kosdaq_tv)}\n"
+        f"{macro_line}"
         f"[강도] {regime_str}{adl_str}{subtype_str} · 굵은종목(1500억↑) {tv1500}개\n"
         f"{regime_line}"
         f"{direction_line}"
@@ -318,6 +334,39 @@ def format_market_summary(market_totals: dict, run_time: str, run_type: str,
         f"{pat_line}"
         f"{checklist}"
     )
+
+
+# ── 대형주 주도주 후속 알림 ─────────────────────────────────
+
+def build_largecap_message(largecap_candidates: list, run_time: str, run_type: str) -> str:
+    """대형주 주도주 관찰 후속 메시지 (본 알림 뒤 별도 발송, 1차/2차 공통).
+
+    2026-06-30 백테스트: 신고가근접 67% / 거래대금+외인기관 동시매수 66% (D+1 시가).
+    1차는 본 알림 발송 후 실행해 알림 타이밍을 보호(KRX 15시 전후 진입 정보).
+    """
+    if not largecap_candidates:
+        return ""
+    lines = [f"🏛 <b>대형주 주도주 관찰</b> — {run_type} ({run_time} KST)",
+             "기준: 양봉+거래대금 3천억↑ 이고 (신고가 근접 또는 외인+기관 동시순매수)"]
+    if run_type == "1차":
+        lines.append("⚠ 1차는 장중 잠정치 기준 (종가 확정 아님)")
+    lines.append("")
+    for c in largecap_candidates[:5]:
+        tv = float(c.get("trading_value", 0) or 0)
+        tv_str = f"{tv/1e12:.1f}조" if tv >= 1e12 else f"{tv/1e8:,.0f}억"
+        nh = c.get("near_high_pct")
+        nh_str = f" · 신고가까지 {nh:+.1f}%" if nh is not None and nh > -900 else ""
+        dual = " · 🔥외인+기관" if c.get("dual_buy") else ""
+        lines.append(
+            f"· <b>{c.get('name','')}</b>({c.get('code','')}) "
+            f"{c.get('change_pct', 0):+.2f}% · {tv_str}{nh_str}{dual}"
+        )
+    if len(largecap_candidates) > 5:
+        lines.append(f"…외 {len(largecap_candidates) - 5}개 (대시보드 참조)")
+    lines.append("─" * 16)
+    lines.append("진입 정석: KRX 15시 전후 일부 + NXT 막판(19:50 이후) 나머지")
+    lines.append("검증: D+1 시가 매도 승률 66% 이상 · 관찰 정보 (매수신호 아님)")
+    return "\n".join(lines)
 
 
 # ── 섹터 섹션 (#3) ───────────────────────────────────────

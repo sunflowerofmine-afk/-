@@ -1575,8 +1575,17 @@ def run(preview: bool = False):
         except Exception as e:
             logger.warning(f"대시보드 생성 중 오류 (무시): {e}")
 
+    # 거시 지표 (환율·WTI) — 알림 [거시] 줄용. 실패해도 무시.
+    macro_data: dict = {}
+    try:
+        from scripts.fetch_macro import fetch_macro
+        macro_data = fetch_macro()
+    except Exception as e:
+        logger.warning(f"거시 지표 수집 실패 (무시): {e}")
+
     # 알림 전송
     _ms_extra = {
+        "macro":                 macro_data,
         "tv_1500_count":         tv_1500_count,
         "gainers_tv_1500_count": gainers_tv_1500_count,
         "intersection_count":    len(intersection) if not intersection.empty else 0,
@@ -1609,6 +1618,18 @@ def run(preview: bool = False):
         )
         ntf.send_message(msg)
         logger.info(f"1차 알림 전송 완료 (핵심 {len(core_candidates)}개 / 관심 {len(watch_candidates)}개)")
+
+        # 대형주 주도주 후속 알림 — 본 알림 발송 뒤 실행해 1차 타이밍 보호.
+        # KRX 15시 전후 진입(돌팬티: KRX 일부 + NXT 막판) 판단용 정보.
+        if ENABLE_LARGECAP_OBSERVER:
+            try:
+                from scripts.largecap_observer import observe as _observe_largecap_1st
+                _lc1 = _observe_largecap_1st()
+                if _lc1:
+                    ntf.send_message(ntf.build_largecap_message(_lc1, run_time, run_type))
+                    logger.info(f"대형주 후속 알림(1차): {len(_lc1)}개")
+            except Exception as e:
+                logger.warning(f"대형주 1차 관찰 실패 (무시): {e}")
     else:
         msg = ntf.build_second_alert(
             market_totals, gainers, top_tv, intersection,
@@ -1622,6 +1643,14 @@ def run(preview: bool = False):
         )
         ntf.send_message(msg)
         logger.info(f"2차 알림 전송 완료 (핵심 {len(core_candidates)}개 / 관심 {len(watch_candidates)}개)")
+
+        # 대형주 주도주 후속 알림 (2차 — NXT 막판 진입 판단용, 이미 수집된 결과 재사용)
+        if largecap_candidates:
+            try:
+                ntf.send_message(ntf.build_largecap_message(largecap_candidates, run_time, run_type))
+                logger.info(f"대형주 후속 알림(2차): {len(largecap_candidates)}개")
+            except Exception as e:
+                logger.warning(f"대형주 후속 알림 실패 (무시): {e}")
 
         # ── 시장 흐름 심층 요약 (TELEGRAM_CHAT_ID 전용) ────────────────
         try:
