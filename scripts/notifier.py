@@ -310,17 +310,19 @@ def format_market_summary(market_totals: dict, run_time: str, run_type: str,
                 macro_line += f"({'▲' if _wc >= 0 else '▼'}{abs(_wc):.1f})"
         macro_line += "\n"
 
-    # 지수 5일선·추세 국면 (백테스트 검증: 코스닥 국면이 종베 승률 결정)
+    # 지수 5일선·추세 국면 (코스피·코스닥 각자 독립 판정 — 서로 비교 아님)
     index_regime = ex.get("index_regime")
     regime_line = ""
     if index_regime:
+        _emoji_map = {"강세": "🟢", "혼조": "🟡", "약세": "🔴", "?": "⚪"}
         _kd = index_regime.get("kosdaq_regime", "?")
-        _emoji = {"강세": "🟢", "혼조": "🟡", "약세": "🔴", "?": "⚪"}.get(_kd, "")
+        _kp = index_regime.get("kospi_regime", "?")
         _kd_disp = _KD_PLAIN.get(_kd, _kd)
-        _guide = index_regime.get("guide", "")
-        regime_line = f"[판단] {_emoji} 코스닥 {_kd_disp} — {_guide}\n"
-        if index_regime.get("decoupled_largecap"):
-            regime_line += "  ⚠ 코스피만 강하고 코스닥 약함(디커플링) → 추세 좋은 대형주 우위\n"
+        _kp_disp = _KD_PLAIN.get(_kp, _kp)
+        regime_line = (
+            f"[판단] 코스피 {_emoji_map.get(_kp,'')} {_kp_disp}"
+            f" · 코스닥 {_emoji_map.get(_kd,'')} {_kd_disp}\n"
+        )
 
     return (
         f"<b>📊 종가베팅 스캔 · {date_disp} · {base_time}</b>\n"
