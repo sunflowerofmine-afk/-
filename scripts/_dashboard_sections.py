@@ -292,8 +292,35 @@ def _section_header(data: dict) -> str:
     <span>코스피 {kospi_tv}{kospi_lv_str}{kospi_chg_html}</span>
     <span style="margin-left:20px">코스닥 {kosdaq_tv}{kosdaq_lv_str}{kosdaq_chg_html}</span>
   </div>
+  {_top5_concentration_html(data)}
 </div>
 """
+
+
+def _top5_concentration_html(data: dict) -> str:
+    """거래대금 Top5 집중도 — 자금 쏠림/분산 온도계.
+
+    백필(2026-04~07, 56거래일) 기준: 4월 개별주 장세 평균 31% / 6월 쏠림 극단 55%(피크 66%).
+    임계값은 잠정 — 표본 누적 후 재조정."""
+    m = data.get("market_summary", {})
+    top20 = data.get("trading_value_top20", [])
+    total_eok = (m.get("kospi_tv_eok", 0) or 0) + (m.get("kosdaq_tv_eok", 0) or 0)
+    if not top20 or total_eok <= 0:
+        return ""
+    top5_eok = sum(float(r.get("거래대금", 0)) for r in top20[:5]) / 1e8
+    ratio = top5_eok / total_eok * 100
+    if ratio >= 50:
+        label, color = "쏠림 극단 — 개별주 종베 불리", "var(--red)"
+    elif ratio >= 40:
+        label, color = "쏠림 — 대형주 주도", "var(--yellow)"
+    else:
+        label, color = "분산 — 개별주 장세", "var(--green)"
+    return (
+        f'<div style="margin-top:6px;font-size:13px;color:var(--muted)">'
+        f'Top5 거래대금 집중도 <b style="color:{color}">{ratio:.1f}%</b>'
+        f' <span style="color:{color}">({label})</span>'
+        f' <span style="font-size:11px">· 참고: 4월 분산기 31% / 6월 쏠림기 55%</span></div>'
+    )
 
 
 def _section_env_and_signals(data: dict) -> str:
