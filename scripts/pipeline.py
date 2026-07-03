@@ -1669,11 +1669,11 @@ def run(preview: bool = False):
         except Exception as e:
             logger.warning(f"시장 흐름 요약 실패 (무시): {e}")
 
-    # ── 기준봉 후 추적 알림 (1차/2차 공통) ──────────────────────────
-    try:
-        _send_track_alert(run_type, run_time)
-    except Exception as e:
-        logger.warning(f"기준봉 후 추적 알림 실패 (무시): {e}")
+    # ── 기준봉 후 추적 알림 (1차/2차 공통) ── 비활성화: 강한 종목 종베 집중 기간
+    # try:
+    #     _send_track_alert(run_type, run_time)
+    # except Exception as e:
+    #     logger.warning(f"기준봉 후 추적 알림 실패 (무시): {e}")
 
     if ENABLE_DASHBOARD:
         try:

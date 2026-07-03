@@ -279,32 +279,18 @@ def _section_header(data: dict) -> str:
                       if market_subtype else "")
     regime_badge = f'<span class="{rcls}" style="font-size:14px;padding:3px 12px;margin-left:10px;">{rlabel}{adl_suffix}{subtype_badge}</span>' if regime else ""
 
-    inter_n  = market.get("intersection_count", 0)
-    tv_1500  = market.get("tv_1500_count", 0)
-    core_n   = len(data.get("core_candidates", []))
-    key_nums = (
-        f'<div style="margin-top:8px;font-size:15px;font-weight:600;letter-spacing:0.5px">'
-        f'<span style="color:var(--yellow)">교집합 {inter_n}개</span>'
-        f'<span style="color:var(--muted);margin:0 10px">/</span>'
-        f'<span style="color:var(--green)">1500억↑ {tv_1500}개</span>'
-        f'<span style="color:var(--muted);margin:0 10px">/</span>'
-        f'<span style="color:var(--blue)">핵심후보 {core_n}개</span>'
-        f'</div>'
-    )
-
     return f"""
 <div class="page-header">
   <h1>📈 종가베팅 스캔 리포트{regime_badge}</h1>
-  {key_nums}
-  <div class="meta" style="margin-top:6px;">
+  <div style="margin-top:8px;font-size:15px;font-weight:700;color:var(--text)">
     <span>📅 {date}</span>
-    <span>기준시각 {base_time}</span>
-    <span>실행시각 {run_time_hm} KST</span>
-    <span>분류 {run_type}</span>
+    <span style="margin-left:16px">기준시각 {base_time}</span>
+    <span style="margin-left:16px">실행시각 {run_time_hm} KST</span>
+    <span style="margin-left:16px">분류 {run_type}</span>
   </div>
-  <div class="meta" style="margin-top:4px;">
+  <div style="margin-top:8px;font-size:17px;font-weight:700;color:var(--text)">
     <span>코스피 {kospi_tv}{kospi_lv_str}{kospi_chg_html}</span>
-    <span>코스닥 {kosdaq_tv}{kosdaq_lv_str}{kosdaq_chg_html}</span>
+    <span style="margin-left:20px">코스닥 {kosdaq_tv}{kosdaq_lv_str}{kosdaq_chg_html}</span>
   </div>
 </div>
 """

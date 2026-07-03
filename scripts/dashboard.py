@@ -24,23 +24,18 @@ from scripts._dashboard_css import _css
 from scripts._dashboard_nav import _scan_report_entries, _date_map_from_entries, _nav_bar
 from scripts._dashboard_sections import (
     _section_header,
-    _section_regime_guide,
     _section_largecap,
     _section_env_and_signals,
-    _section_limit_up,
     _section_stock_panel,
     _section_watch_panel,
     _section_recent_base_pool,
     _section_leading_sectors,
     _section_sector_calendar,
-    _section_review,
-    _section_cumulative_stats,
     _section_table_intersection,
     _section_rejected_summary,
     _section_table_gainers,
     _section_table_tv,
     _section_tracked,
-    _section_52w_trend,
 )
 
 logger = logging.getLogger(__name__)
@@ -243,7 +238,6 @@ def _build_html(data: dict, nav_entries: list | None = None, current_filename: s
 
     body_parts = [
         _section_header(data),
-        _section_regime_guide(data),
         _section_env_and_signals(data),
         # ── 종가베팅 후보 (양분화: 중소형 핵심+관심 → 대형주) ──
         _section_stock_panel(core, rejected, market_regime),
@@ -251,20 +245,17 @@ def _build_html(data: dict, nav_entries: list | None = None, current_filename: s
         _section_largecap(data.get("largecap_candidates", [])),
         # ── 시장 정보 ──
         _section_leading_sectors(data.get("leading_sectors", [])),
-        _section_limit_up(data.get("market_summary", {})),
         _section_table_tv(data.get("trading_value_top20", [])),
         _section_table_gainers(data.get("gainers_top20", [])),
         _section_sector_calendar(data.get("sector_calendar", {}), today_str, date_map),
         _section_table_intersection(data.get("intersection_candidates", [])),
         _section_rejected_summary(rejected),
-        # ── 기준봉 관찰 · 추적 · 복기 ──
+        # ── 기준봉 관찰 · 추적 ──
         # KH(김형준)·눌림(pullback) 섹션은 출력 중단 — 종베 집중을 위해 화면에서 제외.
         # 데이터 수집·저장은 유지(KH는 평일 signals.csv, 눌림은 금요일 weekly_research).
+        # 전일 복기·누적 승률·멀티데이 통계·52주 신고가 추이는 백테스트 전용 — 대시보드 미표시.
         _section_recent_base_pool(data.get("obs_candidates", [])),
         _section_tracked(data.get("tracked_candidates", [])),
-        _section_review(data.get("review_results", [])),
-        _section_cumulative_stats(data.get("cumulative_stats", {})),
-        _section_52w_trend(),
     ]
     body     = "\n".join(body_parts)
     nav_html = _nav_bar(nav_entries, current_filename) if nav_entries else ""
