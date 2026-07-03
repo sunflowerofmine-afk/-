@@ -1,0 +1,2 @@
+﻿종목명,종목코드,시장,등락률,거래대금,signal_price,sector,source_pool,observation_only,pattern_type_label,is_htc_candidate,is_high_range_candidate,kim_hyungjun_flag,base_candle_date,base_candle_offset,today_tv_ratio,close_from_base_high_pct,above_ma5,supply_label,note
+케이씨텍,281820,KOSPI,-3.98,62473708400.0,109400.0,반도체와반도체장비,recent_base_pool,True,없음,False,False,False,2026-06-30,3,0.733455568828431,-6.013745704467354,,,최근 기준봉 이후 관찰 후보 (매수 신호 아님)
