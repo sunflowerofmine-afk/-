@@ -1250,6 +1250,39 @@ def _section_largecap(candidates: list) -> str:
     )
 
 
+def _section_twotop_oversold(candidates: list) -> str:
+    """투탑(삼성전자·SK하이닉스) 과매도 반등 관찰 섹션 (2026-07-05).
+
+    기존 대형주 관찰(신고가+양봉)이 못 잡는 급락일 자리 보완.
+    검증: 당일 -8%↓ 다음날 67~71% / 2일누적 -12%↓ 86%. 손절 필수. 관찰정보(매수신호 아님).
+    """
+    if not candidates:
+        return ""
+    rows = []
+    for c in candidates:
+        grade = c.get("grade", "")
+        col = "var(--red)" if grade == "강한 과매도" else "var(--yellow)"
+        rows.append(
+            f'<tr><td>{_e(c.get("name",""))}<span style="color:var(--muted);font-size:11px"> '
+            f'{_e(c.get("code",""))}</span></td>'
+            f'<td style="text-align:right">{c.get("change_pct",0):+.2f}%</td>'
+            f'<td style="text-align:right">{c.get("cum2_pct",0):+.2f}%</td>'
+            f'<td style="text-align:center;color:{col};font-weight:700">{_e(grade)}</td>'
+            f'<td style="color:var(--muted);font-size:12px">{_e(c.get("note",""))}</td></tr>'
+        )
+    return (
+        '<div class="section-title">📉 투탑 과매도 반등 관찰 '
+        '<span style="font-size:12px;color:var(--muted)">(삼전·SK하이닉스 급락일 · 검증 다음날 반등 67~86%)</span></div>'
+        '<div style="font-size:12px;color:var(--muted);margin-bottom:6px">'
+        '대형주가 급락한 날 다음날 반등을 노리는 자리(고수 7/2~7/3 실제 매매). '
+        '급락 깊을수록 우위. <b style="color:var(--red)">반드시 손절 병행</b> — 실패 시 다음날 저가 -12.5%. '
+        'KRX 일봉 기준(NXT 야간 미반영). 관찰 정보일 뿐 매수신호 아님.</div>'
+        '<table class="data-table"><thead><tr>'
+        '<th>종목</th><th>당일</th><th>2일누적</th><th>등급</th><th>근거</th></tr></thead>'
+        f'<tbody>{"".join(rows)}</tbody></table>'
+    )
+
+
 def _oversupply_html(c: dict) -> str:
     """오버수급(상장주식수 대비 5일 누적 순매수 비율) 행 — 1%↑ 종목만 표시."""
     from config.settings import OVERSUPPLY_RATIO_PCT

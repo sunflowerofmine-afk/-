@@ -28,6 +28,7 @@ from scripts._dashboard_sections import (
     _section_env_and_signals,
     _section_stock_panel,
     _section_watch_panel,
+    _section_twotop_oversold,
     _section_recent_base_pool,
     _section_leading_sectors,
     _section_sector_calendar,
@@ -243,6 +244,7 @@ def _build_html(data: dict, nav_entries: list | None = None, current_filename: s
         _section_stock_panel(core, rejected, market_regime),
         _section_watch_panel(data.get("watch_candidates", []), market_regime),
         _section_largecap(data.get("largecap_candidates", [])),
+        _section_twotop_oversold(data.get("twotop_oversold", [])),
         # ── 시장 정보 ──
         _section_leading_sectors(data.get("leading_sectors", [])),
         _section_table_tv(data.get("trading_value_top20", [])),

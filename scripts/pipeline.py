@@ -23,6 +23,7 @@ from config.settings import (
     ENABLE_SHORT_BALANCE,
     ENABLE_PENSION_FETCH,
     ENABLE_LARGECAP_OBSERVER,
+    ENABLE_TWOTOP_OVERSOLD,
     ENABLE_PULLBACK_OBS,
     MARKET_REGIME_BULL_ADL, MARKET_REGIME_BEAR_ADL, MARKET_REGIME_BULL_TV1500,
     CANDIDATES_MAX_BULL, CANDIDATES_MAX_NEUTRAL, CANDIDATES_MAX_BEAR, CANDIDATES_MAX_CONCENTRATED_BEAR,
@@ -1555,6 +1556,15 @@ def run(preview: bool = False):
         except Exception as e:
             logger.warning(f"대형주 관찰 실패 (무시): {e}")
     report_data["largecap_candidates"] = largecap_candidates
+    # 투탑 과매도 반등 관찰 — 급락일에 신고가 트랙이 못 잡는 자리 보완 (1차/2차 공통)
+    twotop_oversold = []
+    if ENABLE_TWOTOP_OVERSOLD:
+        try:
+            from scripts.largecap_observer import observe_oversold_twotop as _observe_oversold
+            twotop_oversold = _observe_oversold()
+        except Exception as e:
+            logger.warning(f"투탑 과매도 관찰 실패 (무시): {e}")
+    report_data["twotop_oversold"] = twotop_oversold
     report_data["rejected_candidates"]    = rejected_list
     report_data["kh_only_candidates"]     = kh_only_candidates
     report_data["kh_candidates_scope"]    = "top40_only"

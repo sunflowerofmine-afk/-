@@ -125,7 +125,61 @@ def observe(top_n: int = LARGECAP_TOP_N) -> list[dict]:
     return result
 
 
+def observe_oversold_twotop() -> list[dict]:
+    """투탑(삼성전자·SK하이닉스) 과매도 반등 관찰.
+
+    기존 observe()가 '신고가+양봉'만 잡아 놓치는 '급락일 과매도' 자리를 보완한다.
+    고수가 7/2~7/3 실제 수익낸 자리(급락 후 다음날 반등)를 겨냥.
+    검증(backtest_twotop_oversold): 당일 -8%↓ 다음날 67~71% / 2일누적 -12%↓ 86%.
+    관찰정보(매수신호 아님). 손절 필수 — 최악 다음날 저가 -12.5%.
+
+    각 항목: {code, name, close, change_pct, cum2_pct, grade, note}
+    급락 깊은 순 정렬. 조건 미충족이면 빈 리스트.
+    """
+    from config.settings import (
+        TWOTOP_CODES, TWOTOP_OVERSOLD_1D_PCT, TWOTOP_OVERSOLD_2D_PCT,
+    )
+    out = []
+    for code, name in TWOTOP_CODES.items():
+        try:
+            df = fetch_chart_data(code)
+            if df.empty or len(df) < 3:
+                time.sleep(REQUEST_DELAY); continue
+            df = df.reset_index(drop=True)  # iloc0=최신
+            close = float(df.iloc[0].get("close", 0) or 0)
+            prev  = float(df.iloc[1].get("close", 0) or 0)
+            prev2 = float(df.iloc[2].get("close", 0) or 0)
+            if close <= 0 or prev <= 0 or prev2 <= 0:
+                time.sleep(REQUEST_DELAY); continue
+            chg  = (close - prev) / prev * 100
+            cum2 = (close - prev2) / prev2 * 100
+            hit_1d = chg  <= TWOTOP_OVERSOLD_1D_PCT
+            hit_2d = cum2 <= TWOTOP_OVERSOLD_2D_PCT
+            if not (hit_1d or hit_2d):
+                time.sleep(REQUEST_DELAY); continue
+            # 등급: 2일누적 급락(백테스트 최강 86%)이 당일 단발보다 우위
+            if hit_2d:
+                grade, note = "강한 과매도", f"2일 누적 {cum2:+.1f}% (다음날 반등 86%)"
+            else:
+                grade, note = "과매도", f"당일 {chg:+.1f}% (다음날 반등 67~71%)"
+            out.append({
+                "code": code, "name": name, "close": close,
+                "change_pct": round(chg, 2), "cum2_pct": round(cum2, 2),
+                "grade": grade, "note": note,
+            })
+        except Exception as e:
+            logger.debug(f"[{code}] 투탑 과매도 관찰 실패: {e}")
+        time.sleep(REQUEST_DELAY)
+    out.sort(key=lambda x: x["cum2_pct"])  # 급락 깊은 순
+    if out:
+        logger.info(f"투탑 과매도 관찰: {len(out)}종목 ({'/'.join(r['name'] for r in out)})")
+    return out
+
+
 if __name__ == "__main__":
     import json
     logging.basicConfig(level=logging.INFO)
+    print("=== 신고가 추세추종 트랙 ===")
     print(json.dumps(observe(), ensure_ascii=False, indent=2))
+    print("=== 투탑 과매도 반등 트랙 ===")
+    print(json.dumps(observe_oversold_twotop(), ensure_ascii=False, indent=2))
