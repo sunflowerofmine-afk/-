@@ -72,8 +72,9 @@ mfe = [r["mfe"] for r in measured if r.get("mfe") is not None]
 mae = [r["mae"] for r in measured if r.get("mae") is not None]
 gap = [r["gap_pct"] for r in measured if r.get("gap_pct") is not None]
 
+win_rate = wins / len(measured) * 100 if measured else 0.0
 lines.append("## 전체 요약")
-lines.append(f"전체 승률:      {wins}/{len(measured)} = {wins/len(measured)*100:.1f}%  (기준: 익일 시가 양갭)")
+lines.append(f"전체 승률:      {wins}/{len(measured)} = {win_rate:.1f}%  (기준: 익일 시가 양갭)")
 lines.append(f"갭 평균:        {avg(gap):+.2f}%  (양갭 비율: {wr(gap):.1f}%)")
 lines.append(f"D+1 시가 평균:  {avg(d1o):+.2f}%  (승: {wr(d1o):.1f}%)")
 lines.append(f"D+1 종가 평균:  {avg(d1c):+.2f}%  (승: {wr(d1c):.1f}%)")
