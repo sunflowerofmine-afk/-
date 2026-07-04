@@ -826,6 +826,8 @@ def _section_stock_panel(candidates: list, rejected: list, market_regime: str = 
             "htc_chg_str":   (f"{pat['high_tight_close_from_base_high_pct']:+.1f}%" if pat.get("high_tight_close_from_base_high_pct") is not None else ""),
             "entry_ref_str": (f"{c['entry_reference_price']:,.0f}원" if c.get("entry_reference_price") else "-"),
             "price_src":     c.get("price_source", ""),
+            "baseline_txt":  (_baseline_entry(c) or ("", ""))[0],
+            "baseline_cls":  (_baseline_entry(c) or ("", ""))[1],
             "strengths":    _compute_strengths(c),
             "weaknesses":   _compute_weaknesses(c),
             "checkpoints":  _compute_checkpoints(c),
@@ -894,6 +896,10 @@ function renderDetail(idx) {{
   h += '<div class="detail-kv"><span class="k">신호가</span><span class="v">' + c.entry_ref_str + (c.price_src ? ' <span style="color:var(--muted);font-size:11px">(' + c.price_src + ')</span>' : '') + '</span></div>';
   h += '</div></div>';
   const _colMap = {{pos:'var(--green)', neg:'var(--red)', warn:'var(--yellow)'}};
+  const baselineHtml = c.baseline_txt
+    ? '<div class="detail-section"><div class="detail-section-title">🎯 기준선 타점</div><div style="font-size:13px;font-weight:600;color:' + (_colMap[c.baseline_cls]||'var(--text)') + '">' + c.baseline_txt + '</div><div style="font-size:11px;color:var(--muted);margin-top:2px">전일고가=매물대 돌파선 · 전일종가=중심선 · 당일시가=장중 흐름</div></div>'
+    : '';
+  h += baselineHtml;
   const guideHtml = c.guide_txt
     ? '<div class="detail-section"><div class="detail-section-title">💼 비중 가이드</div><div style="font-size:14px;font-weight:600;color:' + (_colMap[c.guide_cls]||'var(--text)') + '">' + c.guide_txt + '</div></div>'
     : '';
@@ -1041,6 +1047,35 @@ def _position_guide_parts(c: dict) -> tuple[str, str] | None:
     if score >= 7:
         return "소액 테스트 (10~20%)", "warn"
     return None
+
+
+def _baseline_entry(c: dict):
+    """전일고가·전일종가·당일시가 3기준선 대비 진입(종가) 위치 판정 — 돌팬티 타점.
+
+    돌팬티 66타점 전부 이 3기준선 근처에서 결정(돌팬티_핵심정리 "매물대=전일고가").
+    종가베팅 진입가가 어느 기준선에 있는지로 자리의 강도를 본다.
+    반환 (텍스트, 클래스 pos/warn/neg) 또는 None(데이터 부족).
+    """
+    entry = c.get("entry_reference_price") or 0
+    ph = c.get("prev_high")
+    pc = c.get("prev_close")
+    to = c.get("today_open_price")
+    if not entry or not ph or not pc:
+        return None
+    vs_ph = (entry - ph) / ph * 100
+    vs_pc = (entry - pc) / pc * 100
+    # 자리 강도: 전일고가 돌파 = 매물대 돌파 = 강함
+    if entry > ph:
+        pos, cls = f"전일고가 돌파 (+{vs_ph:.1f}%) — 매물대 위, 강한 자리", "pos"
+    elif entry > pc:
+        pos, cls = f"전일고가 아래·전일종가 위 (고가 {vs_ph:+.1f}%) — 돌파 대기", "warn"
+    else:
+        pos, cls = f"전일종가 하회 ({vs_pc:+.1f}%) — 약한 자리", "neg"
+    # 당일시가 대비 장중 흐름 보조
+    if to:
+        vs_to = (entry - to) / to * 100
+        pos += f" · 당일시가 {'위' if vs_to >= 0 else '아래'} 마감({vs_to:+.1f}%)"
+    return pos, cls
 
 
 def _oversupply_text(c: dict) -> str:
