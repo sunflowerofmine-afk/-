@@ -293,8 +293,20 @@ def _section_header(data: dict) -> str:
     <span style="margin-left:20px">코스닥 {kosdaq_tv}{kosdaq_lv_str}{kosdaq_chg_html}</span>
   </div>
   {_top5_concentration_html(data)}
+  {_daily_gate(data)}
 </div>
 """
+
+
+def _top5_ratio(data: dict):
+    """거래대금 상위 5개 종목이 시장 전체 거래대금에서 차지하는 비율(%). 계산 불가 시 None."""
+    m = data.get("market_summary", {})
+    top20 = data.get("trading_value_top20", [])
+    total_eok = (m.get("kospi_tv_eok", 0) or 0) + (m.get("kosdaq_tv_eok", 0) or 0)
+    if not top20 or total_eok <= 0:
+        return None
+    top5_eok = sum(float(r.get("거래대금", 0)) for r in top20[:5]) / 1e8
+    return top5_eok / total_eok * 100
 
 
 def _top5_concentration_html(data: dict) -> str:
@@ -302,13 +314,9 @@ def _top5_concentration_html(data: dict) -> str:
 
     백필(2026-04~07, 56거래일) 기준: 4월 개별주 장세 평균 31% / 6월 쏠림 극단 55%(피크 66%).
     임계값은 잠정 — 표본 누적 후 재조정."""
-    m = data.get("market_summary", {})
-    top20 = data.get("trading_value_top20", [])
-    total_eok = (m.get("kospi_tv_eok", 0) or 0) + (m.get("kosdaq_tv_eok", 0) or 0)
-    if not top20 or total_eok <= 0:
+    ratio = _top5_ratio(data)
+    if ratio is None:
         return ""
-    top5_eok = sum(float(r.get("거래대금", 0)) for r in top20[:5]) / 1e8
-    ratio = top5_eok / total_eok * 100
     if ratio >= 50:
         label, color = "쏠림 극단 — 개별주 종베 불리", "var(--red)"
     elif ratio >= 40:
@@ -320,6 +328,49 @@ def _top5_concentration_html(data: dict) -> str:
         f'Top5 거래대금 집중도 <b style="color:{color}">{ratio:.1f}%</b>'
         f' <span style="color:{color}">({label})</span>'
         f' <span style="font-size:11px">· 참고: 4월 분산기 31% / 6월 쏠림기 55%</span></div>'
+    )
+
+
+def _daily_gate(data: dict) -> str:
+    """오늘 종가베팅을 해도 되는 날인가 — 최상위 국면 게이트.
+
+    종목을 보기 전에 먼저 판정한다. 기존 값(신호건수·국면·상승비율·쏠림)만 재조합.
+    기본값은 보수 — 허용은 조건이 여럿 동시 충족될 때만 나온다.
+    근거·임계값은 잠정(표본 10거래일·단일 국면). 룰북(매매일지분석/종베_판단_룰북.md) 참조.
+    """
+    m = data.get("market_summary", {})
+    core_n = len(data.get("core_candidates", []) or [])
+    ir = m.get("index_regime") or {}
+    kd = ir.get("kosdaq_regime")  # 강세/혼조/약세
+    if kd is None:
+        kd = {"강세": "강세", "약세": "약세", "중립": "혼조"}.get(m.get("market_regime"), None)
+    adl = m.get("market_adl")           # 0~1 (상승 종목 비율)
+    ratio = _top5_ratio(data)           # 거래대금 상위5 쏠림 %
+
+    # (등급, 배경색, 판정 근거) — 위에서부터 먼저 걸리는 순서 = 보수 우선
+    if core_n == 0:
+        grade, col, why = "매매 금지", "#dc2626", "봇 신호 0건 — 개별주 종베 자리 없음"
+    elif kd == "약세" and adl is not None and adl < 0.35:
+        grade, col, why = "매매 금지", "#dc2626", f"약세 국면 + 상승 종목 극소(상승비율 {adl*100:.0f}%)"
+    elif kd == "약세":
+        grade, col, why = "관찰만", "#ea580c", "약세 국면 — 대형주 트랙만, 중소형은 관찰로"
+    elif ratio is not None and ratio >= 50:
+        grade, col, why = "관찰만", "#ea580c", f"거래대금 상위5 쏠림 {ratio:.0f}% — 개별주 불리, 대형주 우선"
+    elif kd == "혼조" or core_n <= 2:
+        grade, col, why = "소액만", "#d97706", "방향은 있으나 확신 부족 — 평소보다 작게"
+    elif kd == "강세" and core_n >= 3 and (adl is None or adl >= 0.5):
+        grade, col, why = "종가베팅 허용", "#16a34a", "강세 + 신호 다수 + 상승 종목 양호"
+    else:
+        grade, col, why = "소액만", "#d97706", "조건 일부 미충족 — 기본값 보수"
+
+    return (
+        f'<div style="margin-top:10px;padding:10px 14px;border-radius:8px;'
+        f'background:{col};color:#fff">'
+        f'<span style="font-size:18px;font-weight:800">오늘 판정: {grade}</span>'
+        f'<span style="font-size:13px;margin-left:12px;opacity:0.95">{why}</span>'
+        f'<div style="font-size:11px;margin-top:3px;opacity:0.85">'
+        f'※ 국면 우선 판정 — 개별 종목이 좋아도 이 등급을 넘어 매수하지 않음 (잠정 기준)</div>'
+        f'</div>'
     )
 
 
