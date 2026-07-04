@@ -32,12 +32,35 @@ def _badge(v) -> str:
     if v is False: return '<span class="badge ng">X</span>'
     return '<span class="badge na">-</span>'
 
-def _net_str(won) -> str:
-    if won is None: return "-"
+def _fmt_flow(won) -> str:
+    """수급 금액을 읽기 쉽게: 1조 이상은 조 단위, 미만은 억. 부호 포함.
+
+    고가주(SK하이닉스 등 주당 수백만원)는 순매도 주식수가 적어도 억 단위 값이 커서
+    -33,293억처럼 읽기 어려움 → -3.3조로 표기."""
+    if won is None:
+        return "-"
     try:
-        return f"{float(won) / 1e8:+.0f}억"
+        eok = float(won) / 1e8
     except Exception:
         return "-"
+    sign = "+" if eok >= 0 else "-"
+    a = abs(eok)
+    return f"{sign}{a/10000:.1f}조" if a >= 10000 else f"{sign}{a:,.0f}억"
+
+
+def _net_str(won) -> str:
+    return _fmt_flow(won) if won is not None else "-"
+
+
+def _flow_pct(net_won, trading_value_won) -> str:
+    """순매수/도 금액이 그날 거래대금에서 차지하는 비중(수급 강도). 없으면 빈 문자열."""
+    try:
+        tv = float(trading_value_won or 0)
+        if tv <= 0 or net_won is None:
+            return ""
+        return f"{abs(float(net_won)) / tv * 100:.0f}%"
+    except Exception:
+        return ""
 
 def _supply_info(supply) -> dict:
     """SupplyData 객체 or dict → plain dict"""
@@ -180,9 +203,9 @@ def _compute_strengths(c: dict) -> list:
         else:
             strengths.append("이평 수렴")
     inst = sup.get("institution_net")
-    if inst is not None and inst > 0:  strengths.append(f"기관 순매수 {inst/1e8:+.0f}억")
+    if inst is not None and inst > 0:  strengths.append(f"기관 순매수 {_fmt_flow(inst)}")
     frgn = sup.get("foreign_net")
-    if frgn is not None and frgn > 0:  strengths.append(f"외국인 순매수 {frgn/1e8:+.0f}억")
+    if frgn is not None and frgn > 0:  strengths.append(f"외국인 순매수 {_fmt_flow(frgn)}")
     return strengths[:3]
 
 
@@ -197,10 +220,15 @@ def _compute_weaknesses(c: dict) -> list:
     if pat.get("post_base_volume_decline_flag"):   weaknesses.append("기준봉 후 대금 감소")
     chg = float(c.get("change_pct", 0))
     if chg > 20:                                   weaknesses.append(f"당일 급등 과열 ({chg:.1f}%)")
+    tv_won = float(c.get("trading_value", 0) or 0)
     inst = sup.get("institution_net")
-    if inst is not None and inst < 0:              weaknesses.append(f"기관 순매도 {inst/1e8:.0f}억")
+    if inst is not None and inst < 0:
+        _p = _flow_pct(inst, tv_won)
+        weaknesses.append(f"기관 순매도 {_fmt_flow(inst)}" + (f" (대금 {_p})" if _p else ""))
     frgn = sup.get("foreign_net")
-    if frgn is not None and frgn < 0:              weaknesses.append(f"외국인 순매도 {frgn/1e8:.0f}억")
+    if frgn is not None and frgn < 0:
+        _p = _flow_pct(frgn, tv_won)
+        weaknesses.append(f"외국인 순매도 {_fmt_flow(frgn)}" + (f" (대금 {_p})" if _p else ""))
     if sup.get("status") != "ok":                  weaknesses.append("수급 미확인")
     return weaknesses[:3]
 
@@ -840,15 +868,17 @@ def _section_stock_panel(candidates: list, rejected: list, market_regime: str = 
             "score_bonus":  getattr(c.get("score"), "bonus_score",         "-"),
             "score_reasons": getattr(c.get("score"), "reasons", []) or [],
             "tv_ratio":     f"{pat.get('tv_ratio'):.2f}" if pat.get("tv_ratio") is not None else "-",
-            "inst_str":     f"{sup_inst/1e8:+.0f}억" if sup_inst is not None else "-",
-            "frgn_str":     f"{sup_frgn/1e8:+.0f}억" if sup_frgn is not None else "-",
-            "inst_5d_str":  f"{sup_inst_5d/1e8:+.0f}억" if sup_inst_5d is not None else "-",
-            "frgn_5d_str":  f"{sup_frgn_5d/1e8:+.0f}억" if sup_frgn_5d is not None else "-",
+            "inst_str":     _fmt_flow(sup_inst) if sup_inst is not None else "-",
+            "frgn_str":     _fmt_flow(sup_frgn) if sup_frgn is not None else "-",
+            "inst_5d_str":  _fmt_flow(sup_inst_5d) if sup_inst_5d is not None else "-",
+            "frgn_5d_str":  _fmt_flow(sup_frgn_5d) if sup_frgn_5d is not None else "-",
+            "inst_pct":     _flow_pct(sup_inst, tv),
+            "frgn_pct":     _flow_pct(sup_frgn, tv),
             "inst_con":     inst_con,
             "frgn_con":     frgn_con,
             "supply_label":  sup.get("supply_label", ""),
             "supply_ok":     sup.get("status") == "ok",
-            "prog_net_str":  (f"{c['prog_net_eok']:+.0f}억" if c.get("prog_net_eok") is not None else None),
+            "prog_net_str":  (_fmt_flow(c['prog_net_eok'] * 1e8) if c.get("prog_net_eok") is not None else None),
             "htc_flag":      pat.get("high_tight_consolidation_flag", False),
             "htc_reignite":  pat.get("high_tight_reignite_flag", False),
             "htc_avg_str":   (f"{pat['high_tight_tv_ratio_avg']*100:.0f}%" if pat.get("high_tight_tv_ratio_avg") is not None else ""),
@@ -905,8 +935,9 @@ function renderDetail(idx) {{
   const labelHtml = c.supply_label ? '<strong style="color:var(--blue)">[' + c.supply_label + ']</strong> ' : '';
   const progHtml  = c.prog_net_str ? ' &nbsp;<span style="color:var(--muted);font-size:11px">프로그램 <strong style="color:' + (c.prog_net_str.startsWith('+') ? 'var(--green)' : 'var(--red)') + '">' + c.prog_net_str + '</strong></span>' : '';
   const _conStr = (con) => Math.abs(con) >= 2 ? '<span style="color:' + (con > 0 ? 'var(--green)' : 'var(--red)') + ';font-size:11px"> ' + Math.abs(con) + '일연속' + (con > 0 ? '매수' : '매도') + '</span>' : '';
+  const _pctStr = (p) => p ? '<span style="color:var(--muted);font-size:11px"> 대금 ' + p + '</span>' : '';
   const supHtml   = c.supply_ok
-    ? '<div class="detail-section"><div class="detail-section-title">수급</div><div style="font-size:13px">' + labelHtml + '기관 <strong>' + c.inst_str + '</strong><span style="color:var(--muted);font-size:11px">(5d:' + c.inst_5d_str + ')</span>' + _conStr(c.inst_con) + ' &nbsp;/&nbsp; 외국인 <strong>' + c.frgn_str + '</strong><span style="color:var(--muted);font-size:11px">(5d:' + c.frgn_5d_str + ')</span>' + _conStr(c.frgn_con) + progHtml + '</div></div>'
+    ? '<div class="detail-section"><div class="detail-section-title">수급</div><div style="font-size:13px">' + labelHtml + '기관 <strong>' + c.inst_str + '</strong>' + _pctStr(c.inst_pct) + '<span style="color:var(--muted);font-size:11px">(5d:' + c.inst_5d_str + ')</span>' + _conStr(c.inst_con) + ' &nbsp;/&nbsp; 외국인 <strong>' + c.frgn_str + '</strong>' + _pctStr(c.frgn_pct) + '<span style="color:var(--muted);font-size:11px">(5d:' + c.frgn_5d_str + ')</span>' + _conStr(c.frgn_con) + progHtml + '</div></div>'
     : (c.prog_net_str ? '<div class="detail-section"><div class="detail-section-title">수급</div><div style="font-size:13px">' + progHtml.trim() + '</div></div>' : '');
 
   let h = '';
