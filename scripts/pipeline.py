@@ -710,6 +710,11 @@ def run(preview: bool = False):
     _total_market_tv_eok = (
         market_totals.get("kospi_total_tv_eok", 0) + market_totals.get("kosdaq_total_tv_eok", 0)
     )
+    # Top5 거래대금 집중도 (자금 쏠림 온도계) — 극단 쏠림 시 핵심 슬롯 축소에 사용
+    _top5_concentration_pct = None
+    if not top_tv.empty and _total_market_tv_eok > 0:
+        _top5_eok = top_tv["거래대금"].head(5).sum() / 1e8
+        _top5_concentration_pct = round(_top5_eok / _total_market_tv_eok * 100, 1)
     _min_tv_won_sec  = MIN_TRADING_VALUE_EOK * 100_000_000
     _gainer_codes    = set(gainers["종목코드"].astype(str)) if not gainers.empty else set()
     _tv20_codes      = set(top_tv["종목코드"].astype(str))  if not top_tv.empty  else set()
@@ -830,6 +835,7 @@ def run(preview: bool = False):
             "tv_count":               len(top_tv),
             "intersection_count":     len(intersection) if not intersection.empty else 0,
             "core_count":             0,
+            "top5_concentration_pct": _top5_concentration_pct,
             "market_regime":          market_regime,
             "market_adl":             _market_adl,
             "market_subtype":         market_subtype,
@@ -1353,9 +1359,27 @@ def run(preview: bool = False):
         _max_n = CANDIDATES_MAX_CONCENTRATED_BEAR
     else:
         _max_n = CANDIDATES_MAX_BEAR
+    # Top5 거래대금 극단 쏠림(≥50%): 지수 강세라도 돈의 본류가 대형주라 개별주 종베 불리
+    # → 핵심 슬롯을 약세 수준으로 축소 (강등 방향만). 자금 본류≠개별주.
+    _concentrated = (_top5_concentration_pct is not None and _top5_concentration_pct >= 50)
+    if _concentrated and _max_n > CANDIDATES_MAX_BEAR:
+        logger.info(f"Top5 집중도 {_top5_concentration_pct}% 극단 → 핵심 슬롯 {_max_n}→{CANDIDATES_MAX_BEAR} 축소")
+        _max_n = CANDIDATES_MAX_BEAR
     core_candidates  = key_candidates[:_max_n]
     watch_candidates = key_candidates[_max_n:]
-    logger.info(f"장세={market_regime} → 핵심 {len(core_candidates)}개 / 관심 {len(watch_candidates)}개")
+    # 재료 불명확 핵심 후보는 관찰로 강등 (돌팬티 "새 이슈가 전부"). 교집합은 예외(수급·가격 근거).
+    # 강등 방향만 — 좋은 재료로 승격은 안 함.
+    def _material_unclear(c) -> bool:
+        summ = getattr(c.get("news"), "llm_summary", "") or ""
+        return ("재료 불명확" in summ) or ("단순수급" in summ)
+    _keep, _demote = [], []
+    for _c in core_candidates:
+        (_demote if (_material_unclear(_c) and not _c.get("in_inter")) else _keep).append(_c)
+    if _demote:
+        logger.info(f"재료 불명확 {len(_demote)}개 핵심→관찰 강등: {[c.get('name') for c in _demote]}")
+        core_candidates  = _keep
+        watch_candidates = _demote + watch_candidates
+    logger.info(f"장세={market_regime}(집중도 {_top5_concentration_pct}%) → 핵심 {len(core_candidates)}개 / 관심 {len(watch_candidates)}개")
 
     # ── LLM 뉴스 분석 (핵심 후보에만, 파이프라인 중단 금지) ────
     if USE_LLM_NEWS and core_candidates:

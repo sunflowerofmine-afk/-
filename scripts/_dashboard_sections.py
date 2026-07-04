@@ -107,30 +107,38 @@ _PATTERN_CARD_COLOR = {
 
 # ─── compute 헬퍼 ─────────────────────────────────────────────────────────────
 
+def _baseline_weak(c: dict) -> bool:
+    """기준선 '약한 자리' — 진입(종가)이 전일종가를 하회. 데이터 없으면 False(강등 안 함)."""
+    entry = c.get("entry_reference_price") or 0
+    pc = c.get("prev_close")
+    return bool(entry and pc and entry <= pc)
+
+
 def _compute_status(c: dict, market_regime: str = "중립") -> str:
     """BUY_REVIEW / WATCH_ONLY / NOT_BUYABLE"""
     pat_label = c.get("patterns", {}).get("pattern_type_label", "없음")
     in_inter  = c.get("in_inter", False)
     pat       = c.get("patterns", {})
 
+    status = "WATCH_ONLY"
     # 당일돌파형: 교집합 필수
     if pat_label == "당일돌파형" and in_inter:
-        return "BUY_REVIEW"
-
+        status = "BUY_REVIEW"
     # 재돌파형: 파이프라인에서 이미 장대양봉+전고점복귀+양매수 검증 완료
-    if pat_label == "재돌파형":
-        return "BUY_REVIEW"
-
+    elif pat_label == "재돌파형":
+        status = "BUY_REVIEW"
     # 고가수축형: 교집합 불요, 구조 미붕괴만 확인
-    if pat_label == "고가수축형" and not pat.get("structure_broken_flag", False):
-        return "BUY_REVIEW"
-
+    elif pat_label == "고가수축형" and not pat.get("structure_broken_flag", False):
+        status = "BUY_REVIEW"
     # 고가횡보형: 교집합 불요, 구조 미붕괴 + 기준봉 고가 -5% 이내
-    if pat_label == "고가횡보형" and not pat.get("structure_broken_flag", False):
+    elif pat_label == "고가횡보형" and not pat.get("structure_broken_flag", False):
         if (pat.get("base_high_gap_pct") or -99) >= -5:
-            return "BUY_REVIEW"
+            status = "BUY_REVIEW"
 
-    return "WATCH_ONLY"
+    # 기준선 약한 자리(종가가 전일종가 하회)면 매수검토→관찰 강등 (돌팬티 매물대 문법). 강등만.
+    if status == "BUY_REVIEW" and _baseline_weak(c):
+        status = "WATCH_ONLY"
+    return status
 
 
 def _status_badge_html(status: str) -> str:
@@ -277,7 +285,12 @@ def _section_header(data: dict) -> str:
     subtype_badge  = (f" <span style='font-size:11px;background:rgba(255,255,255,0.15);"
                       f"padding:1px 7px;border-radius:4px'>{_subtype_icon.get(market_subtype,'')} {market_subtype}</span>"
                       if market_subtype else "")
-    regime_badge = f'<span class="{rcls}" style="font-size:14px;padding:3px 12px;margin-left:10px;">{rlabel}{adl_suffix}{subtype_badge}</span>' if regime else ""
+    # 강세인데 Top5 극단 쏠림 = '대형주 쏠림 반등장'. 지수 강세를 매수 신호로 오해 방지.
+    _t5 = market.get("top5_concentration_pct")
+    concentr_note = (" <span style='font-size:11px;background:rgba(255,255,255,0.15);"
+                     "padding:1px 7px;border-radius:4px'>대형주 쏠림 반등장</span>"
+                     if regime == "강세" and _t5 is not None and _t5 >= 50 else "")
+    regime_badge = f'<span class="{rcls}" style="font-size:14px;padding:3px 12px;margin-left:10px;">{rlabel}{adl_suffix}{subtype_badge}{concentr_note}</span>' if regime else ""
 
     return f"""
 <div class="page-header">
@@ -292,10 +305,26 @@ def _section_header(data: dict) -> str:
     <span>코스피 {kospi_tv}{kospi_lv_str}{kospi_chg_html}</span>
     <span style="margin-left:20px">코스닥 {kosdaq_tv}{kosdaq_lv_str}{kosdaq_chg_html}</span>
   </div>
+  {_decoupling_html(data)}
   {_top5_concentration_html(data)}
   {_daily_gate(data)}
 </div>
 """
+
+
+def _decoupling_html(data: dict) -> str:
+    """코스피 강세·코스닥 미확산 디커플링 문구 — decoupled_largecap 로직 재사용.
+
+    '강세니까 사도 되나' 오해 방지. 대형주 주도·중소형 미확산일 때만 표시."""
+    ir = (data.get("market_summary", {}) or {}).get("index_regime") or {}
+    if not ir.get("decoupled_largecap"):
+        return ""
+    return (
+        '<div style="margin-top:6px;font-size:13px;font-weight:600;color:var(--yellow)">'
+        '⚠ 코스피 대형주 주도 · 코스닥 미확산 '
+        '<span style="font-weight:400;color:var(--muted)">— 지수 강세가 개별주 확산은 아님, 중소형 종베 불리</span>'
+        '</div>'
+    )
 
 
 def _top5_ratio(data: dict):
