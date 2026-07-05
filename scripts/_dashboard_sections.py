@@ -161,6 +161,10 @@ def _compute_status(c: dict, market_regime: str = "중립") -> str:
     # 기준선 약한 자리(종가가 전일종가 하회)면 매수검토→관찰 강등 (돌팬티 매물대 문법). 강등만.
     if status == "BUY_REVIEW" and _baseline_weak(c):
         status = "WATCH_ONLY"
+    # 섹터 후발주(대장 아님)면 매수검토→관찰 강등 (돌팬티 "후발주 추격이 반복 손실 원인").
+    # 교집합(상승률+거래대금 동시강세)은 예외. 강등만.
+    if status == "BUY_REVIEW" and c.get("theme_role") == "후속주" and not in_inter:
+        status = "WATCH_ONLY"
     return status
 
 
@@ -218,6 +222,7 @@ def _compute_weaknesses(c: dict) -> list:
         weaknesses.append(f"거래대금 감소 ratio {tv_ratio:.1f}")
     if pat.get("overheated_3d_flag"):              weaknesses.append("기준봉고가 위 과확장")
     if pat.get("post_base_volume_decline_flag"):   weaknesses.append("기준봉 후 대금 감소")
+    if c.get("theme_role") == "후속주":            weaknesses.append("섹터 후발주 (대장 아님 — 추격 주의)")
     chg = float(c.get("change_pct", 0))
     if chg > 20:                                   weaknesses.append(f"당일 급등 과열 ({chg:.1f}%)")
     tv_won = float(c.get("trading_value", 0) or 0)
@@ -804,6 +809,8 @@ def _section_stock_panel(candidates: list, rejected: list, market_regime: str = 
         pbs_flag    = pat.get("pullback_support_flag", False)
 
         tags = []
+        if c.get("theme_role") == "리더":   tags.append("🏅대장")
+        elif c.get("theme_role") == "후속주": tags.append("🐟후발주")
         if in_inter:    tags.append("★교집합")
         if new_high:    tags.append("🔺신고가")
         elif near_hi:   tags.append("📍고점권")
