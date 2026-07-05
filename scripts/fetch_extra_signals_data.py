@@ -125,7 +125,18 @@ def run() -> None:
                 continue
             extra = _calc_52w(hist, price)
             if extra:
-                stocks[code] = {"name": name, "signal_price": round(price), **extra}
+                def _b(v):
+                    return str(v).strip().lower() in ("true", "1")
+                stocks[code] = {
+                    "name": name, "signal_price": round(price),
+                    # 향후 NXT 대장/후발주 D+1 백테스트용 committed 누적 (signals.csv는 gitignore)
+                    "is_nxt":        _b(row.get("is_nxt")),
+                    "nxt_dominant":  _b(row.get("nxt_dominant")),
+                    "change_pct":    round(float(row.get("등락률", 0) or 0), 2),
+                    "sector":        str(row.get("sector", "") or ""),
+                    "total_score":   int(float(row.get("total_score", 0) or 0)),
+                    **extra,
+                }
         except Exception as e:
             logger.warning(f"  [{code}] 실패: {e}")
 
