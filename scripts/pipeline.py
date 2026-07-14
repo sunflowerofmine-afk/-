@@ -1069,18 +1069,18 @@ def run(preview: bool = False):
             "freshness_count":               freshness_map.get(code, 0),
         })
 
-    # 정렬: 교집합 > 패턴타입 > score > supply_ok > 거래대금 > 상승률
+    # 정렬: 교집합 > 패턴타입 > supply_ok > 거래대금 > 상승률 (score 제외 — 예측력 없음)
     _PATTERN_TYPE_ORDER = {"당일돌파형": 0, "재돌파형": 1, "고가수축형": 2, "고가횡보형": 3, "없음": 4}
 
     def _priority(item):
+        # 정렬에서 score 제거 (2026-07-14): 점수는 D+1 예측력이 없음이 독립 검증 3건에서
+        # 확인됨 — 신호검증("고점수 무효") / 돌침 재검증("전국면 일관=거래대금순위·쌍매수열위뿐")
+        # / 실측 25건(점수 구간별 승률 단조성 없음). 검증된 축(거래대금·수급)만 사용.
         pat        = item.get("patterns", {})
-        sc         = item.get("score")
         type_order = _PATTERN_TYPE_ORDER.get(pat.get("pattern_type_label", "없음"), 4)
-        total      = sc.total_score if sc else 0
         return (
             not item["in_inter"],
             type_order,
-            -total,
             not item["supply_ok"],
             -item["trading_value"],
             -item["change_pct"],
@@ -1328,7 +1328,7 @@ def run(preview: bool = False):
     obs_candidates = _obs_remaining
     logger.info(f"obs→key 편입 후: key={len(key_candidates)}개 / obs 잔여={len(obs_candidates)}개")
 
-    # ── 정렬: 교집합 > 패턴타입 > score > supply_ok > 거래대금 > 상승률 ──
+    # ── 정렬: 교집합 > 패턴타입 > supply_ok > 거래대금 > 상승률 (score 제외) ──
     key_candidates.sort(key=_priority)
 
     # ── 일반 눌림 관찰 (2차/수동만, 기존 체계와 완전 분리) ─────────────────────

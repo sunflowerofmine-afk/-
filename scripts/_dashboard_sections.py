@@ -834,7 +834,7 @@ def _section_stock_panel(candidates: list, rejected: list, market_regime: str = 
     <div><span class="lc-name">{_e(c.get('name',''))}</span><span class="lc-code">{_e(c.get('code',''))}</span></div>
     {pri_html}
   </div>
-  <div class="lc-stats"><span class="{chg_cls}">{chg_str}</span> · {tv_str} · {_e(pat_str)} · <span style="color:var(--blue);font-weight:700">{score_str}점</span>{'  ' + _e(tags_str) if tags_str else ''}</div>
+  <div class="lc-stats"><span class="{chg_cls}">{chg_str}</span> · {tv_str} · {_e(pat_str)} · <span style="color:var(--muted)">{score_str}점</span>{'  ' + _e(tags_str) if tags_str else ''}</div>
   <span class="lc-summary">{_e(summary)}</span>
 </div>""")
 
@@ -893,6 +893,7 @@ def _section_stock_panel(candidates: list, rejected: list, market_regime: str = 
             "entry_ref_str": (f"{c['entry_reference_price']:,.0f}원" if c.get("entry_reference_price") else "-"),
             "price_src":     c.get("price_source", ""),
             "baseline_html": _baseline_ladder_html(c),
+            "d1exit_html":   _d1_exit_html(c),
             "strengths":    _compute_strengths(c),
             "weaknesses":   _compute_weaknesses(c),
             "checkpoints":  _compute_checkpoints(c),
@@ -958,11 +959,12 @@ function renderDetail(idx) {{
   const reasonsHtml = (c.score_reasons && c.score_reasons.length)
     ? '<details style="margin-top:3px"><summary style="cursor:pointer;font-size:11px;color:var(--blue)">산출 근거 보기</summary><div style="font-size:11px;color:var(--text);margin-top:3px;line-height:1.7">' + c.score_reasons.map(r => '· ' + r).join('<br>') + '</div></details>'
     : '';
-  h += '<div class="detail-kv"><span class="k">점수</span><span class="v" style="color:var(--blue);font-weight:700">' + c.score + '점</span><div style="font-size:11px;color:var(--muted);margin-top:2px">뉴스 ' + c.score_news + ' · 대금 ' + c.score_tv + ' · 캔들 ' + c.score_candle + ' · 수급 ' + c.score_supply + ' · 보너스 ' + c.score_bonus + '</div>' + reasonsHtml + '</div>';
+  h += '<div class="detail-kv"><span class="k">점수 <span style="font-size:10px;color:var(--muted)">(참고용)</span></span><span class="v" style="color:var(--muted)">' + c.score + '점</span><div style="font-size:11px;color:var(--muted);margin-top:2px">뉴스 ' + c.score_news + ' · 대금 ' + c.score_tv + ' · 캔들 ' + c.score_candle + ' · 수급 ' + c.score_supply + ' · 보너스 ' + c.score_bonus + '</div><div style="font-size:10px;color:var(--red);margin-top:2px">⚠ 점수는 D+1 예측력 없음(독립 검증 3건) — 매수 근거로 쓰지 말 것</div>' + reasonsHtml + '</div>';
   h += '<div class="detail-kv"><span class="k">신호가</span><span class="v">' + c.entry_ref_str + (c.price_src ? ' <span style="color:var(--muted);font-size:11px">(' + c.price_src + ')</span>' : '') + '</span></div>';
   h += '</div></div>';
   const _colMap = {{pos:'var(--green)', neg:'var(--red)', warn:'var(--yellow)'}};
   h += (c.baseline_html || '');
+  h += (c.d1exit_html || '');
   const guideHtml = c.guide_txt
     ? '<div class="detail-section"><div class="detail-section-title">💼 비중 가이드</div><div style="font-size:14px;font-weight:600;color:' + (_colMap[c.guide_cls]||'var(--text)') + '">' + c.guide_txt + '</div></div>'
     : '';
@@ -1084,32 +1086,44 @@ def _position_guide_parts(c: dict) -> tuple[str, str] | None:
     검증: 10-12점 최적(60.9%) > 13점+ 과열(50%). 코스닥 약세국면 13점+=20%(자살골).
     cls: pos/neg/warn. 해당 없으면 None.
     """
-    chg   = float(c.get("change_pct", 0))
-    _sc   = c.get("score")
-    score = int(_sc.total_score) if _sc and hasattr(_sc, "total_score") else int(c.get("total_score") or 0)
-    inter = c.get("in_inter", False)
+    chg    = float(c.get("change_pct", 0))
+    inter  = c.get("in_inter", False)
     regime = c.get("kosdaq_regime")  # 강세/혼조/약세/None (pipeline 주입)
 
+    # 점수 기반 밴드는 제거 — 예측력 없음이 독립 검증 3건에서 확인됨
+    # (신호검증 "고점수 무효" / 돌침 재검증 "전국면 일관=거래대금·수급뿐" / 실측 25건 단조성 없음).
+    # 검증된 축(국면 · 당일 과열 · 교집합)만 남긴다.
     if regime == "약세":
-        if score >= 13:
-            return "⚠ 회피 (약세장 과열주 승률 20%)", "neg"
-        if score >= 10:
-            return "약세장 소액만 (10~15%)", "warn"
-        return "약세장 — 관망 권고", "neg"
+        return "약세장 — 관망 권고 (약세장 승률 39%)", "neg"
     if chg >= 25:
-        return "⚠ 축소 (급등25%↑ · 승률 50%)", "neg"
-    if score >= 13:
-        return "⚠ 과열 주의 비중축소 (13점+=50%)", "warn"
-    if score >= 10:
-        base = "최적 비중대 (30~40%, 10-12점=61%)"
-        if regime == "혼조":
-            base = "최적·적극 (혼조장 76% · 30~40%)"
-        elif inter:
-            base = "최적+교집합 (35~45%)"
-        return base, "pos"
-    if score >= 7:
-        return "소액 테스트 (10~20%)", "warn"
-    return None
+        return "⚠ 회피 (당일 +25%↑ 과열 — D+1 시가 승률 0%, n=2)", "neg"
+    if inter:
+        return "소액 (교집합) — D+1 시가 청산 필수 (종가 홀딩 실측 -5.05%)", "warn"
+    return "소액 테스트 (10~20%)", "warn"
+
+
+def _d1_exit_html(c: dict) -> str:
+    """D+1 청산 경고 — 실측상 청산 타이밍이 종목 선별보다 임팩트가 크다.
+
+    실측(2026-06-22~07-14, 25건): D+1 시가 -0.18% vs D+1 종가 -3.19% (3%p 격차).
+    교집합/매수검토 종목은 격차가 더 큼(시가 +0.57% vs 종가 -5.05%) — 좋은 신호일수록
+    갭업이 크고 당일 되돌림도 크다. 돌팬티 "수익은 항상 챙길 때 내 것"(장초 슈팅 전량매도)과 동일.
+    """
+    inter = c.get("in_inter", False)
+    extra = ("<br>이 종목은 <b>교집합</b> — 종가까지 홀딩 시 실측 <b>-5.05%</b> (시가 청산 +0.57%). "
+             "좋은 신호일수록 더 빨리 팔아야 함."
+             if inter else "")
+    return (
+        '<div class="detail-section">'
+        '<div class="detail-section-title">⏱ D+1 청산 원칙</div>'
+        '<div style="font-size:13px;color:var(--red);font-weight:600">'
+        'D+1 시가(장 초반)에 청산 — 종가까지 홀딩 시 실측 평균 <b>-3.19%</b>'
+        '</div>'
+        f'<div style="font-size:11px;color:var(--muted);margin-top:3px">'
+        f'실측 25건(6/22~7/14): D+1 시가 -0.18% / D+1 종가 -3.19%. '
+        f'청산 타이밍이 종목 선별보다 임팩트가 큼.{extra}</div>'
+        '</div>'
+    )
 
 
 def _baseline_ladder_html(c: dict) -> str:
