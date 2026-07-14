@@ -338,11 +338,53 @@ def _section_header(data: dict) -> str:
     <span>코스피 {kospi_tv}{kospi_lv_str}{kospi_chg_html}</span>
     <span style="margin-left:20px">코스닥 {kosdaq_tv}{kosdaq_lv_str}{kosdaq_chg_html}</span>
   </div>
+  {_forward_html(data)}
   {_decoupling_html(data)}
   {_top5_concentration_html(data)}
   {_daily_gate(data)}
 </div>
 """
+
+
+def _forward_html(data: dict) -> str:
+    """선행 지표 줄 — 미선물·VIX·코스피 60일선.
+
+    봇의 다른 국면 입력(ADL·5일선·집중도)은 전부 '오늘 결과'라 후행이다.
+    돌팬티가 실제로 보는 축(미 선물, 코스피 60일선)을 표시해 내일을 보게 한다.
+    """
+    m  = data.get("market_summary", {}) or {}
+    fu = m.get("futures") or {}
+    ir = m.get("index_regime") or {}
+    parts = []
+
+    nq = (fu.get("나스닥선물") or {}).get("chg_pct")
+    if nq is not None:
+        col = "var(--red)" if nq >= 0 else "var(--green)"
+        parts.append(f'나스닥선물 <b style="color:{col}">{nq:+.2f}%</b>')
+    vix = (fu.get("VIX") or {}).get("value")
+    if vix is not None:
+        col = "var(--red)" if vix >= 25 else "var(--muted)"
+        parts.append(f'VIX <b style="color:{col}">{vix:.1f}</b>')
+
+    risk = m.get("risk_appetite")
+    if risk:
+        rcol = {"우호": "var(--green)", "비우호": "var(--red)"}.get(risk, "var(--muted)")
+        parts.append(f'위험자산 선호 <b style="color:{rcol}">{risk}</b>')
+
+    kp = ir.get("kospi_detail") or {}
+    gap = kp.get("ma60_gap_pct")
+    if gap is not None:
+        col = "var(--red)" if gap < 0 else "var(--muted)"
+        pos = "이탈" if gap < 0 else "위"
+        parts.append(f'코스피 60일선 {pos} <b style="color:{col}">{gap:+.1f}%</b>')
+
+    if not parts:
+        return ""
+    return (
+        '<div style="margin-top:6px;font-size:13px;color:var(--muted)">'
+        '🔭 선행: ' + ' · '.join(parts) +
+        ' <span style="font-size:11px">— 나머지 국면 지표는 오늘 결과(후행)</span></div>'
+    )
 
 
 def _decoupling_html(data: dict) -> str:
@@ -408,6 +450,7 @@ def _daily_gate(data: dict) -> str:
         kd = {"강세": "강세", "약세": "약세", "중립": "혼조"}.get(m.get("market_regime"), None)
     adl = m.get("market_adl")           # 0~1 (상승 종목 비율)
     ratio = _top5_ratio(data)           # 거래대금 상위5 쏠림 %
+    risk = m.get("risk_appetite")       # 미선물·VIX 기반 (유일한 선행 입력)
 
     # (등급, 배경색, 판정 근거) — 위에서부터 먼저 걸리는 순서 = 보수 우선
     if core_n == 0:
@@ -424,6 +467,13 @@ def _daily_gate(data: dict) -> str:
         grade, col, why = "종가베팅 허용", "#16a34a", "강세 + 신호 다수 + 상승 종목 양호"
     else:
         grade, col, why = "소액만", "#d97706", "조건 일부 미충족 — 기본값 보수"
+
+    # 미선물 비우호면 한 단계 강등 (강등 방향만 — 우호라고 승격시키지 않음).
+    # 봇 국면은 전부 후행이라, 유일한 선행 입력인 미선물이 나쁘면 보수화한다.
+    if risk == "비우호" and grade in ("종가베팅 허용", "소액만"):
+        _down = {"종가베팅 허용": ("소액만", "#d97706"), "소액만": ("관찰만", "#ea580c")}
+        grade, col = _down[grade]
+        why += " · ⚠ 미선물 비우호 → 한 단계 강등"
 
     return (
         f'<div style="margin-top:10px;padding:10px 14px;border-radius:8px;'

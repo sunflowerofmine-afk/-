@@ -49,7 +49,7 @@ def fetch_index_daily(code: str, pages: int = 3) -> dict:
 
 def classify_regime(idx: dict) -> tuple[str, dict]:
     """최신일 기준 국면 판정. (regime, detail) 반환.
-    detail: {close, ma5, above_ma5, ma5_rising}
+    detail: {close, ma5, above_ma5, ma5_rising, ma60, above_ma60, ma60_gap_pct}
     데이터 부족 시 ("?", {}).
     """
     dates = sorted(idx.keys())
@@ -67,10 +67,19 @@ def classify_regime(idx: dict) -> tuple[str, dict]:
         regime = "약세"
     else:
         regime = "혼조"
-    return regime, {
+    detail = {
         "date": dates[i], "close": round(closes[i], 2), "ma5": round(ma5, 2),
         "above_ma5": above, "ma5_rising": rising,
     }
+    # 60일선 — 돌팬티가 실제로 쓰는 기준선("코스피 두 번째 60일선 터치, 언제든 무너질 수 있는 구간", 7/7)
+    if len(closes) >= 60:
+        ma60 = mean(closes[i-59:i+1])
+        detail.update({
+            "ma60": round(ma60, 2),
+            "above_ma60": closes[i] > ma60,
+            "ma60_gap_pct": round((closes[i] - ma60) / ma60 * 100, 2),
+        })
+    return regime, detail
 
 
 # 국면별 종베 행동 가이드 (backtest_regime_largecap 근거)
@@ -89,8 +98,9 @@ def get_market_regime() -> dict:
       kosdaq_regime, kospi_regime, kosdaq_detail, kospi_detail,
       decoupled_largecap(bool), guide(str)
     """
-    kosdaq = fetch_index_daily("KOSDAQ")
-    kospi  = fetch_index_daily("KOSPI")
+    # 60일선 계산에 60거래일 이상 필요 (페이지당 약 6행 → 12페이지 ≈ 72일)
+    kosdaq = fetch_index_daily("KOSDAQ", pages=12)
+    kospi  = fetch_index_daily("KOSPI",  pages=12)
     kd_reg, kd_det = classify_regime(kosdaq)
     kp_reg, kp_det = classify_regime(kospi)
 

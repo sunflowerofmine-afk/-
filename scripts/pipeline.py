@@ -804,6 +804,15 @@ def run(preview: bool = False):
         logger.warning(f"지수 국면 판정 실패 (무시): {e}")
         index_regime = None
 
+    # 미국 선물 실시간 — 국면 판정의 유일한 '선행' 입력 (나머지는 전부 오늘 결과=후행).
+    # 돌팬티 "오후 8시까지 흐름과 미 선물, 유가 추이를 종합 확인 후 최종 매수 결정"(7/1).
+    futures_data: dict = {}
+    try:
+        from scripts.fetch_futures import fetch_futures
+        futures_data = fetch_futures()
+    except Exception as e:
+        logger.warning(f"미선물 조회 실패 (무시): {e}")
+
     # ── 전일 복기 ───────────────────────────────────────────────────────────
     review_results = []
     try:
@@ -836,6 +845,8 @@ def run(preview: bool = False):
             "intersection_count":     len(intersection) if not intersection.empty else 0,
             "core_count":             0,
             "top5_concentration_pct": _top5_concentration_pct,
+            "futures":                futures_data,          # 미선물·VIX (선행 입력)
+            "risk_appetite":          futures_data.get("risk_appetite"),
             "market_regime":          market_regime,
             "market_adl":             _market_adl,
             "market_subtype":         market_subtype,
