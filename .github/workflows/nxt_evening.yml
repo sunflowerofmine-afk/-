@@ -3,13 +3,12 @@ name: NXT Evening (3차 알림)
 # 3차 알림 — NXT 저녁 흐름 (19:30 KST).
 # 돌팬티 실제 진입(NXT 막판 19:50~20:00) 직전에 KRX 종가 대비 NXT 현재가를 확인시킨다.
 #
-# ⚠ 트리거 주의: GitHub 네이티브 cron은 지연이 크다(weekly_research 실측 2시간 지연).
-#    19:50 진입 전에 도착해야 하므로 run_bot.yml과 동일하게 외부 트리거(cron-job.org)로
-#    workflow_dispatch를 호출하는 것을 권장. schedule은 백업용.
+# 트리거: cron-job.org → POST /dispatches (평일 19:30 KST, Asia/Seoul)
+#   GitHub 네이티브 cron은 지연이 커서(weekly_research 실측 2시간) 쓰지 않는다.
+#   19:50 NXT 진입 전에 도착해야 하므로 run_bot.yml과 동일한 외부 트리거 방식.
+#   schedule을 함께 두면 네이티브 cron이 늦게 또 실행돼 알림이 중복되므로 제외.
 on:
-  workflow_dispatch:          # cron-job.org → POST /dispatches (권장 경로)
-  schedule:
-    - cron: "30 10 * * 1-5"   # 19:30 KST (= 10:30 UTC), 월~금 — 백업(지연 가능)
+  workflow_dispatch:
 
 jobs:
   nxt-evening:
