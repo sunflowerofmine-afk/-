@@ -1,5 +1,5 @@
 # scripts/fetch_nxt_data.py
-"""NXT(넥스트레이드) 거래상위 데이터 수집 — 2차/수동 실행 시 KRX 데이터에 합산"""
+"""NXT 거래상위 데이터 수집 — 2차/수동 실행 시 KRX 데이터에 합산"""
 
 import sys
 import time

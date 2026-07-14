@@ -1,5 +1,5 @@
 # scripts/save_nxt.py
-"""NXT(넥스트레이드) 일별 거래대금 저장 — NXT 종료(20:00 KST) 이후 수동 실행 전용.
+"""NXT 일별 거래대금 저장 — NXT 종료(20:00 KST) 이후 수동 실행 전용.
 
 GitHub Actions의 nxt_save.yml에서 workflow_dispatch로 트리거.
 fetch_nxt_quant()로 NXT 거래상위 종목의 당일 최종 거래대금을 수집해

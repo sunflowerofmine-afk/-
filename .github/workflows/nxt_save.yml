@@ -1,6 +1,6 @@
 name: NXT 거래대금 저장
 
-# NXT 애프터마켓 종료(20:00 KST) 이후 실행.
+# NXT 종료(20:00 KST) 이후 실행.
 # 매 거래일 20:10 KST 자동 실행 + GitHub UI "Run workflow" 수동 실행 병행.
 on:
   workflow_dispatch:
