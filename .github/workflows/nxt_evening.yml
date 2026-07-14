@@ -1,0 +1,67 @@
+name: NXT Evening (3차 알림)
+
+# 3차 알림 — NXT 저녁 흐름 (19:30 KST).
+# 돌팬티 실제 진입(NXT 막판 19:50~20:00) 직전에 KRX 종가 대비 NXT 현재가를 확인시킨다.
+#
+# ⚠ 트리거 주의: GitHub 네이티브 cron은 지연이 크다(weekly_research 실측 2시간 지연).
+#    19:50 진입 전에 도착해야 하므로 run_bot.yml과 동일하게 외부 트리거(cron-job.org)로
+#    workflow_dispatch를 호출하는 것을 권장. schedule은 백업용.
+on:
+  workflow_dispatch:          # cron-job.org → POST /dispatches (권장 경로)
+  schedule:
+    - cron: "30 10 * * 1-5"   # 19:30 KST (= 10:30 UTC), 월~금 — 백업(지연 가능)
+
+jobs:
+  nxt-evening:
+    runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Sync latest signals (오늘 2차 후보 복원)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PREV_RUN=$(gh run list --workflow run_bot.yml --status success --limit 1 \
+            --json databaseId --jq '.[0].databaseId' 2>/dev/null || echo "")
+          if [ -n "$PREV_RUN" ]; then
+            mkdir -p data/signals
+            gh run download "$PREV_RUN" -n "bot-output-${PREV_RUN}" -D /tmp/prev_art 2>/dev/null && \
+              cp /tmp/prev_art/data/signals/* data/signals/ 2>/dev/null || true
+            echo "복원: $(ls data/signals/ 2>/dev/null | wc -l)개 파일"
+          else
+            echo "이전 run 없음 → 후보 없이 투탑·선행지표만 발송"
+          fi
+
+      - name: 비거래일 체크
+        id: tradingday
+        env:
+          TZ: Asia/Seoul
+        run: |
+          python -c "
+          from datetime import date
+          from scripts.market_calendar import is_trading_day
+          print('yes' if is_trading_day(date.today()) else 'no')
+          " > /tmp/td.txt
+          echo "result=$(cat /tmp/td.txt)" >> $GITHUB_OUTPUT
+
+      - name: Send NXT evening alert
+        if: steps.tradingday.outputs.result == 'yes'
+        env:
+          TZ: Asia/Seoul
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_CHAT_ID_2: ${{ secrets.TELEGRAM_CHAT_ID_2 }}
+        run: python -m scripts.nxt_evening
