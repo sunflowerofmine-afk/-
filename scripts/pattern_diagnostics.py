@@ -65,7 +65,10 @@ MANUAL_BASE_STOCKS = [
 def _load_signals_base_stocks() -> list[tuple[str, str]]:
     """로컬 signals 파일에서 당일돌파형 종목 수집."""
     result = []
-    for f in sorted(SIGNALS_DIR.glob("*_1750_signals.csv")):
+    # 2차 신호 파일 (분 드리프트 1750/1751 허용 — storage.snapshot_kind)
+    from scripts.storage import snapshot_kind as _snap_kind
+    for f in [_x for _x in sorted(SIGNALS_DIR.glob("*_signals.csv"))
+                  if _snap_kind(_x.name[11:15]) == "2차"]:
         import re
         m = re.match(r"^(\d{4}-\d{2}-\d{2})_", f.name)
         if not m:

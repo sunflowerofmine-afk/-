@@ -37,19 +37,23 @@ _LOOKBACK    = 252   # 52주 = 약 252 거래일
 
 
 def _find_target_signals() -> tuple[str | None, pd.DataFrame | None]:
-    """가장 최근 2차(17:50) 신호 CSV 로드. 오늘 또는 어제 것."""
+    """가장 최근 2차 신호 CSV 로드. 오늘 또는 최근 4일 내.
+
+    파일명 시각은 분 드리프트(1750→1751) 허용 — storage.find_signal_file 사용.
+    """
+    from scripts.storage import find_signal_file
     for days_back in range(0, 5):
-        d = date.today() - timedelta(days=days_back)
-        d_str = d.isoformat()
-        matches = sorted(_SIGNALS_DIR.glob(f"{d_str}_1750_signals.csv"), reverse=True)
-        for path in matches:
-            try:
-                df = pd.read_csv(path, dtype={"종목코드": str}, encoding="utf-8-sig")
-                if not df.empty:
-                    logger.info(f"신호 파일: {path.name} ({len(df)}개)")
-                    return d_str, df
-            except Exception as e:
-                logger.warning(f"로드 실패 {path}: {e}")
+        d_str = (date.today() - timedelta(days=days_back)).isoformat()
+        path = find_signal_file(d_str, kind="2차", signals_dir=_SIGNALS_DIR)
+        if path is None:
+            continue
+        try:
+            df = pd.read_csv(path, dtype={"종목코드": str}, encoding="utf-8-sig")
+            if not df.empty:
+                logger.info(f"신호 파일: {path.name} ({len(df)}개)")
+                return d_str, df
+        except Exception as e:
+            logger.warning(f"로드 실패 {path}: {e}")
     return None, None
 
 

@@ -145,21 +145,22 @@ def _fetch_returns(code: str, entry: float, signal_date_str: str) -> dict:
 
 def collect(start: date, end: date) -> list[dict]:
     """start ~ end 범위의 모든 signals 파일 스캔 (평일·주말 무관)."""
-    # 범위 내 날짜별 자동 실행(1450/1750) signals 파일 수집 — 수동 실행 제외
-    _AUTO_TIMES = {"1750", "1450"}
+    # 범위 내 날짜별 자동 실행(1차/2차) signals 파일 수집 — 수동 실행 제외.
+    # 시각은 분 드리프트(1750→1751) 허용 — storage.snapshot_kind로 판정.
+    from scripts.storage import snapshot_kind
     date_files: dict[str, Path] = {}
     for f in sorted(Path(SIGNALS_DIR).glob("*_signals.csv")):
         ds   = f.name[:10]
-        snap = f.name[11:15]  # YYYY-MM-DD_HHMM_signals.csv
-        if snap not in _AUTO_TIMES:
+        kind = snapshot_kind(f.name[11:15])  # YYYY-MM-DD_HHMM_signals.csv
+        if kind is None:
             continue
         try:
             d = date.fromisoformat(ds)
         except ValueError:
             continue
         if start <= d <= end:
-            # 1750 우선; 없으면 1450
-            if ds not in date_files or snap == "1750":
+            # 2차 우선; 없으면 1차
+            if ds not in date_files or kind == "2차":
                 date_files[ds] = f
 
     rows: list[dict] = []

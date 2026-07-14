@@ -33,7 +33,10 @@ def win_pct(grp):
 # 수급 라벨 조인
 sup_map = {}
 sig_rows = []
-for p in sorted(SIGNALS_DIR.glob("*_1750_signals.csv")):
+# 2차 신호 파일 (분 드리프트 1750/1751 허용 — storage.snapshot_kind)
+from scripts.storage import snapshot_kind as _snap_kind
+for p in [_x for _x in sorted(SIGNALS_DIR.glob("*_signals.csv"))
+              if _snap_kind(_x.name[11:15]) == "2차"]:
     try:
         df = pd.read_csv(p, dtype={"종목코드": str})
         df["_date"] = p.stem[:10]

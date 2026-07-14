@@ -55,6 +55,36 @@ def save_signals(df: pd.DataFrame, timestamp_str: str) -> Path:
     return _safe_save(df, path)
 
 
+# ── 신호 파일 스냅샷 해석 (분 단위 드리프트 허용) ───────────────────────────
+# GitHub Actions 실행 지연으로 파이프라인 시각이 분 경계를 넘으면 파일명이
+# 1750 → 1751, 1450 → 1451 로 바뀐다(2026-07-03부터 실제 발생).
+# 소비자가 "_1750_"을 정확히 일치로 찾으면 신호를 통째로 놓치므로,
+# market_calendar.get_run_type과 동일한 시각 창으로 판정한다.
+_FIRST_WINDOW  = (1440, 1510)   # 1차 14:40~15:10
+_SECOND_WINDOW = (1740, 1810)   # 2차 17:40~18:10
+
+
+def snapshot_kind(snap: str) -> str | None:
+    """신호 파일명의 HHMM → "2차" | "1차" | None(수동 실행)."""
+    try:
+        v = int(snap)
+    except (TypeError, ValueError):
+        return None
+    if _SECOND_WINDOW[0] <= v <= _SECOND_WINDOW[1]:
+        return "2차"
+    if _FIRST_WINDOW[0] <= v <= _FIRST_WINDOW[1]:
+        return "1차"
+    return None
+
+
+def find_signal_file(date_str: str, kind: str = "2차", signals_dir: Path | None = None) -> Path | None:
+    """해당 날짜의 자동 실행 신호 CSV 반환. 분 드리프트(1750/1751) 허용. 없으면 None."""
+    d = Path(signals_dir) if signals_dir else SIGNALS_DIR
+    cands = [f for f in sorted(d.glob(f"{date_str}_*_signals.csv"))
+             if snapshot_kind(f.name[11:15]) == kind]
+    return cands[-1] if cands else None
+
+
 def load_recent_raw(code: str, days: int = 60) -> pd.DataFrame:
     """
     raw/ 폴더의 최근 N일 CSV에서 특정 종목코드 히스토리 로드.

@@ -33,7 +33,10 @@ def _parse_date(fname: str) -> date_t | None:
 def load_all_1750_signals() -> dict[date_t, pd.DataFrame]:
     """전체 기간 1750 시그널 로드. 날짜별 가장 늦은 파일 1개."""
     by_date: dict[date_t, list[Path]] = {}
-    for f in sorted(SIGNALS_DIR.glob("*_1750_signals.csv")):
+    # 2차 신호 파일 (분 드리프트 1750/1751 허용 — storage.snapshot_kind)
+    from scripts.storage import snapshot_kind as _snap_kind
+    for f in [_x for _x in sorted(SIGNALS_DIR.glob("*_signals.csv"))
+                  if _snap_kind(_x.name[11:15]) == "2차"]:
         d = _parse_date(f.name)
         if d:
             by_date.setdefault(d, []).append(f)

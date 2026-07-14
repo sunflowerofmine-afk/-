@@ -60,33 +60,36 @@ def _fetch_price(code: str) -> int | None:
 def _find_yesterday_signals() -> tuple[str | None, dict[str, str]]:
     """가장 최근 2차(17:50) 신호 CSV 로드. {code: name} 반환."""
     import pandas as pd
+    from scripts.storage import find_signal_file
     for days_back in range(1, 5):
-        d = date.today() - timedelta(days=days_back)
-        d_str = d.isoformat()
-        matches = sorted(_SIGNALS_DIR.glob(f"{d_str}_1750_signals.csv"), reverse=True)
-        for path in matches:
-            try:
-                df = pd.read_csv(path, dtype={"종목코드": str}, encoding="utf-8-sig")
-                if df.empty:
-                    continue
-                code_col = "종목코드"
-                name_col = "종목명"
-                stocks = {
-                    str(row[code_col]).zfill(6): str(row[name_col])
-                    for _, row in df.iterrows()
-                    if pd.notna(row.get(code_col))
-                }
-                logger.info(f"신호 파일 로드: {path} ({len(stocks)}개 종목)")
-                return d_str, stocks
-            except Exception as e:
-                logger.warning(f"로드 실패 {path}: {e}")
+        d_str = (date.today() - timedelta(days=days_back)).isoformat()
+        path = find_signal_file(d_str, kind="2차", signals_dir=_SIGNALS_DIR)
+        if path is None:
+            continue
+        try:
+            df = pd.read_csv(path, dtype={"종목코드": str}, encoding="utf-8-sig")
+            if df.empty:
+                continue
+            code_col = "종목코드"
+            name_col = "종목명"
+            stocks = {
+                str(row[code_col]).zfill(6): str(row[name_col])
+                for _, row in df.iterrows()
+                if pd.notna(row.get(code_col))
+            }
+            logger.info(f"신호 파일 로드: {path} ({len(stocks)}개 종목)")
+            return d_str, stocks
+        except Exception as e:
+            logger.warning(f"로드 실패 {path}: {e}")
     return None, {}
 
 
 def _load_signal_prices(sig_date: str) -> dict[str, float]:
     """signals CSV에서 entry_reference_price 또는 signal_price 추출."""
     import pandas as pd
-    matches = sorted(_SIGNALS_DIR.glob(f"{sig_date}_1750_signals.csv"), reverse=True)
+    from scripts.storage import find_signal_file
+    _p = find_signal_file(sig_date, kind="2차", signals_dir=_SIGNALS_DIR)
+    matches = [_p] if _p else []
     if not matches:
         return {}
     try:
