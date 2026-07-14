@@ -1,0 +1,48 @@
+{
+  "date": "2026-07-10",
+  "generated": "2026-07-14",
+  "stocks": {
+    "319660": {
+      "name": "피에스케이",
+      "signal_price": 189400,
+      "is_nxt": true,
+      "nxt_dominant": false,
+      "change_pct": 24.44,
+      "sector": "반도체 장비",
+      "total_score": 10,
+      "52w_high": 219500,
+      "52w_low": 18100,
+      "pct_from_52w_high": -13.71,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 9
+    },
+    "240810": {
+      "name": "원익IPS",
+      "signal_price": 125000,
+      "is_nxt": false,
+      "nxt_dominant": false,
+      "change_pct": 19.16,
+      "sector": "반도체 장비",
+      "total_score": 9,
+      "52w_high": 187800,
+      "52w_low": 26550,
+      "pct_from_52w_high": -33.44,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 9
+    },
+    "095610": {
+      "name": "테스",
+      "signal_price": 177700,
+      "is_nxt": true,
+      "nxt_dominant": false,
+      "change_pct": 22.55,
+      "sector": "반도체 장비",
+      "total_score": 8,
+      "52w_high": 236500,
+      "52w_low": 23250,
+      "pct_from_52w_high": -24.86,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 9
+    }
+  }
+}

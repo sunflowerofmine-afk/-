@@ -1,0 +1,48 @@
+{
+  "date": "2026-07-14",
+  "generated": "2026-07-14",
+  "stocks": {
+    "095610": {
+      "name": "테스",
+      "signal_price": 217500,
+      "is_nxt": true,
+      "nxt_dominant": false,
+      "change_pct": 16.68,
+      "sector": "반도체와반도체장비",
+      "total_score": 9,
+      "52w_high": 236500,
+      "52w_low": 23250,
+      "pct_from_52w_high": -8.03,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 9
+    },
+    "089970": {
+      "name": "브이엠",
+      "signal_price": 114700,
+      "is_nxt": true,
+      "nxt_dominant": false,
+      "change_pct": 18.98,
+      "sector": "반도체와반도체장비",
+      "total_score": 9,
+      "52w_high": 122100,
+      "52w_low": 10300,
+      "pct_from_52w_high": -6.06,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 9
+    },
+    "319660": {
+      "name": "피에스케이",
+      "signal_price": 203500,
+      "is_nxt": true,
+      "nxt_dominant": false,
+      "change_pct": 10.24,
+      "sector": "반도체와반도체장비",
+      "total_score": 6,
+      "52w_high": 219500,
+      "52w_low": 18100,
+      "pct_from_52w_high": -7.29,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 9
+    }
+  }
+}
