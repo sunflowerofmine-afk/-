@@ -1,0 +1,48 @@
+{
+  "date": "2026-07-15",
+  "generated": "2026-07-15",
+  "stocks": {
+    "009150": {
+      "name": "삼성전기",
+      "signal_price": 1413000,
+      "is_nxt": true,
+      "nxt_dominant": true,
+      "change_pct": 12.14,
+      "sector": "반도체 기판(FC-BGA/PCB/MLB 등)",
+      "total_score": 10,
+      "52w_high": 2417000,
+      "52w_low": 132500,
+      "pct_from_52w_high": -41.54,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 18
+    },
+    "080220": {
+      "name": "제주반도체",
+      "signal_price": 89100,
+      "is_nxt": false,
+      "nxt_dominant": false,
+      "change_pct": 20.9,
+      "sector": "온디바이스 AI",
+      "total_score": 7,
+      "52w_high": 138000,
+      "52w_low": 13380,
+      "pct_from_52w_high": -35.43,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 17
+    },
+    "240810": {
+      "name": "원익IPS",
+      "signal_price": 142700,
+      "is_nxt": false,
+      "nxt_dominant": false,
+      "change_pct": 12.27,
+      "sector": "반도체 장비",
+      "total_score": 6,
+      "52w_high": 187800,
+      "52w_low": 26950,
+      "pct_from_52w_high": -24.01,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 10
+    }
+  }
+}
