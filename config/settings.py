@@ -120,7 +120,10 @@ DART_API_KEY                        = os.getenv("DART_API_KEY", "")
 ENABLE_DART_FETCH                   = True   # 2차/수동 실행 시 후보 종목 당일 공시 조회
 
 ENABLE_SHORT_BALANCE                = True   # 공매도 잔고 추적 (pykrx, T+2)
-ENABLE_PENSION_FETCH                = True   # 연기금 순매수 추적 (pykrx, T-1)
+ENABLE_PENSION_FETCH                = False  # 연기금 순매수 추적 (pykrx, T-1). 2026-07-15 비활성화:
+# KRX가 이 엔드포인트(get_market_net_purchases_of_equities)에 로그인(KRX_ID/KRX_PW)을 요구하도록
+# 변경 → 자격증명 없이는 빈 데이터 반환 + pykrx 내부 로깅버그(logging.info(args,kwargs))가 에러 대량 발생.
+# 재활성화하려면 KRX_ID/KRX_PW 환경변수 설정 후 True. 연기금은 돌팬티/준돌 관점 지표 아님(우선순위 낮음).
 
 # ── 장세별 핵심 후보 상한선 ──────────────────────────────────
 CANDIDATES_MAX_BULL               = 5   # 강세
