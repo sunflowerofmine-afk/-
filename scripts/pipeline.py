@@ -1650,6 +1650,8 @@ def run(preview: bool = False):
         "code_to_sector":        code_to_sector,
         "inter_codes":           inter_codes,
         "index_regime":          index_regime,
+        "top5_concentration_pct": _top5_concentration_pct,
+        "risk_appetite":         futures_data.get("risk_appetite"),
     }
     if run_type == "1차":
         msg = ntf.build_first_alert(

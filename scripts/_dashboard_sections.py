@@ -435,32 +435,22 @@ def _top5_concentration_html(data: dict) -> str:
     )
 
 
-def _daily_gate(data: dict) -> str:
-    """오늘 종가베팅을 해도 되는 날인가 — 최상위 국면 게이트.
+def compute_daily_gate(core_n: int, kd, adl, top5_ratio, risk):
+    """오늘 종가베팅 판정 (grade, color, why) — 텔레그램·대시보드 공용 단일 원천.
 
-    종목을 보기 전에 먼저 판정한다. 기존 값(신호건수·국면·상승비율·쏠림)만 재조합.
-    기본값은 보수 — 허용은 조건이 여럿 동시 충족될 때만 나온다.
+    kd: 코스닥 국면(강세/혼조/약세/None), adl: 상승 종목 비율 0~1,
+    top5_ratio: 거래대금 상위5 쏠림 %, risk: 위험자산 선호(우호/비우호/None).
+    기본값은 보수 — 허용은 조건이 여럿 동시 충족될 때만. 위에서부터 먼저 걸리는 순서.
     근거·임계값은 잠정(표본 10거래일·단일 국면). 룰북(매매일지분석/종베_판단_룰북.md) 참조.
     """
-    m = data.get("market_summary", {})
-    core_n = len(data.get("core_candidates", []) or [])
-    ir = m.get("index_regime") or {}
-    kd = ir.get("kosdaq_regime")  # 강세/혼조/약세
-    if kd is None:
-        kd = {"강세": "강세", "약세": "약세", "중립": "혼조"}.get(m.get("market_regime"), None)
-    adl = m.get("market_adl")           # 0~1 (상승 종목 비율)
-    ratio = _top5_ratio(data)           # 거래대금 상위5 쏠림 %
-    risk = m.get("risk_appetite")       # 미선물·VIX 기반 (유일한 선행 입력)
-
-    # (등급, 배경색, 판정 근거) — 위에서부터 먼저 걸리는 순서 = 보수 우선
     if core_n == 0:
         grade, col, why = "매매 금지", "#dc2626", "봇 신호 0건 — 개별주 종베 자리 없음"
     elif kd == "약세" and adl is not None and adl < 0.35:
         grade, col, why = "매매 금지", "#dc2626", f"약세 국면 + 상승 종목 극소(상승비율 {adl*100:.0f}%)"
     elif kd == "약세":
         grade, col, why = "관찰만", "#ea580c", "약세 국면 — 대형주 트랙만, 중소형은 관찰로"
-    elif ratio is not None and ratio >= 50:
-        grade, col, why = "관찰만", "#ea580c", f"거래대금 상위5 쏠림 {ratio:.0f}% — 개별주 불리, 대형주 우선"
+    elif top5_ratio is not None and top5_ratio >= 50:
+        grade, col, why = "관찰만", "#ea580c", f"거래대금 상위5 쏠림 {top5_ratio:.0f}% — 개별주 불리, 대형주 우선"
     elif kd == "혼조" or core_n <= 2:
         grade, col, why = "소액만", "#d97706", "방향은 있으나 확신 부족 — 평소보다 작게"
     elif kd == "강세" and core_n >= 3 and (adl is None or adl >= 0.5):
@@ -474,6 +464,26 @@ def _daily_gate(data: dict) -> str:
         _down = {"종가베팅 허용": ("소액만", "#d97706"), "소액만": ("관찰만", "#ea580c")}
         grade, col = _down[grade]
         why += " · ⚠ 미선물 비우호 → 한 단계 강등"
+    return grade, col, why
+
+
+def _daily_gate(data: dict) -> str:
+    """오늘 종가베팅을 해도 되는 날인가 — 최상위 국면 게이트.
+
+    종목을 보기 전에 먼저 판정한다. 기존 값(신호건수·국면·상승비율·쏠림)만 재조합.
+    산출은 compute_daily_gate()에 위임 — 텔레그램 알림과 동일한 판정을 보장한다.
+    """
+    m = data.get("market_summary", {})
+    core_n = len(data.get("core_candidates", []) or [])
+    ir = m.get("index_regime") or {}
+    kd = ir.get("kosdaq_regime")  # 강세/혼조/약세
+    if kd is None:
+        kd = {"강세": "강세", "약세": "약세", "중립": "혼조"}.get(m.get("market_regime"), None)
+    adl = m.get("market_adl")           # 0~1 (상승 종목 비율)
+    ratio = _top5_ratio(data)           # 거래대금 상위5 쏠림 %
+    risk = m.get("risk_appetite")       # 미선물·VIX 기반 (유일한 선행 입력)
+
+    grade, col, why = compute_daily_gate(core_n, kd, adl, ratio, risk)
 
     return (
         f'<div style="margin-top:10px;padding:10px 14px;border-radius:8px;'
@@ -696,7 +706,6 @@ def _section_watch_panel(watch_candidates: list, market_regime: str = "중립") 
             f'<td style="color:{_PATTERN_CARD_COLOR.get(pat_label,"#8b949e")};font-weight:600">{_e(pat_label)}</td>'
             f'<td class="{chg_cls}">{_sign(chg)}</td>'
             f"<td>{_tv_eok(tv)}</td>"
-            f'<td style="color:var(--blue);font-weight:700">{_score_val(c.get("score"))}점</td>'
             f'<td style="color:var(--muted);font-size:12px">{sector}</td>'
             f"</tr>"
         )
@@ -708,7 +717,7 @@ def _section_watch_panel(watch_candidates: list, market_regime: str = "중립") 
         f'(시장 {market_regime} → 핵심후보 상한 {max_n}개 초과분)</span>'
         f'</summary>\n'
         f'<div class="tbl-wrap"><table>'
-        f'<thead><tr><th>종목</th><th>등급</th><th>패턴</th><th>등락률</th><th>거래대금</th><th>점수</th><th>섹터</th></tr></thead>'
+        f'<thead><tr><th>종목</th><th>등급</th><th>패턴</th><th>등락률</th><th>거래대금</th><th>섹터</th></tr></thead>'
         f'<tbody>{rows_html}</tbody>'
         f'</table></div></details>'
     )
@@ -858,33 +867,40 @@ def _section_stock_panel(candidates: list, rejected: list, market_regime: str = 
         consol_flag = pat.get("consolidation_flag", False)
         pbs_flag    = pat.get("pullback_support_flag", False)
 
-        tags = []
-        if c.get("theme_role") == "리더":   tags.append("🏅대장")
-        elif c.get("theme_role") == "후속주": tags.append("🐟후발주")
-        if in_inter:    tags.append("★교집합")
-        if new_high:    tags.append("🔺신고가")
-        elif near_hi:   tags.append("📍고점권")
-        if near_h52w:   tags.append("📈52w")
-        if ma_aligned:  tags.append("📶정배열")
-        if tv >= 1_000_000_000_000: tags.append("💰1조+")
-        if consol_flag: tags.append("📊기간조정")
-        if pbs_flag:    tags.append("↩되돌림지지")
-        if pat.get("high_tight_consolidation_flag"): tags.append("🔶고가수축")
-        prog_net = c.get("prog_net_eok")
-        if prog_net is not None and prog_net > 0: tags.append("💹프로그램매수")
-        tags_str = "  ".join(tags)
+        # 태그 3계층 (관문2 우선순위): 자격(t1·강조) / 경고(t2·빨강) / 참고(상세패널로 위임)
+        from config.settings import FRESHNESS_STALE_MIN_COUNT
+        _fresh = c.get("freshness_count")
+        t1 = []   # 자격 — 돌팬티·손절남 매매1원칙(NXT)·시장선택(교집합)·신고가·재료신선
+        if c.get("is_nxt"):
+            t1.append("🔵NXT대장" if c.get("nxt_dominant") else "🔵NXT")
+        if c.get("theme_role") == "리더": t1.append("🏅대장")
+        if in_inter:  t1.append("★교집합")
+        if new_high:  t1.append("🔺신고가")
+        elif near_hi: t1.append("📍고점권")
+        if _fresh == 0: t1.append("🆕신규")
+        t2 = []   # 경고 — 강등 신호만 (빨강)
+        if c.get("theme_role") == "후속주": t2.append("🐟후발주")
+        if chg >= 25: t2.append("⚠급등")
+        if _baseline_weak(c): t2.append("⚠약한자리")
+        if _fresh is not None and _fresh >= FRESHNESS_STALE_MIN_COUNT:
+            t2.append(f"♻️{_fresh}일째")
+        # 참고(정배열·1조+·기간조정·되돌림지지·고가수축·프로그램·52w)는 상세 패널에서 확인
+        tags_html = ""
+        if t1:
+            tags_html += "  " + _e("  ".join(t1))
+        if t2:
+            tags_html += " <span style='color:var(--red)'>" + _e("  ".join(t2)) + "</span>"
 
         pri_html   = _status_badge_html(status)
         pat_cls    = _PAT_CLS.get(pat_label, "")
         active_cls = " active" if idx == 0 else ""
-        score_str  = _score_val(c.get("score"))
 
         list_cards.append(f"""<div class="list-card {pat_cls}{active_cls}" data-idx="{idx}" onclick="renderDetail({idx})">
   <div class="lc-head">
     <div><span class="lc-name">{_e(c.get('name',''))}</span><span class="lc-code">{_e(c.get('code',''))}</span></div>
     {pri_html}
   </div>
-  <div class="lc-stats"><span class="{chg_cls}">{chg_str}</span> · {tv_str} · {_e(pat_str)} · <span style="color:var(--muted)">{score_str}점</span>{'  ' + _e(tags_str) if tags_str else ''}</div>
+  <div class="lc-stats"><span class="{chg_cls}">{chg_str}</span> · {tv_str} · {_e(pat_str)}{tags_html}</div>
   <span class="lc-summary">{_e(summary)}</span>
 </div>""")
 

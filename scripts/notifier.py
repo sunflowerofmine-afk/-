@@ -256,25 +256,38 @@ def format_market_summary(market_totals: dict, run_time: str, run_type: str,
         except Exception:
             return "-"
 
-    # 패턴별 후보 갯수
+    # 패턴별 후보 갯수 (라벨 단축)
     pc = pattern_counts or {}
+    _pat_short = {"당일돌파형": "당일돌파", "재돌파형": "재돌파",
+                  "고가수축형": "고가수축", "고가횡보형": "고가횡보"}
     pat_parts = [
-        f"{label} {pc[label]}개"
+        f"{_pat_short[label]} {pc[label]}"
         for label in ["당일돌파형", "재돌파형", "고가수축형", "고가횡보형"]
         if pc.get(label, 0) > 0
     ]
     etc_n = pc.get("없음", 0)
     if etc_n > 0:
-        pat_parts.append(f"기타 {etc_n}개")
-    pat_line = ("[후보] " + "  ".join(pat_parts) + "\n") if pat_parts else "[후보] 없음\n"
+        pat_parts.append(f"기타 {etc_n}")
+    cand_str        = " · ".join(pat_parts) if pat_parts else "없음"
+    limit_up_suffix = f"   (상한가 {limit_up_n})" if limit_up_n > 0 else ""
 
-    limit_up_line = f"[상한가] {limit_up_n}개\n" if limit_up_n > 0 else ""
+    _KD_PLAIN = {"강세": "강세", "혼조": "혼조(엇갈림)", "약세": "약세"}
 
-    _direction_map = {
-        "상승": "📈 상승",
-        "하락": "📉 하락",
-        "횡보": "➡ 횡보",
-    }
+    # ── 오늘 판정 (게이트) — 대시보드와 동일 산출 (compute_daily_gate) ──
+    from scripts._dashboard_sections import compute_daily_gate
+    _ir = ex.get("index_regime") or {}
+    _kd_gate = _ir.get("kosdaq_regime")
+    if _kd_gate is None:
+        _kd_gate = {"강세": "강세", "약세": "약세", "중립": "혼조"}.get(regime, None)
+    _grade, _, _why = compute_daily_gate(
+        ex.get("core_count", 0), _kd_gate, market_adl,
+        ex.get("top5_concentration_pct"), ex.get("risk_appetite"),
+    )
+    _gate_emoji = {"매매 금지": "🔴", "관찰만": "🟠",
+                   "소액만": "🟡", "종가베팅 허용": "🟢"}.get(_grade, "⚪")
+
+    # ── 지수방향 (1차만) ──────────────────────────────────────
+    _direction_map = {"상승": "📈 상승", "하락": "📉 하락", "횡보": "➡ 횡보"}
     _timing_map = {
         "상승": "3시 즉시 진입 가능",
         "하락": "3시 30분 동시호가 후 신중 진입",
@@ -282,59 +295,65 @@ def format_market_summary(market_totals: dict, run_time: str, run_type: str,
     }
     direction_str = _direction_map.get(market_direction, "")
     timing_str    = _timing_map.get(market_direction, "")
-
     if run_type == "1차" and direction_str:
-        direction_line = f"[지수방향] {direction_str} → {timing_str}\n"
+        direction_line = f"방향  {direction_str} → {timing_str}\n"
     else:
         direction_line = ""
 
-    _KD_PLAIN = {"강세": "강세", "혼조": "혼조(엇갈림)", "약세": "약세"}
-
-    if run_type == "2차":
-        checklist = "─" * 16 + "\n[원칙] NXT 거래여부 우선확인 / 추격금지 / 물타기금지\n"
-    else:
-        checklist = "─" * 16 + "\n[원칙] 종가진입 / 물타기금지 / D+1장초계획\n"
-
-    # 거시 한 줄 (환율·WTI — 돌팬티 루틴: 미선물·유가·환율 확인)
-    macro = ex.get("macro") or {}
-    macro_line = ""
-    if macro.get("usdkrw") is not None:
-        _uc = macro.get("usdkrw_chg")
-        macro_line = f"[거시] 환율 {macro['usdkrw']:,.1f}원"
-        if _uc is not None:
-            macro_line += f"({'▲' if _uc >= 0 else '▼'}{abs(_uc):.1f})"
-        if macro.get("wti") is not None:
-            _wc = macro.get("wti_chg")
-            macro_line += f" · 유가(WTI) {macro['wti']:.1f}달러"
-            if _wc is not None:
-                macro_line += f"({'▲' if _wc >= 0 else '▼'}{abs(_wc):.1f})"
-        macro_line += "\n"
-
-    # 지수 5일선·추세 국면 (코스피·코스닥 각자 독립 판정 — 서로 비교 아님)
+    # ── 국면 (코스피·코스닥 독립 판정 — 서로 비교 아님) ────────
     index_regime = ex.get("index_regime")
     regime_line = ""
     if index_regime:
         _emoji_map = {"강세": "🟢", "혼조": "🟡", "약세": "🔴", "?": "⚪"}
-        _kd = index_regime.get("kosdaq_regime", "?")
-        _kp = index_regime.get("kospi_regime", "?")
-        _kd_disp = _KD_PLAIN.get(_kd, _kd)
-        _kp_disp = _KD_PLAIN.get(_kp, _kp)
+        _kdr = index_regime.get("kosdaq_regime", "?")
+        _kp  = index_regime.get("kospi_regime", "?")
         regime_line = (
-            f"[판단] 코스피 {_emoji_map.get(_kp,'')} {_kp_disp}"
-            f" · 코스닥 {_emoji_map.get(_kd,'')} {_kd_disp}\n"
+            f"국면  코스피 {_emoji_map.get(_kp,'')} {_KD_PLAIN.get(_kp,_kp)}"
+            f" · 코스닥 {_emoji_map.get(_kdr,'')} {_KD_PLAIN.get(_kdr,_kdr)}\n"
         )
 
+    # ── 거시 (환율·WTI·미선물 — 돌팬티 루틴: 미선물·유가·환율 확인) ──
+    macro = ex.get("macro") or {}
+    macro_bits = []
+    if macro.get("usdkrw") is not None:
+        _uc = macro.get("usdkrw_chg")
+        _s = f"환율 {macro['usdkrw']:,.0f}"
+        if _uc is not None:
+            _s += f"({'▲' if _uc >= 0 else '▼'}{abs(_uc):.1f})"
+        macro_bits.append(_s)
+    if macro.get("wti") is not None:
+        _wc = macro.get("wti_chg")
+        _s = f"WTI {macro['wti']:.1f}"
+        if _wc is not None:
+            _s += f"({'▲' if _wc >= 0 else '▼'}{abs(_wc):.1f})"
+        macro_bits.append(_s)
+    _risk = ex.get("risk_appetite")
+    if _risk:
+        macro_bits.append(f"미선물 {_risk}")
+    macro_line = ("거시  " + " · ".join(macro_bits) + "\n") if macro_bits else ""
+
+    # ── 원칙 한 줄 (실행 리마인드) ────────────────────────────
+    if run_type == "2차":
+        principle = "💡 진입은 NXT 막판 · 청산은 D+1 오전 · 물타기 금지"
+    else:
+        principle = "💡 종가 진입 준비 · D+1 장초 청산계획 · 물타기 금지"
+
+    _bar = "━" * 15
     return (
-        f"<b>📊 종가베팅 스캔 · {date_disp} · {base_time}</b>\n"
-        f"[지수] 코스피 {_idx(kospi_level, kospi_chg)} / 코스닥 {_idx(kosdaq_level, kosdaq_chg)}\n"
-        f"[자금] 코스피 {_tv_jo(kospi_tv)} · 코스닥 {_tv_jo(kosdaq_tv)}\n"
-        f"{macro_line}"
-        f"[강도] {regime_str}{adl_str}{subtype_str} · 굵은종목(1500억↑) {tv1500}개\n"
+        f"<b>{_bar}</b>\n"
+        f"<b>📊 종가베팅 · {date_disp} · {base_time}</b>\n"
+        f"<b>{_bar}</b>\n"
+        f"{_gate_emoji} <b>오늘 판정: {_grade}</b>\n"
+        f"    {_why}\n\n"
+        f"지수  코스피 {_idx(kospi_level, kospi_chg)} · 코스닥 {_idx(kosdaq_level, kosdaq_chg)}\n"
+        f"자금  코스피 {_tv_jo(kospi_tv)} · 코스닥 {_tv_jo(kosdaq_tv)}\n"
+        f"강도  {regime_str}{adl_str}{subtype_str} · 굵은종목(1500억↑) {tv1500}\n"
         f"{regime_line}"
+        f"{macro_line}"
         f"{direction_line}"
-        f"{limit_up_line}"
-        f"{pat_line}"
-        f"{checklist}"
+        f"후보  {cand_str}{limit_up_suffix}\n"
+        f"{'─' * 16}\n"
+        f"{principle}\n"
     )
 
 
@@ -736,46 +755,6 @@ def format_watch_candidates(candidates: list[dict]) -> str:
             f"  • {c['name']}({c['code']}) "
             f"{sign}{pct:.1f}% | {tv/100_000_000:.0f}억 | {sec_s}{pat}{nxt_tag}"
         )
-    return "\n".join(lines) + "\n"
-
-
-def format_key_candidates(candidates: list[dict]) -> str:
-    """
-    핵심 후보를 패턴 타입별로 그룹화하여 출력.
-    candidates: [
-      {name, code, market, change_pct, trading_value(원),
-       indicators, patterns, supply, news, in_inter}
-    ]
-    """
-    if not candidates:
-        return "<b>[핵심 후보]</b>\n없음\n"
-
-    # 패턴 타입별 그룹화
-    groups: dict[str, list] = {t: [] for t in _PATTERN_TYPE_ORDER}
-    for c in candidates:
-        label = c.get("patterns", {}).get("pattern_type_label", "없음")
-        groups.setdefault(label, []).append(c)
-
-    lines = [f"<b>[핵심 후보 {len(candidates)}개]</b>"]
-    seq = 1
-
-    section_titles = {
-        "당일돌파형": "▶ 당일 돌파형",
-        "재돌파형":   "▶ 재돌파형 (구조붕괴 후 전고점 복귀 + 양매수 · 단기 청산 권장)",
-        "고가수축형": "▶ 고가수축형 (거래대금 수축 대기)",
-        "고가횡보형": "▶ 1~3일전 기준봉 후 고가횡보형",
-        "없음":       "▶ 기타 (교집합)",
-    }
-
-    for label in _PATTERN_TYPE_ORDER:
-        group = groups.get(label, [])
-        if not group:
-            continue
-        lines.append(f"\n<b>{section_titles[label]}</b>")
-        for c in group:
-            lines.append(_format_candidate_card(seq, c))
-            seq += 1
-
     return "\n".join(lines) + "\n"
 
 
