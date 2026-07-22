@@ -1,0 +1,20 @@
+{
+  "date": "2026-07-22",
+  "generated": "2026-07-22",
+  "stocks": {
+    "058610": {
+      "name": "에스피지",
+      "signal_price": 82600,
+      "is_nxt": true,
+      "nxt_dominant": false,
+      "change_pct": 25.15,
+      "sector": "로봇(산업용/협동로봇 등)",
+      "total_score": 7,
+      "52w_high": 165700,
+      "52w_low": 22500,
+      "pct_from_52w_high": -50.15,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 115
+    }
+  }
+}
