@@ -217,10 +217,12 @@ def format_market_summary(market_totals: dict, run_time: str, run_type: str,
     kospi_chg        = ex.get("kospi_chg")
     kosdaq_chg       = ex.get("kosdaq_chg")
 
-    _regime_map = {"강세": "🟢 강세", "약세": "🔴 약세", "중립": "⚪ 중립"}
-    regime_str  = _regime_map.get(regime, regime)
-    # ADL = 오른 종목 비율 (용어 유지 + 괄호 설명)
-    adl_str     = f" · ADL {market_adl*100:.0f}%(오른종목 비율)" if market_adl is not None else ""
+    # '폭'(오른 종목 비율) 지표 — 지수 추세 국면과 다른 축이라 강세/약세 단어를 쓰지 않는다.
+    # 같은 메시지의 '오늘 판정'(코스닥 추세)과 단어가 충돌해 하락장을 강세로 오독할 위험이 있음.
+    _breadth_map = {"강세": ("🟢", "우세"), "약세": ("🔴", "열세"), "중립": ("⚪", "보통")}
+    _b_emoji, _b_word = _breadth_map.get(regime, ("⚪", "보통"))
+    breadth_str = (f"{_b_emoji} 오른종목 {market_adl*100:.0f}% {_b_word}"
+                   if market_adl is not None else f"{_b_emoji} 오른종목 {_b_word}")
     subtype_str = f" · {market_subtype}" if market_subtype else ""
 
     # 날짜에 요일 부착 (한눈에 보기)
@@ -347,7 +349,7 @@ def format_market_summary(market_totals: dict, run_time: str, run_type: str,
         f"    {_why}\n\n"
         f"지수  코스피 {_idx(kospi_level, kospi_chg)} · 코스닥 {_idx(kosdaq_level, kosdaq_chg)}\n"
         f"자금  코스피 {_tv_jo(kospi_tv)} · 코스닥 {_tv_jo(kosdaq_tv)}\n"
-        f"강도  {regime_str}{adl_str}{subtype_str} · 굵은종목(1500억↑) {tv1500}\n"
+        f"폭    {breadth_str}{subtype_str} · 굵은종목(1500억↑) {tv1500}\n"
         f"{regime_line}"
         f"{macro_line}"
         f"{direction_line}"

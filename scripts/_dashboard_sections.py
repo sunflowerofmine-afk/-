@@ -311,19 +311,23 @@ def _section_header(data: dict) -> str:
     regime         = market.get("market_regime", "")
     market_adl     = market.get("market_adl")
     market_subtype = market.get("market_subtype", "")
-    _regime_cfg  = {"강세": ("regime-bull", "🟢 강세"), "약세": ("regime-bear", "🔴 약세"), "중립": ("regime-neutral", "⚪ 중립")}
+    # 이 배지는 '폭'(오른 종목 비율) 지표다. 지수 추세 국면(5일선 기준)과는 다른 축이라
+    # '강세/약세' 단어를 쓰지 않는다 — 같은 화면의 '오늘 판정'(코스닥 추세)과 단어가 충돌해
+    # 하락 추세장을 강세로 오독할 위험이 있음(2026-07-22 코스피·코스닥 동반 약세인데 배지는 🟢강세였던 사례).
+    _regime_cfg  = {"강세": ("regime-bull", "🟢", "우세"), "약세": ("regime-bear", "🔴", "열세"), "중립": ("regime-neutral", "⚪", "보통")}
     _subtype_icon = {"자금집중형": "💰", "전체하락형": "⬇", "혼조형": "↔"}
-    rcls, rlabel = _regime_cfg.get(regime, ("regime-neutral", "⚪ 중립"))
-    adl_suffix     = f" <span style='font-size:11px;opacity:0.8'>(ADL {market_adl*100:.1f}%)</span>" if market_adl is not None else ""
+    rcls, _r_emoji, _r_word = _regime_cfg.get(regime, ("regime-neutral", "⚪", "보통"))
+    rlabel = (f"{_r_emoji} 오른종목 {market_adl*100:.1f}% {_r_word}"
+              if market_adl is not None else f"{_r_emoji} 오른종목 {_r_word}")
     subtype_badge  = (f" <span style='font-size:11px;background:rgba(255,255,255,0.15);"
                       f"padding:1px 7px;border-radius:4px'>{_subtype_icon.get(market_subtype,'')} {market_subtype}</span>"
                       if market_subtype else "")
-    # 강세인데 Top5 극단 쏠림 = '대형주 쏠림 반등장'. 지수 강세를 매수 신호로 오해 방지.
+    # 오른 종목이 많은데 Top5 극단 쏠림 = '대형주 쏠림 반등장'. 폭 우세를 매수 신호로 오해 방지.
     _t5 = market.get("top5_concentration_pct")
     concentr_note = (" <span style='font-size:11px;background:rgba(255,255,255,0.15);"
                      "padding:1px 7px;border-radius:4px'>대형주 쏠림 반등장</span>"
                      if regime == "강세" and _t5 is not None and _t5 >= 50 else "")
-    regime_badge = f'<span class="{rcls}" style="font-size:14px;padding:3px 12px;margin-left:10px;">{rlabel}{adl_suffix}{subtype_badge}{concentr_note}</span>' if regime else ""
+    regime_badge = f'<span class="{rcls}" style="font-size:14px;padding:3px 12px;margin-left:10px;">{rlabel}{subtype_badge}{concentr_note}</span>' if regime else ""
 
     return f"""
 <div class="page-header">
@@ -446,15 +450,15 @@ def compute_daily_gate(core_n: int, kd, adl, top5_ratio, risk):
     if core_n == 0:
         grade, col, why = "매매 금지", "#dc2626", "봇 신호 0건 — 개별주 종베 자리 없음"
     elif kd == "약세" and adl is not None and adl < 0.35:
-        grade, col, why = "매매 금지", "#dc2626", f"약세 국면 + 상승 종목 극소(상승비율 {adl*100:.0f}%)"
+        grade, col, why = "매매 금지", "#dc2626", f"코스닥 약세 국면(5일선 기준) + 오른 종목 극소({adl*100:.0f}%)"
     elif kd == "약세":
-        grade, col, why = "관찰만", "#ea580c", "약세 국면 — 대형주 트랙만, 중소형은 관찰로"
+        grade, col, why = "관찰만", "#ea580c", "코스닥 약세 국면(5일선 기준) — 대형주 트랙만, 중소형은 관찰로"
     elif top5_ratio is not None and top5_ratio >= 50:
         grade, col, why = "관찰만", "#ea580c", f"거래대금 상위5 쏠림 {top5_ratio:.0f}% — 개별주 불리, 대형주 우선"
     elif kd == "혼조" or core_n <= 2:
-        grade, col, why = "소액만", "#d97706", "방향은 있으나 확신 부족 — 평소보다 작게"
+        grade, col, why = "소액만", "#d97706", "코스닥 혼조 또는 신호 부족 — 방향은 있으나 확신 부족, 평소보다 작게"
     elif kd == "강세" and core_n >= 3 and (adl is None or adl >= 0.5):
-        grade, col, why = "종가베팅 허용", "#16a34a", "강세 + 신호 다수 + 상승 종목 양호"
+        grade, col, why = "종가베팅 허용", "#16a34a", "코스닥 강세 국면(5일선 기준) + 신호 다수 + 오른 종목 양호"
     else:
         grade, col, why = "소액만", "#d97706", "조건 일부 미충족 — 기본값 보수"
 
@@ -512,12 +516,14 @@ def _section_env_and_signals(data: dict) -> str:
     core_n         = len(core)
     watch_n        = len(data.get("watch_candidates", []))
 
-    _regime_cfg   = {"강세": ("regime-bull", "🟢 강세"), "약세": ("regime-bear", "🔴 약세"), "중립": ("regime-neutral", "⚪ 중립")}
+    # 헤더 배지와 동일 원칙 — '폭'(오른 종목 비율)이므로 강세/약세 단어를 쓰지 않는다.
+    _regime_cfg   = {"강세": ("regime-bull", "🟢", "우세"), "약세": ("regime-bear", "🔴", "열세"), "중립": ("regime-neutral", "⚪", "보통")}
     _subtype_icon = {"자금집중형": "💰", "전체하락형": "⬇", "혼조형": "↔"}
-    rcls, rlabel  = _regime_cfg.get(regime, ("regime-neutral", "⚪ 중립"))
-    adl_suffix    = f" <span style='font-size:11px;opacity:0.75'>(ADL {market_adl*100:.1f}%)</span>" if market_adl is not None else ""
+    rcls, _r_emoji, _r_word = _regime_cfg.get(regime, ("regime-neutral", "⚪", "보통"))
+    rlabel        = (f"{_r_emoji} 오른종목 {market_adl*100:.1f}% {_r_word}"
+                     if market_adl is not None else f"{_r_emoji} 오른종목 {_r_word}")
     subtype_str   = f" · {_subtype_icon.get(market_subtype,'')} {market_subtype}" if market_subtype else ""
-    regime_html   = f'<span class="{rcls}" style="font-size:13px;padding:2px 10px">{rlabel}{adl_suffix}{subtype_str}</span>'
+    regime_html   = f'<span class="{rcls}" style="font-size:13px;padding:2px 10px">{rlabel}{subtype_str}</span>'
 
     inter_interp  = f"상승률·거래대금 Top20 동시 진입 {inter_n}개" if inter_n > 0 else "교집합 없음"
     tv1500_interp = f"전체 {tv_1500}개"
@@ -534,7 +540,7 @@ def _section_env_and_signals(data: dict) -> str:
 
     env_box = f"""<div class="info-box">
   <div class="info-box-title">오늘 환경</div>
-  <div class="env-row"><span class="env-label">시장 상태</span><span class="env-val">{regime_html}</span></div>
+  <div class="env-row"><span class="env-label">종목 폭</span><span class="env-val">{regime_html}</span></div>
   {market_type_row}
   {limit_up_row}
   <div class="env-row"><span class="env-label">우선 확인</span><span class="env-val" style="color:var(--yellow)">{core_n}종목</span></div>
