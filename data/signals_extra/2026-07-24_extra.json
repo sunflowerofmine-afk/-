@@ -1,0 +1,34 @@
+{
+  "date": "2026-07-24",
+  "generated": "2026-07-24",
+  "stocks": {
+    "460930": {
+      "name": "현대힘스",
+      "signal_price": 15950,
+      "is_nxt": true,
+      "nxt_dominant": false,
+      "change_pct": 22.5,
+      "sector": "조선기자재",
+      "total_score": 14,
+      "52w_high": 33450,
+      "52w_low": 10380,
+      "pct_from_52w_high": -52.32,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 211
+    },
+    "207940": {
+      "name": "삼성바이오로직스",
+      "signal_price": 1518000,
+      "is_nxt": true,
+      "nxt_dominant": false,
+      "change_pct": 10.08,
+      "sector": "제약",
+      "total_score": 10,
+      "52w_high": 1987000,
+      "52w_low": 0,
+      "pct_from_52w_high": -23.6,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 127
+    }
+  }
+}
