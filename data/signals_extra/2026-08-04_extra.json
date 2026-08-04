@@ -1,0 +1,34 @@
+{
+  "date": "2026-08-04",
+  "generated": "2026-08-04",
+  "stocks": {
+    "475150": {
+      "name": "SK이터닉스",
+      "signal_price": 55800,
+      "is_nxt": false,
+      "nxt_dominant": false,
+      "change_pct": 19.87,
+      "sector": "고체산화물 연료전지(SOFC)",
+      "total_score": 12,
+      "52w_high": 87700,
+      "52w_low": 17210,
+      "pct_from_52w_high": -36.37,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 7
+    },
+    "017670": {
+      "name": "SK텔레콤",
+      "signal_price": 91400,
+      "is_nxt": true,
+      "nxt_dominant": false,
+      "change_pct": 11.46,
+      "sector": "무선통신서비스",
+      "total_score": 6,
+      "52w_high": 139500,
+      "52w_low": 51400,
+      "pct_from_52w_high": -34.48,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 43
+    }
+  }
+}
