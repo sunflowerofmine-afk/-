@@ -1,0 +1,76 @@
+{
+  "date": "2026-08-10",
+  "generated": "2026-08-10",
+  "stocks": {
+    "010170": {
+      "name": "대한광통신",
+      "signal_price": 14040,
+      "is_nxt": false,
+      "nxt_dominant": false,
+      "change_pct": 22.51,
+      "sector": "광통신(광케이블/광섬유 등)",
+      "total_score": 10,
+      "52w_high": 31500,
+      "52w_low": 884,
+      "pct_from_52w_high": -55.43,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 61
+    },
+    "196170": {
+      "name": "알테오젠",
+      "signal_price": 348000,
+      "is_nxt": true,
+      "nxt_dominant": true,
+      "change_pct": 14.1,
+      "sector": "생물공학",
+      "total_score": 9,
+      "52w_high": 569000,
+      "52w_low": 253000,
+      "pct_from_52w_high": -38.84,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 179
+    },
+    "062040": {
+      "name": "산일전기",
+      "signal_price": 183800,
+      "is_nxt": true,
+      "nxt_dominant": false,
+      "change_pct": 16.85,
+      "sector": "전기장비",
+      "total_score": 9,
+      "52w_high": 341000,
+      "52w_low": 101700,
+      "pct_from_52w_high": -46.1,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 66
+    },
+    "079550": {
+      "name": "LIG디펜스앤에어로스페이스",
+      "signal_price": 823000,
+      "is_nxt": true,
+      "nxt_dominant": false,
+      "change_pct": 11.07,
+      "sector": "우주항공산업(누리호/인공위성 등)",
+      "total_score": 8,
+      "52w_high": 1118000,
+      "52w_low": 360000,
+      "pct_from_52w_high": -26.39,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 73
+    },
+    "036930": {
+      "name": "주성엔지니어링",
+      "signal_price": 144800,
+      "is_nxt": false,
+      "nxt_dominant": false,
+      "change_pct": 13.3,
+      "sector": "LED장비",
+      "total_score": 5,
+      "52w_high": 283000,
+      "52w_low": 26050,
+      "pct_from_52w_high": -48.83,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 40
+    }
+  }
+}
