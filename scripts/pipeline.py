@@ -1061,6 +1061,7 @@ def run(preview: bool = False):
             "has_pattern":      has_pattern,
             "supply_ok":        supply_ok,
             "near_high_52w":    processed.near_high_52w,
+            "high_52w":         processed.high_52w,
             "sector":           _sector,
             "is_leading_sector":             _is_leading,
             "theme_role":                    _theme_role,
@@ -1469,6 +1470,18 @@ def run(preview: bool = False):
             "is_kh_only":                          is_kh_only,
         }
 
+    def _pct_from_52w(c: dict):
+        """signal_price가 52주 고가 대비 몇 %인지(-면 아래). 고가 미확보 시 None.
+
+        near_high_52w(2% 이내) 플래그만 저장하면 나중에 다른 임계값(예: 5%)을
+        검증할 수 없어서, 원본 고가와 괴리율을 함께 남긴다. 저장 전용 — 판정 미사용.
+        """
+        hi = c.get("high_52w") or 0
+        px = c.get("signal_price") or 0
+        if hi <= 0 or px <= 0:
+            return None
+        return round((px - hi) / hi * 100, 2)
+
     _sig_rows = [{
         "종목명":             c["name"],
         "종목코드":           c["code"],
@@ -1494,6 +1507,9 @@ def run(preview: bool = False):
         "news_summary":       getattr(c.get("news"), "llm_summary", "") or "",
         "is_nxt":             c.get("is_nxt", False),
         "nxt_dominant":       c.get("nxt_dominant", False),
+        "near_high_52w":      c.get("near_high_52w", False),
+        "high_52w":           c.get("high_52w"),
+        "pct_from_52w_high":  _pct_from_52w(c),
         "inst_oversupply_pct": c.get("inst_oversupply_pct"),
         "frgn_oversupply_pct": c.get("frgn_oversupply_pct"),
         "freshness_count":    c.get("freshness_count"),
@@ -1529,6 +1545,10 @@ def run(preview: bool = False):
         "foreign_net":        getattr(c.get("supply"), "foreign_net", None),
         "inst_net_5d":        getattr(c.get("supply"), "institution_net_5d", None),
         "foreign_net_5d":     getattr(c.get("supply"), "foreign_net_5d", None),
+        # KH 전용 후보는 52주 고가를 계산하지 않는다 (지표 산출 경로가 다름)
+        "near_high_52w":      False,
+        "high_52w":           None,
+        "pct_from_52w_high":  None,
         "run_time":                      run_time,
         "run_type":                      run_type,
         "signal_time":                   run_time,
