@@ -1,0 +1,48 @@
+{
+  "date": "2026-08-05",
+  "generated": "2026-08-05",
+  "stocks": {
+    "009150": {
+      "name": "삼성전기",
+      "signal_price": 1356000,
+      "is_nxt": true,
+      "nxt_dominant": true,
+      "change_pct": 14.43,
+      "sector": "반도체 기판(FC-BGA/PCB/MLB 등)",
+      "total_score": 10,
+      "52w_high": 2417000,
+      "52w_low": 134300,
+      "pct_from_52w_high": -43.9,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 32
+    },
+    "011070": {
+      "name": "LG이노텍",
+      "signal_price": 601000,
+      "is_nxt": true,
+      "nxt_dominant": false,
+      "change_pct": 14.48,
+      "sector": "반도체 기판(FC-BGA/PCB/MLB 등)",
+      "total_score": 6,
+      "52w_high": 1788000,
+      "52w_low": 148500,
+      "pct_from_52w_high": -66.39,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 45
+    },
+    "009830": {
+      "name": "한화솔루션",
+      "signal_price": 30150,
+      "is_nxt": false,
+      "nxt_dominant": false,
+      "change_pct": 12.5,
+      "sector": "에너지장비및서비스",
+      "total_score": 6,
+      "52w_high": 59300,
+      "52w_low": 22000,
+      "pct_from_52w_high": -49.16,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 113
+    }
+  }
+}

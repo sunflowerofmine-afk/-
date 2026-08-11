@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>종가베팅 스캔 2026-08-06 1450 (1차)</title>
+<style>
+:root {
+    --bg:        #0d1117;
+    --bg2:       #161b22;
+    --bg3:       #21262d;
+    --border:    #30363d;
+    --text:      #e6edf3;
+    --muted:     #8b949e;
+    --green:     #3fb950;
+    --green-bg:  #0f2d13;
+    --yellow:    #d29922;
+    --yellow-bg: #2d2200;
+    --red:       #f85149;
+    --red-bg:    #2d0f0f;
+    --blue:      #58a6ff;
+    --purple:    #bc8cff;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    padding: 12px;
+}
+.wrap { max-width: 1100px; margin: 0 auto; }
+
+/* ── 헤더 ── */
+.page-header {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin-bottom: 16px;
+}
+.page-header h1 { font-size: 18px; color: var(--blue); margin-bottom: 6px; }
+.page-header .meta { color: var(--muted); font-size: 13px; }
+.page-header .meta span { margin-right: 16px; }
+
+/* ── 섹션 타이틀 ── */
+.section-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+    border-left: 3px solid var(--blue);
+    padding-left: 10px;
+    margin: 20px 0 10px;
+}
+
+/* ── 요약 카드 그리드 ── */
+.summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 10px;
+    margin-bottom: 16px;
+}
+.summary-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    text-align: center;
+}
+.summary-card .label { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+.summary-card .value { font-size: 22px; font-weight: 700; color: var(--blue); }
+.summary-card .sub   { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+/* ── 핵심 후보 카드 ── */
+.candidate-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 14px;
+    margin-bottom: 8px;
+}
+.candidate-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+}
+.candidate-card.has-pattern { border-color: var(--green); }
+.candidate-card.in-inter    { border-color: var(--yellow); }
+.card-head {
+    background: var(--bg3);
+    padding: 10px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+}
+.card-head .name   { font-weight: 700; font-size: 15px; }
+.card-head .code   { color: var(--muted); font-size: 12px; }
+.card-head .market { font-size: 11px; color: var(--muted);
+                     background: var(--bg); border-radius: 4px; padding: 2px 6px; }
+.card-head .score-badge {
+    background: var(--blue);
+    color: #000;
+    font-weight: 700;
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-size: 13px;
+    white-space: nowrap;
+}
+.card-body { padding: 12px 14px; }
+.card-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 3px 0;
+    border-bottom: 1px solid var(--bg3);
+}
+.card-row:last-child { border-bottom: none; }
+.card-row .lbl { color: var(--muted); font-size: 12px; min-width: 90px; }
+.card-row .val { font-size: 13px; text-align: right; }
+.val.pos  { color: var(--green); }
+.val.neg  { color: var(--red); }
+.val.warn { color: var(--yellow); }
+.pattern-tag {
+    display: inline-block;
+    background: var(--green-bg);
+    color: var(--green);
+    border: 1px solid var(--green);
+    border-radius: 4px;
+    padding: 1px 8px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+.pattern-none {
+    display: inline-block;
+    background: var(--bg3);
+    color: var(--muted);
+    border-radius: 4px;
+    padding: 1px 8px;
+    font-size: 12px;
+    margin-bottom: 8px;
+}
+.news-item {
+    background: var(--bg3);
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 4px;
+    word-break: break-all;
+}
+
+/* ── 배지 ── */
+.badge { border-radius: 4px; padding: 1px 7px; font-size: 12px; font-weight: 600; }
+.badge.ok { background: var(--green-bg);  color: var(--green); }
+.badge.ng { background: var(--red-bg);    color: var(--red); }
+.badge.na { background: var(--bg3);       color: var(--muted); }
+.badge.inter { background: transparent; color: var(--muted); border: 1px solid var(--border); font-size: 10px; font-weight: 400; }
+.badge.nxt { background: #1a3a5c; color: #58a6ff; border: 1px solid #58a6ff; font-size: 10px; font-weight: 600; }
+
+/* ── 테이블 ── */
+.tbl-wrap { overflow-x: auto; margin-bottom: 8px; }
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    background: var(--bg2);
+    border-radius: 8px;
+    overflow: hidden;
+}
+thead th {
+    background: var(--bg3);
+    color: var(--muted);
+    font-weight: 600;
+    text-align: left;
+    padding: 8px 12px;
+    white-space: nowrap;
+    border-bottom: 1px solid var(--border);
+}
+tbody td {
+    padding: 7px 12px;
+    border-bottom: 1px solid var(--bg3);
+    vertical-align: middle;
+}
+tbody tr:last-child td { border-bottom: none; }
+tbody tr:hover td { background: var(--bg3); }
+.td-name { font-weight: 600; }
+.td-code { color: var(--muted); font-size: 11px; }
+.td-pos  { color: var(--green); }
+.td-neg  { color: var(--red); }
+.td-warn { color: var(--yellow); }
+
+/* ── 섹터 ── */
+.sector-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 10px;
+    margin-bottom: 8px;
+}
+.sector-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+}
+.sector-head {
+    background: var(--bg3);
+    padding: 8px 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 6px;
+}
+.sector-head .s-name { font-weight: 700; font-size: 14px; }
+.sector-head .s-chg  { font-size: 12px; }
+.sector-head .s-tv   { font-size: 11px; color: var(--muted); }
+.sector-stocks { width: 100%; border-collapse: collapse; font-size: 12px; }
+.sector-stocks td { padding: 4px 10px; border-bottom: 1px solid var(--bg3); }
+.sector-stocks tr:last-child td { border-bottom: none; }
+.sector-stocks .s-stock-name { font-weight: 600; }
+.sector-stocks .s-stock-tv   { color: var(--muted); text-align: right; }
+.sector-tag {
+    display: inline-block;
+    background: var(--bg3);
+    color: var(--blue);
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-size: 11px;
+    margin-left: 4px;
+}
+
+/* ── 탈락 영역 ── */
+.rejected-list { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.rejected-item {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 12px;
+}
+.rejected-item .r-name { font-weight: 600; margin-bottom: 2px; }
+.rejected-item .r-reason { color: var(--red); font-size: 11px; }
+
+/* ── 시장 요약 ── */
+.market-summary {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-bottom: 16px;
+}
+.ms-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 10px;
+    margin-bottom: 12px;
+}
+.ms-item { text-align: center; }
+.ms-label { font-size: 11px; color: var(--muted); margin-bottom: 3px; }
+.ms-value { font-size: 20px; font-weight: 700; color: var(--text); }
+.regime-bull {
+    display: inline-block;
+    background: var(--green-bg);
+    color: var(--green);
+    border: 1px solid var(--green);
+    border-radius: 6px;
+    padding: 4px 16px;
+    font-size: 15px;
+    font-weight: 700;
+}
+.regime-bear {
+    display: inline-block;
+    background: rgba(255,80,80,0.1);
+    color: var(--red);
+    border: 1px solid var(--red);
+    border-radius: 6px;
+    padding: 4px 16px;
+    font-size: 15px;
+    font-weight: 700;
+}
+.regime-neutral {
+    display: inline-block;
+    background: var(--bg2);
+    color: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 16px;
+    font-size: 15px;
+    font-weight: 700;
+}
+
+/* ── 관찰 후보 ── */
+.watch-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 10px;
+    margin-bottom: 8px;
+}
+.watch-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+}
+.watch-card .name { font-weight: 600; font-size: 14px; }
+.watch-card .code { color: var(--muted); font-size: 11px; margin-left: 6px; }
+.watch-body { margin-top: 6px; font-size: 13px; color: var(--muted); }
+.watch-note { font-size: 11px; color: var(--yellow); font-weight: 400; margin-left: 8px; }
+
+/* ── 탈락 요약 ── */
+.rejected-summary {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 8px;
+}
+.rejected-summary span { margin-right: 16px; }
+
+/* ── 섹터 캘린더 ── */
+.cal-table {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+    background: var(--bg2);
+    border-radius: 8px;
+    overflow: hidden;
+    font-size: 12px;
+}
+.cal-table thead th {
+    text-align: center;
+    padding: 6px;
+    font-size: 12px;
+}
+.cal-cell {
+    vertical-align: top;
+    padding: 6px 8px;
+    border: 1px solid var(--bg3);
+    min-height: 56px;
+    min-width: 0;
+}
+.cal-cell.cal-today { background: var(--bg3); border-color: var(--blue); }
+.cal-cell.has-report { cursor: pointer; }
+.cal-cell.has-report:hover { background: var(--bg3); border-color: var(--blue); }
+.cal-cell.has-report .cal-day { color: var(--blue); font-weight: 700; }
+.cal-day { font-size: 11px; color: var(--muted); margin-bottom: 3px; }
+.cal-sector {
+    display: block;
+    font-size: 11px;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 1px;
+}
+
+/* ── 없음 메시지 ── */
+.empty-msg {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 13px;
+    margin-bottom: 8px;
+}
+
+/* ── 오늘 환경 / 핵심 신호 박스 ── */
+.top-boxes {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+.info-box {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+}
+.info-box-title {
+    font-size: 11px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px;
+}
+.env-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 5px 0; border-bottom: 1px solid var(--bg3); font-size: 13px;
+}
+.env-row:last-child { border-bottom: none; }
+.env-label { color: var(--muted); font-size: 12px; }
+.env-val   { font-weight: 600; }
+.signal-row { padding: 7px 0; border-bottom: 1px solid var(--bg3); }
+.signal-row:last-child { border-bottom: none; }
+.signal-num { font-size: 20px; font-weight: 700; color: var(--blue); }
+.signal-interp { font-size: 11px; color: var(--muted); margin-top: 1px; }
+
+/* ── 종목 패널 (좌/우 레이아웃) ── */
+.stock-layout {
+    display: grid;
+    grid-template-columns: 270px 1fr;
+    gap: 12px;
+    margin-bottom: 16px;
+    align-items: start;
+}
+.stock-list {
+    display: flex; flex-direction: column; gap: 6px;
+    max-height: 680px; overflow-y: auto;
+}
+.list-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-left: 3px solid transparent;
+    border-radius: 8px;
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: border-color 0.12s, background 0.12s;
+}
+.list-card:hover  { background: var(--bg3); }
+.list-card.active { background: var(--bg3); border-left-color: var(--blue); border-color: var(--blue); }
+.list-card.pat-break   { border-left-color: var(--green); }
+.list-card.pat-hold    { border-left-color: var(--blue); }
+.list-card.pat-htc     { border-left-color: var(--yellow); }
+.list-card.pat-rebreak { border-left-color: #f0883e; }
+.list-card.pat-watch { border-left-color: var(--yellow); }
+.pat-filter-bar { display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;padding:2px 0; }
+.pat-filter-btn { background:transparent;border:1px solid var(--border);color:var(--muted);
+  border-radius:14px;padding:3px 12px;font-size:12px;cursor:pointer;transition:all 0.15s;font-family:inherit; }
+.pat-filter-btn:hover  { opacity:0.8; }
+.pat-filter-btn.active { background:rgba(255,255,255,0.08);border-color:currentColor; }
+.lc-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px; }
+.lc-name { font-weight: 700; font-size: 14px; }
+.lc-code { color: var(--muted); font-size: 11px; margin-left: 4px; }
+.status-badge { font-size: 12px; font-weight: 700; border-radius: 4px; padding: 2px 8px; white-space: nowrap; }
+.status-buy   { background: var(--green-bg);  color: var(--green);  border: 1px solid var(--green); }
+.status-watch { background: var(--bg3);        color: var(--blue);   border: 1px solid var(--border); }
+.status-no    { background: var(--red-bg);     color: var(--red);    border: 1px solid var(--red); }
+.lc-stats { font-size: 12px; color: var(--muted); margin-bottom: 3px; }
+.lc-summary { font-size: 11px; color: var(--text); background: var(--bg3); border-radius: 3px; padding: 2px 6px; }
+
+/* ── 우측 상세 패널 ── */
+.stock-detail {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 18px;
+    min-height: 420px;
+}
+.detail-name  { font-size: 17px; font-weight: 700; margin-bottom: 4px; }
+.detail-meta  { font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+.detail-meta span { margin-right: 10px; }
+.detail-section { margin-bottom: 14px; }
+.detail-section-title {
+    font-size: 11px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.5px;
+    border-bottom: 1px solid var(--bg3);
+    padding-bottom: 4px; margin-bottom: 7px;
+}
+.detail-row { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 4px; }
+.detail-kv .k { color: var(--muted); font-size: 11px; display: block; }
+.detail-kv .v { font-weight: 600; font-size: 13px; }
+.llm-box { background: var(--bg3); border-radius: 6px; padding: 8px 12px; font-size: 13px; margin-bottom: 12px; }
+.str-item  { font-size: 13px; padding: 3px 0; color: var(--green); }
+.weak-item { font-size: 13px; padding: 3px 0; color: var(--yellow); }
+.chk-item  { font-size: 13px; padding: 3px 0; color: var(--muted); }
+.detail-empty { text-align: center; color: var(--muted); padding: 60px 20px; font-size: 14px; }
+
+/* ── 반응형 ── */
+@media (max-width: 768px) {
+    .top-boxes   { grid-template-columns: 1fr; }
+    .stock-layout { grid-template-columns: 1fr; }
+    .stock-list  { max-height: 300px; }
+}
+@media (max-width: 600px) {
+    body { padding: 8px; font-size: 13px; }
+    .candidate-grid { grid-template-columns: 1fr; }
+    .summary-grid   { grid-template-columns: repeat(3, 1fr); }
+    thead th, tbody td { padding: 6px 8px; }
+}
+
+/* ── 히스토리 네비게이션 바 ── */
+.hist-nav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    margin: -12px -12px 16px;
+}
+.hist-select {
+    background: var(--bg2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 13px;
+    cursor: pointer;
+    flex: 1;
+    max-width: 300px;
+}
+.nav-btn {
+    color: var(--blue);
+    text-decoration: none;
+    font-size: 12px;
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg2);
+    white-space: nowrap;
+    display: inline-block;
+}
+.nav-btn:hover { background: var(--bg3); }
+.nav-btn.disabled { color: var(--muted); pointer-events: none; cursor: default; border-color: var(--bg3); }
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="hist-nav">
+  <a id="nav-prev" href="2026-08-05_1750.html" class="nav-btn">&#9664; 이전</a>
+  <select class="hist-select" onchange="if(this.value) location.href=this.value"><optgroup label="2026-08-06"><option value="2026-08-06_1450.html" selected>2026-08-06 1차 (14:50)</option></optgroup><optgroup label="2026-08-05"><option value="2026-08-05_1750.html">2026-08-05 2차 (17:50)</option><option value="2026-08-05_1450.html">2026-08-05 1차 (14:50)</option></optgroup><optgroup label="2026-08-04"><option value="2026-08-04_1750.html">2026-08-04 2차 (17:50)</option><option value="2026-08-04_1450.html">2026-08-04 1차 (14:50)</option></optgroup><optgroup label="2026-08-03"><option value="2026-08-03_1750.html">2026-08-03 2차 (17:50)</option><option value="2026-08-03_1450.html">2026-08-03 1차 (14:50)</option></optgroup><optgroup label="2026-07-31"><option value="2026-07-31_1750.html">2026-07-31 2차 (17:50)</option><option value="2026-07-31_1450.html">2026-07-31 1차 (14:50)</option></optgroup><optgroup label="2026-07-30"><option value="2026-07-30_1750.html">2026-07-30 2차 (17:50)</option><option value="2026-07-30_1450.html">2026-07-30 1차 (14:50)</option></optgroup><optgroup label="2026-07-29"><option value="2026-07-29_1750.html">2026-07-29 2차 (17:50)</option><option value="2026-07-29_1450.html">2026-07-29 1차 (14:50)</option></optgroup><optgroup label="2026-07-28"><option value="2026-07-28_1750.html">2026-07-28 2차 (17:50)</option><option value="2026-07-28_1450.html">2026-07-28 1차 (14:50)</option></optgroup><optgroup label="2026-07-27"><option value="2026-07-27_1750.html">2026-07-27 2차 (17:50)</option><option value="2026-07-27_1450.html">2026-07-27 1차 (14:50)</option></optgroup><optgroup label="2026-07-24"><option value="2026-07-24_1750.html">2026-07-24 2차 (17:50)</option><option value="2026-07-24_1450.html">2026-07-24 1차 (14:50)</option></optgroup><optgroup label="2026-07-23"><option value="2026-07-23_1750.html">2026-07-23 2차 (17:50)</option><option value="2026-07-23_1450.html">2026-07-23 1차 (14:50)</option></optgroup><optgroup label="2026-07-22"><option value="2026-07-22_1750.html">2026-07-22 2차 (17:50)</option><option value="2026-07-22_1450.html">2026-07-22 1차 (14:50)</option></optgroup><optgroup label="2026-07-21"><option value="2026-07-21_1750.html">2026-07-21 2차 (17:50)</option><option value="2026-07-21_1450.html">2026-07-21 1차 (14:50)</option></optgroup><optgroup label="2026-07-20"><option value="2026-07-20_1750.html">2026-07-20 2차 (17:50)</option><option value="2026-07-20_1450.html">2026-07-20 1차 (14:50)</option></optgroup><optgroup label="2026-07-17"><option value="2026-07-17_1750.html">2026-07-17 2차 (17:50)</option><option value="2026-07-17_1450.html">2026-07-17 1차 (14:50)</option></optgroup><optgroup label="2026-07-16"><option value="2026-07-16_1750.html">2026-07-16 2차 (17:50)</option><option value="2026-07-16_1450.html">2026-07-16 1차 (14:50)</option></optgroup><optgroup label="2026-07-15"><option value="2026-07-15_1750.html">2026-07-15 2차 (17:50)</option><option value="2026-07-15_1649.html">2026-07-15 수동 16:49</option></optgroup><optgroup label="2026-07-14"><option value="2026-07-14_1750.html">2026-07-14 2차 (17:50)</option><option value="2026-07-14_1450.html">2026-07-14 1차 (14:50)</option></optgroup><optgroup label="2026-07-13"><option value="2026-07-13_1750.html">2026-07-13 2차 (17:50)</option><option value="2026-07-13_1450.html">2026-07-13 1차 (14:50)</option></optgroup><optgroup label="2026-07-10"><option value="2026-07-10_1750.html">2026-07-10 2차 (17:50)</option><option value="2026-07-10_1450.html">2026-07-10 1차 (14:50)</option></optgroup><optgroup label="2026-07-09"><option value="2026-07-09_1750.html">2026-07-09 2차 (17:50)</option></optgroup><optgroup label="2026-07-08"><option value="2026-07-08_1750.html">2026-07-08 2차 (17:50)</option><option value="2026-07-08_1450.html">2026-07-08 1차 (14:50)</option></optgroup><optgroup label="2026-07-07"><option value="2026-07-07_1750.html">2026-07-07 2차 (17:50)</option><option value="2026-07-07_1450.html">2026-07-07 1차 (14:50)</option></optgroup><optgroup label="2026-07-06"><option value="2026-07-06_1750.html">2026-07-06 2차 (17:50)</option><option value="2026-07-06_1450.html">2026-07-06 1차 (14:50)</option></optgroup><optgroup label="2026-07-03"><option value="2026-07-03_1750.html">2026-07-03 2차 (17:50)</option><option value="2026-07-03_1450.html">2026-07-03 1차 (14:50)</option></optgroup><optgroup label="2026-07-02"><option value="2026-07-02_1750.html">2026-07-02 2차 (17:50)</option><option value="2026-07-02_1450.html">2026-07-02 1차 (14:50)</option></optgroup><optgroup label="2026-07-01"><option value="2026-07-01_1750.html">2026-07-01 2차 (17:50)</option><option value="2026-07-01_1450.html">2026-07-01 1차 (14:50)</option></optgroup><optgroup label="2026-06-30"><option value="2026-06-30_1750.html">2026-06-30 2차 (17:50)</option><option value="2026-06-30_1450.html">2026-06-30 1차 (14:50)</option></optgroup><optgroup label="2026-06-29"><option value="2026-06-29_1750.html">2026-06-29 2차 (17:50)</option><option value="2026-06-29_1450.html">2026-06-29 1차 (14:50)</option></optgroup><optgroup label="2026-06-26"><option value="2026-06-26_1750.html">2026-06-26 2차 (17:50)</option><option value="2026-06-26_1450.html">2026-06-26 1차 (14:50)</option></optgroup><optgroup label="2026-06-25"><option value="2026-06-25_1750.html">2026-06-25 2차 (17:50)</option><option value="2026-06-25_1450.html">2026-06-25 1차 (14:50)</option></optgroup><optgroup label="2026-06-24"><option value="2026-06-24_1750.html">2026-06-24 2차 (17:50)</option><option value="2026-06-24_1450.html">2026-06-24 1차 (14:50)</option></optgroup><optgroup label="2026-06-23"><option value="2026-06-23_1750.html">2026-06-23 2차 (17:50)</option><option value="2026-06-23_1450.html">2026-06-23 1차 (14:50)</option></optgroup><optgroup label="2026-06-22"><option value="2026-06-22_1750.html">2026-06-22 2차 (17:50)</option><option value="2026-06-22_1450.html">2026-06-22 1차 (14:50)</option></optgroup><optgroup label="2026-06-19"><option value="2026-06-19_1750.html">2026-06-19 2차 (17:50)</option><option value="2026-06-19_1450.html">2026-06-19 1차 (14:50)</option></optgroup><optgroup label="2026-06-18"><option value="2026-06-18_1750.html">2026-06-18 2차 (17:50)</option><option value="2026-06-18_1450.html">2026-06-18 1차 (14:50)</option></optgroup><optgroup label="2026-06-17"><option value="2026-06-17_1750.html">2026-06-17 2차 (17:50)</option><option value="2026-06-17_1450.html">2026-06-17 1차 (14:50)</option></optgroup><optgroup label="2026-06-16"><option value="2026-06-16_1750.html">2026-06-16 2차 (17:50)</option><option value="2026-06-16_1450.html">2026-06-16 1차 (14:50)</option></optgroup><optgroup label="2026-06-15"><option value="2026-06-15_1750.html">2026-06-15 2차 (17:50)</option><option value="2026-06-15_1450.html">2026-06-15 1차 (14:50)</option></optgroup><optgroup label="2026-06-12"><option value="2026-06-12_1750.html">2026-06-12 2차 (17:50)</option><option value="2026-06-12_1450.html">2026-06-12 1차 (14:50)</option></optgroup><optgroup label="2026-06-11"><option value="2026-06-11_2015.html">2026-06-11 수동 20:15</option><option value="2026-06-11_1750.html">2026-06-11 2차 (17:50)</option><option value="2026-06-11_1450.html">2026-06-11 1차 (14:50)</option></optgroup><optgroup label="2026-06-10"><option value="2026-06-10_1750.html">2026-06-10 2차 (17:50)</option><option value="2026-06-10_1450.html">2026-06-10 1차 (14:50)</option></optgroup><optgroup label="2026-06-09"><option value="2026-06-09_1750.html">2026-06-09 2차 (17:50)</option><option value="2026-06-09_1450.html">2026-06-09 1차 (14:50)</option></optgroup><optgroup label="2026-06-08"><option value="2026-06-08_1750.html">2026-06-08 2차 (17:50)</option><option value="2026-06-08_1450.html">2026-06-08 1차 (14:50)</option></optgroup><optgroup label="2026-06-05"><option value="2026-06-05_1750.html">2026-06-05 2차 (17:50)</option><option value="2026-06-05_1450.html">2026-06-05 1차 (14:50)</option></optgroup><optgroup label="2026-06-04"><option value="2026-06-04_1750.html">2026-06-04 2차 (17:50)</option><option value="2026-06-04_1450.html">2026-06-04 1차 (14:50)</option></optgroup><optgroup label="2026-06-03"><option value="2026-06-03_1750.html">2026-06-03 2차 (17:50)</option><option value="2026-06-03_1450.html">2026-06-03 1차 (14:50)</option></optgroup><optgroup label="2026-06-02"><option value="2026-06-02_1750.html">2026-06-02 2차 (17:50)</option><option value="2026-06-02_1450.html">2026-06-02 1차 (14:50)</option></optgroup><optgroup label="2026-06-01"><option value="2026-06-01_1750.html">2026-06-01 2차 (17:50)</option><option value="2026-06-01_1450.html">2026-06-01 1차 (14:50)</option></optgroup><optgroup label="2026-05-29"><option value="2026-05-29_1750.html">2026-05-29 2차 (17:50)</option><option value="2026-05-29_1450.html">2026-05-29 1차 (14:50)</option></optgroup><optgroup label="2026-05-28"><option value="2026-05-28_1750.html">2026-05-28 2차 (17:50)</option><option value="2026-05-28_1450.html">2026-05-28 1차 (14:50)</option></optgroup><optgroup label="2026-05-27"><option value="2026-05-27_1750.html">2026-05-27 2차 (17:50)</option><option value="2026-05-27_1450.html">2026-05-27 1차 (14:50)</option></optgroup><optgroup label="2026-05-26"><option value="2026-05-26_1750.html">2026-05-26 2차 (17:50)</option><option value="2026-05-26_1450.html">2026-05-26 1차 (14:50)</option></optgroup><optgroup label="2026-05-22"><option value="2026-05-22_1750.html">2026-05-22 2차 (17:50)</option><option value="2026-05-22_1628.html">2026-05-22 수동 16:28</option></optgroup><optgroup label="2026-05-21"><option value="2026-05-21_1750.html">2026-05-21 2차 (17:50)</option><option value="2026-05-21_1450.html">2026-05-21 1차 (14:50)</option></optgroup><optgroup label="2026-05-20"><option value="2026-05-20_2217.html">2026-05-20 수동 22:17</option><option value="2026-05-20_2134.html">2026-05-20 수동 21:34</option><option value="2026-05-20_1750.html">2026-05-20 2차 (17:50)</option><option value="2026-05-20_1450.html">2026-05-20 1차 (14:50)</option></optgroup><optgroup label="2026-05-19"><option value="2026-05-19_1750.html">2026-05-19 2차 (17:50)</option><option value="2026-05-19_1450.html">2026-05-19 1차 (14:50)</option></optgroup><optgroup label="2026-05-18"><option value="2026-05-18_2305.html">2026-05-18 수동 23:05</option><option value="2026-05-18_2234.html">2026-05-18 수동 22:34</option><option value="2026-05-18_2231.html">2026-05-18 수동 22:31</option><option value="2026-05-18_2144.html">2026-05-18 수동 21:44</option><option value="2026-05-18_2012.html">2026-05-18 수동 20:12</option><option value="2026-05-18_1920.html">2026-05-18 수동 19:20</option><option value="2026-05-18_1750.html">2026-05-18 2차 (17:50)</option><option value="2026-05-18_1450.html">2026-05-18 1차 (14:50)</option></optgroup><optgroup label="2026-05-15"><option value="2026-05-15_2310.html">2026-05-15 수동 23:10</option><option value="2026-05-15_2242.html">2026-05-15 수동 22:42</option><option value="2026-05-15_1750.html">2026-05-15 2차 (17:50)</option><option value="2026-05-15_1450.html">2026-05-15 1차 (14:50)</option></optgroup><optgroup label="2026-05-14"><option value="2026-05-14_1750.html">2026-05-14 2차 (17:50)</option><option value="2026-05-14_1450.html">2026-05-14 1차 (14:50)</option></optgroup><optgroup label="2026-05-13"><option value="2026-05-13_1750.html">2026-05-13 2차 (17:50)</option><option value="2026-05-13_1450.html">2026-05-13 1차 (14:50)</option><option value="2026-05-13_0606.html">2026-05-13 수동 06:06</option><option value="2026-05-13_0536.html">2026-05-13 수동 05:36</option></optgroup><optgroup label="2026-05-12"><option value="2026-05-12_2219.html">2026-05-12 수동 22:19</option><option value="2026-05-12_2117.html">2026-05-12 수동 21:17</option><option value="2026-05-12_2114.html">2026-05-12 수동 21:14</option><option value="2026-05-12_2110.html">2026-05-12 수동 21:10</option><option value="2026-05-12_2025.html">2026-05-12 수동 20:25</option><option value="2026-05-12_2015.html">2026-05-12 수동 20:15</option><option value="2026-05-12_1750.html">2026-05-12 2차 (17:50)</option><option value="2026-05-12_1450.html">2026-05-12 1차 (14:50)</option></optgroup><optgroup label="2026-05-11"><option value="2026-05-11_1750.html">2026-05-11 2차 (17:50)</option><option value="2026-05-11_1450.html">2026-05-11 1차 (14:50)</option></optgroup><optgroup label="2026-05-09"><option value="2026-05-09_2300.html">2026-05-09 수동 23:00</option><option value="2026-05-09_1127.html">2026-05-09 수동 11:27</option></optgroup><optgroup label="2026-05-08"><option value="2026-05-08_1750.html">2026-05-08 2차 (17:50)</option><option value="2026-05-08_1450.html">2026-05-08 1차 (14:50)</option></optgroup><optgroup label="2026-05-07"><option value="2026-05-07_2219.html">2026-05-07 수동 22:19</option><option value="2026-05-07_2058.html">2026-05-07 수동 20:58</option><option value="2026-05-07_2028.html">2026-05-07 수동 20:28</option><option value="2026-05-07_1750.html">2026-05-07 2차 (17:50)</option><option value="2026-05-07_1450.html">2026-05-07 1차 (14:50)</option><option value="2026-05-07_0741.html">2026-05-07 수동 07:41</option><option value="2026-05-07_0736.html">2026-05-07 수동 07:36</option></optgroup><optgroup label="2026-05-06"><option value="2026-05-06_1920.html">2026-05-06 수동 19:20</option><option value="2026-05-06_1450.html">2026-05-06 1차 (14:50)</option></optgroup><optgroup label="2026-05-04"><option value="2026-05-04_1750.html">2026-05-04 2차 (17:50)</option><option value="2026-05-04_1450.html">2026-05-04 1차 (14:50)</option></optgroup><optgroup label="2026-05-01"><option value="2026-05-01_1750.html">2026-05-01 2차 (17:50)</option><option value="2026-05-01_1450.html">2026-05-01 1차 (14:50)</option></optgroup><optgroup label="2026-04-30"><option value="2026-04-30_1750.html">2026-04-30 2차 (17:50)</option><option value="2026-04-30_1450.html">2026-04-30 1차 (14:50)</option></optgroup><optgroup label="2026-04-29"><option value="2026-04-29_1750.html">2026-04-29 2차 (17:50)</option><option value="2026-04-29_1450.html">2026-04-29 1차 (14:50)</option></optgroup><optgroup label="2026-04-28"><option value="2026-04-28_1927.html">2026-04-28 수동 19:27</option><option value="2026-04-28_1829.html">2026-04-28 수동 18:29</option><option value="2026-04-28_1750.html">2026-04-28 2차 (17:50)</option><option value="2026-04-28_1450.html">2026-04-28 1차 (14:50)</option></optgroup><optgroup label="2026-04-27"><option value="2026-04-27_1750.html">2026-04-27 2차 (17:50)</option><option value="2026-04-27_1450.html">2026-04-27 1차 (14:50)</option></optgroup><optgroup label="2026-04-26"><option value="2026-04-26_0450.html">2026-04-26 수동 04:50</option></optgroup><optgroup label="2026-04-24"><option value="2026-04-24_2040.html">2026-04-24 수동 20:40</option><option value="2026-04-24_2013.html">2026-04-24 수동 20:13</option></optgroup><optgroup label="2026-04-23"><option value="2026-04-23_1750.html">2026-04-23 2차 (17:50)</option><option value="2026-04-23_1450.html">2026-04-23 1차 (14:50)</option></optgroup><optgroup label="2026-04-22"><option value="2026-04-22_1859.html">2026-04-22 수동 18:59</option><option value="2026-04-22_1816.html">2026-04-22 수동 18:16</option><option value="2026-04-22_1750.html">2026-04-22 2차 (17:50)</option><option value="2026-04-22_1450.html">2026-04-22 1차 (14:50)</option><option value="2026-04-22_0904.html">2026-04-22 수동 09:04</option><option value="2026-04-22_0650.html">2026-04-22 수동 06:50</option></optgroup><optgroup label="2026-04-21"><option value="2026-04-21_2203.html">2026-04-21 수동 22:03</option><option value="2026-04-21_2150.html">2026-04-21 수동 21:50</option><option value="2026-04-21_2134.html">2026-04-21 수동 21:34</option><option value="2026-04-21_2109.html">2026-04-21 수동 21:09</option><option value="2026-04-21_2030.html">2026-04-21 수동 20:30</option><option value="2026-04-21_2002.html">2026-04-21 수동 20:02</option><option value="2026-04-21_1948.html">2026-04-21 수동 19:48</option><option value="2026-04-21_1450.html">2026-04-21 1차 (14:50)</option><option value="2026-04-21_0702.html">2026-04-21 수동 07:02</option><option value="2026-04-21_0552.html">2026-04-21 수동 05:52</option><option value="2026-04-21_0543.html">2026-04-21 수동 05:43</option><option value="2026-04-21_0539.html">2026-04-21 수동 05:39</option><option value="2026-04-21_0516.html">2026-04-21 수동 05:16</option></optgroup><optgroup label="2026-04-20"><option value="2026-04-20_2228.html">2026-04-20 수동 22:28</option><option value="2026-04-20_2223.html">2026-04-20 수동 22:23</option><option value="2026-04-20_2144.html">2026-04-20 수동 21:44</option><option value="2026-04-20_2115.html">2026-04-20 수동 21:15</option><option value="2026-04-20_2107.html">2026-04-20 수동 21:07</option><option value="2026-04-20_2019.html">2026-04-20 수동 20:19</option><option value="2026-04-20_1700.html">2026-04-20 수동 17:00</option><option value="2026-04-20_1649.html">2026-04-20 수동 16:49</option></optgroup><optgroup label="2026-04-19"><option value="2026-04-19_0640.html">2026-04-19 수동 06:40</option></optgroup><optgroup label="2026-04-17"><option value="2026-04-17_2039.html">2026-04-17 수동 20:39</option><option value="2026-04-17_1901.html">2026-04-17 수동 19:01</option><option value="2026-04-17_0753.html">2026-04-17 수동 07:53</option><option value="2026-04-17_0626.html">2026-04-17 수동 06:26</option></optgroup></select>
+  <span id="nav-next" class="nav-btn disabled">다음 &#9654;</span>
+  <a href="../index.html" class="nav-btn">&#8801; 목록</a>
+</div>
+<script>
+(function(){
+  var s=document.createElement('script');
+  s.src='report_list.js';
+  s.onload=function(){
+    if(!window.REPORT_LIST)return;
+    var cur=location.pathname.split('/').pop()||location.href.split('/').pop();
+    cur=cur.split('?')[0].split('#')[0];
+    var list=REPORT_LIST,idx=list.indexOf(cur);
+    if(idx<0)return;
+    var prevF=idx+1<list.length?list[idx+1]:null;
+    var nextF=idx>0?list[idx-1]:null;
+    function _setBtn(id,file,label){
+      var el=document.getElementById(id);if(!el)return;
+      if(file){var a=document.createElement('a');a.id=id;a.href=file;a.className='nav-btn';a.innerHTML=label;el.parentNode.replaceChild(a,el);}
+    }
+    _setBtn('nav-prev',prevF,'&#9664; 이전');
+    _setBtn('nav-next',nextF,'다음 &#9654;');
+  };
+  document.head.appendChild(s);
+})();
+</script>
+
+
+<div class="page-header">
+  <h1>📈 종가베팅 스캔 리포트<span class="regime-neutral" style="font-size:14px;padding:3px 12px;margin-left:10px;">⚪ 오른종목 40.4% 보통</span></h1>
+  <div style="margin-top:8px;font-size:15px;font-weight:700;color:var(--text)">
+    <span>📅 2026-08-06</span>
+    <span style="margin-left:16px">기준시각 14:50</span>
+    <span style="margin-left:16px">실행시각 14:50 KST</span>
+    <span style="margin-left:16px">분류 1차</span>
+  </div>
+  <div style="margin-top:8px;font-size:17px;font-weight:700;color:var(--text)">
+    <span>코스피 355,528억 <span style='color:var(--muted);font-size:12px'>(6,263pt)</span> <span style="color:var(--green);font-size:12px;font-weight:700">-5.08%</span></span>
+    <span style="margin-left:20px">코스닥 56,510억 <span style='color:var(--muted);font-size:12px'>(802pt)</span> <span style="color:var(--red);font-size:12px;font-weight:700">+0.32%</span></span>
+  </div>
+  <div style="margin-top:6px;font-size:13px;color:var(--muted)">🔭 선행: 나스닥선물 <b style="color:var(--green)">-0.19%</b> · VIX <b style="color:var(--muted)">15.8</b> · 위험자산 선호 <b style="color:var(--muted)">중립</b> · 코스피 60일선 이탈 <b style="color:var(--red)">-18.0%</b> <span style="font-size:11px">— 나머지 국면 지표는 오늘 결과(후행)</span></div>
+  
+  <div style="margin-top:6px;font-size:13px;color:var(--muted)">Top5 거래대금 집중도 <b style="color:var(--green)">31.9%</b> <span style="color:var(--green)">(분산 — 개별주 장세)</span> <span style="font-size:11px">· 참고: 4월 분산기 31% / 6월 쏠림기 55%</span></div>
+  <div style="margin-top:10px;padding:10px 14px;border-radius:8px;background:#dc2626;color:#fff"><span style="font-size:18px;font-weight:800">오늘 판정: 매매 금지</span><span style="font-size:13px;margin-left:12px;opacity:0.95">봇 신호 0건 — 개별주 종베 자리 없음</span><div style="font-size:11px;margin-top:3px;opacity:0.85">※ 국면 우선 판정 — 개별 종목이 좋아도 이 등급을 넘어 매수하지 않음 (잠정 기준)</div></div>
+</div>
+
+<div class="top-boxes"><div class="info-box">
+  <div class="info-box-title">오늘 환경</div>
+  <div class="env-row"><span class="env-label">종목 폭</span><span class="env-val"><span class="regime-neutral" style="font-size:13px;padding:2px 10px">⚪ 오른종목 40.4% 보통</span></span></div>
+  <div class="env-row"><span class="env-label">장세 유형</span><span class="env-val" style="color:var(--blue);font-size:12px">혼조 (특정 주도 없음)</span></div>
+  <div class="env-row"><span class="env-label">상한가</span><span class="env-val" style="color:var(--yellow)">8개</span></div>
+  <div class="env-row"><span class="env-label">우선 확인</span><span class="env-val" style="color:var(--yellow)">0종목</span></div>
+  <div class="env-row"><span class="env-label">관찰</span><span class="env-val" style="color:var(--muted)">0종목</span></div>
+</div><div class="info-box">
+  <div class="info-box-title">핵심 신호</div>
+  <div class="signal-row">
+    <span class="signal-num">0개</span>
+    <span style="color:var(--muted);font-size:12px;margin-left:8px">교집합 (상승률+거래대금 Top20)</span>
+    <div class="signal-interp">→ 교집합 없음</div>
+  </div>
+  <div class="signal-row">
+    <span class="signal-num">9개</span>
+    <span style="color:var(--muted);font-size:12px;margin-left:8px">1500억↑ 종목</span>
+    <div class="signal-interp">→ 전체 9개</div>
+  </div>
+  <div class="signal-row">
+    <span class="signal-num">0개</span>
+    <span style="color:var(--muted);font-size:12px;margin-left:8px">상승Top20 중 1500억↑</span>
+    <div class="signal-interp">→ 상승Top20 중 0개 포함</div>
+  </div>
+</div></div>
+
+<div class="section-title">🎯 핵심 후보</div><div class="empty-msg">조건 충족 핵심 후보 없음</div>
+
+
+<div class="section-title">📉 투탑 과매도 반등 관찰 <span style="font-size:12px;color:var(--muted)">(삼전·SK하이닉스 급락일 · 검증 다음날 반등 67~86%)</span></div><div style="font-size:12px;color:var(--muted);margin-bottom:6px">대형주가 급락한 날 다음날 반등을 노리는 자리(고수 7/2~7/3 실제 매매). 급락 깊을수록 우위. <b style="color:var(--red)">반드시 손절 병행</b> — 실패 시 다음날 저가 -12.5%. KRX 일봉 기준(NXT 야간 미반영). 관찰 정보일 뿐 매수신호 아님.</div><table class="data-table"><thead><tr><th>종목</th><th>당일</th><th>2일누적</th><th>등급</th><th>근거</th></tr></thead><tbody><tr><td>SK하이닉스<span style="color:var(--muted);font-size:11px"> 000660</span></td><td style="text-align:right">-10.07%</td><td style="text-align:right">-4.88%</td><td style="text-align:center;color:var(--yellow);font-weight:700">과매도</td><td style="color:var(--muted);font-size:12px">당일 -10.1% (다음날 반등 67~71%)</td></tr></tbody></table>
+<div class="section-title">🏭 주도 섹터</div><div class="sector-grid"><div class="sector-card"><div class="sector-head"><span class="s-name">2026 하반기 신규상장</span><span class="s-chg pos">+8.96%</span><span class="s-tv">시장0.4%</span></div><table class="sector-stocks"><tr><td class="s-stock-name">레몬헬스케어</td><td class="td-pos">+9.34%</td><td class="s-stock-tv">1,391억</td></tr><tr><td class="s-stock-name">레메디</td><td class="td-pos">+8.58%</td><td class="s-stock-tv">296억</td></tr></table></div><div class="sector-card"><div class="sector-head"><span class="s-name">귀금속(금/은)</span><span class="s-chg pos">+7.76%</span><span class="s-tv">시장0.3%</span></div><table class="sector-stocks"><tr><td class="s-stock-name">고려아연</td><td class="td-pos">+12.51%</td><td class="s-stock-tv">974억</td></tr><tr><td class="s-stock-name">아이티센글로벌</td><td class="td-pos">+8.32%</td><td class="s-stock-tv">145억</td></tr><tr><td class="s-stock-name">엘컴텍</td><td class="td-pos">+8.60%</td><td class="s-stock-tv">21억</td></tr><tr><td class="s-stock-name">영풍</td><td class="td-pos">+1.61%</td><td class="s-stock-tv">17억</td></tr></table></div><div class="sector-card"><div class="sector-head"><span class="s-name">낙태/피임</span><span class="s-chg pos">+6.92%</span><span class="s-tv">시장0.1%</span></div><table class="sector-stocks"><tr><td class="s-stock-name">현대약품</td><td class="td-pos">+12.65%</td><td class="s-stock-tv">509억</td></tr><tr><td class="s-stock-name">명문제약</td><td class="td-neg">-0.35%</td><td class="s-stock-tv">3억</td></tr><tr><td class="s-stock-name">알리코제약</td><td class="td-pos">+1.20%</td><td class="s-stock-tv">1억</td></tr></table></div><div class="sector-card"><div class="sector-head"><span class="s-name">화학섬유</span><span class="s-chg pos">+5.20%</span><span class="s-tv">시장0.0%</span></div><table class="sector-stocks"><tr><td class="s-stock-name">코오롱인더</td><td class="td-pos">+6.32%</td><td class="s-stock-tv">94억</td></tr><tr><td class="s-stock-name">효성티앤씨</td><td class="td-pos">+4.55%</td><td class="s-stock-tv">63억</td></tr><tr><td class="s-stock-name">태광산업</td><td class="td-pos">+0.55%</td><td class="s-stock-tv">14억</td></tr><tr><td class="s-stock-name">우성머티리얼스</td><td class="td-pos">+12.24%</td><td class="s-stock-tv">8억</td></tr></table></div><div class="sector-card"><div class="sector-head"><span class="s-name">마리화나(대마)</span><span class="s-chg pos">+8.30%</span><span class="s-tv">시장0.0%</span></div><table class="sector-stocks"><tr><td class="s-stock-name">비엘팜텍</td><td class="td-pos">+0.62%</td><td class="s-stock-tv">19억</td></tr><tr><td class="s-stock-name">파이온엑스</td><td class="td-pos">+29.77%</td><td class="s-stock-tv">19억</td></tr><tr><td class="s-stock-name">엔에프씨</td><td class="td-pos">+6.15%</td><td class="s-stock-tv">16억</td></tr><tr><td class="s-stock-name">인벤티지랩</td><td class="td-neg">-1.09%</td><td class="s-stock-tv">11억</td></tr></table></div></div>
+<div class="section-title">💰 거래대금 Top20</div><div class="tbl-wrap"><table><thead><tr><th>#</th><th>종목명</th><th>섹터</th><th>코드</th><th>시장</th><th>거래대금</th><th>등락률</th></tr></thead><tbody><tr><td>1</td><td class="td-name">SK하이닉스</td><td style="font-size:11px;color:var(--blue)">반도체와반도체장비</td><td class="td-code">000660</td><td>KOSPI</td><td>61,856억</td><td class="td-neg">-10.25%</td></tr><tr><td>2</td><td class="td-name">삼성전자</td><td style="font-size:11px;color:var(--blue)">반도체와반도체장비</td><td class="td-code">005930</td><td>KOSPI</td><td>49,540억</td><td class="td-neg">-7.01%</td></tr><tr><td>3</td><td class="td-name">삼성전기</td><td style="font-size:11px;color:var(--blue)">전자장비와기기</td><td class="td-code">009150</td><td>KOSPI</td><td>10,909억</td><td class="td-neg">-8.92%</td></tr><tr><td>4</td><td class="td-name">SK스퀘어</td><td style="font-size:11px;color:var(--blue)">반도체와반도체장비</td><td class="td-code">402340</td><td>KOSPI</td><td>6,494억</td><td class="td-neg">-12.96%</td></tr><tr><td>5</td><td class="td-name">마키나락스</td><td style="font-size:11px;color:var(--blue)">소프트웨어</td><td class="td-code">477850</td><td>KOSDAQ</td><td>2,787억</td><td class="td-pos">+7.55%</td></tr><tr><td>6</td><td class="td-name">GS건설</td><td style="font-size:11px;color:var(--blue)">건설</td><td class="td-code">006360</td><td>KOSPI</td><td>2,227억</td><td class="td-pos">+5.62%</td></tr><tr><td>7</td><td class="td-name">알테오젠</td><td style="font-size:11px;color:var(--blue)">생물공학</td><td class="td-code">196170</td><td>KOSDAQ</td><td>2,022억</td><td class="td-pos">+6.32%</td></tr><tr><td>8</td><td class="td-name">NAVER</td><td style="font-size:11px;color:var(--blue)">양방향미디어와서비스</td><td class="td-code">035420</td><td>KOSPI</td><td>1,825억</td><td class="td-neg">-1.75%</td></tr><tr><td>9</td><td class="td-name">대우건설</td><td style="font-size:11px;color:var(--blue)">건설</td><td class="td-code">047040</td><td>KOSPI</td><td>1,813억</td><td class="td-pos">+3.76%</td></tr><tr><td>10</td><td class="td-name">현대차</td><td style="font-size:11px;color:var(--blue)">자동차</td><td class="td-code">005380</td><td>KOSPI</td><td>1,783억</td><td class="td-neg">-1.98%</td></tr><tr><td>11</td><td class="td-name">효성중공업</td><td style="font-size:11px;color:var(--blue)">전기장비</td><td class="td-code">298040</td><td>KOSPI</td><td>1,774억</td><td class="td-neg">-9.08%</td></tr><tr><td>12</td><td class="td-name">LIG디펜스앤에어로스페이스</td><td style="font-size:11px;color:var(--blue)">우주항공과국방</td><td class="td-code">079550</td><td>KOSPI</td><td>1,768억</td><td class="td-neg">-12.78%</td></tr><tr><td>13</td><td class="td-name">심텍</td><td style="font-size:11px;color:var(--blue)">전자장비와기기</td><td class="td-code">222800</td><td>KOSDAQ</td><td>1,676억</td><td class="td-pos">+3.40%</td></tr><tr><td>14</td><td class="td-name">에이피알</td><td style="font-size:11px;color:var(--blue)">화장품</td><td class="td-code">278470</td><td>KOSPI</td><td>1,645억</td><td class="td-pos">+5.31%</td></tr><tr><td>15</td><td class="td-name">디앤디파마텍</td><td style="font-size:11px;color:var(--blue)">생물공학</td><td class="td-code">347850</td><td>KOSDAQ</td><td>1,547억</td><td class="td-pos">+4.71%</td></tr><tr><td>16</td><td class="td-name">금호타이어</td><td style="font-size:11px;color:var(--blue)">타이어</td><td class="td-code">073240</td><td>KOSPI</td><td>1,487억</td><td class="td-pos">+6.10%</td></tr><tr><td>17</td><td class="td-name">SK이터닉스</td><td style="font-size:11px;color:var(--blue)">에너지장비및서비스</td><td class="td-code">475150</td><td>KOSPI</td><td>1,437억</td><td class="td-neg">-4.51%</td></tr><tr><td>18</td><td class="td-name">레몬헬스케어</td><td style="font-size:11px;color:var(--blue)">2026 하반기 신규상장</td><td class="td-code">365660</td><td>KOSDAQ</td><td>1,391억</td><td class="td-pos">+9.34%</td></tr><tr><td>19</td><td class="td-name">코스모로보틱스</td><td style="font-size:11px;color:var(--blue)">기계</td><td class="td-code">439960</td><td>KOSDAQ</td><td>1,389억</td><td class="td-neg">-0.16%</td></tr><tr><td>20</td><td class="td-name">셀트리온</td><td style="font-size:11px;color:var(--blue)">제약</td><td class="td-code">068270</td><td>KOSPI</td><td>1,372억</td><td class="td-pos">+2.42%</td></tr></tbody></table></div>
+<div class="section-title">📊 상승률 Top20</div><div class="tbl-wrap"><table><thead><tr><th>#</th><th>종목명</th><th>섹터</th><th>코드</th><th>시장</th><th>등락률</th><th>거래대금</th></tr></thead><tbody><tr><td>1</td><td class="td-name">유니켐</td><td style="font-size:11px;color:var(--blue)">자동차부품</td><td class="td-code">011330</td><td>KOSPI</td><td class="td-pos">+30.00%</td><td>3억</td></tr><tr><td>2</td><td class="td-name">비큐AI</td><td style="font-size:11px;color:var(--blue)">소프트웨어</td><td class="td-code">148780</td><td>KOSDAQ</td><td class="td-pos">+29.99%</td><td>16억</td></tr><tr><td>3</td><td class="td-name">매드업</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">0039P0</td><td>KOSDAQ</td><td class="td-pos">+29.93%</td><td>1,293억</td></tr><tr><td>4</td><td class="td-name">큐라티스</td><td style="font-size:11px;color:var(--blue)">mRNA(메신저 리보핵산)</td><td class="td-code">348080</td><td>KOSDAQ</td><td class="td-pos">+29.93%</td><td>2억</td></tr><tr><td>5</td><td class="td-name">본느</td><td style="font-size:11px;color:var(--blue)">화장품</td><td class="td-code">226340</td><td>KOSDAQ</td><td class="td-pos">+29.93%</td><td>156억</td></tr><tr><td>6</td><td class="td-name">아로마티카</td><td style="font-size:11px;color:var(--blue)"><span style="color:var(--muted)">—</span></td><td class="td-code">0015N0</td><td>KOSDAQ</td><td class="td-pos">+29.90%</td><td>325억</td></tr><tr><td>7</td><td class="td-name">SK디앤디</td><td style="font-size:11px;color:var(--blue)">부동산</td><td class="td-code">210980</td><td>KOSPI</td><td class="td-pos">+29.84%</td><td>80억</td></tr><tr><td>8</td><td class="td-name">파이온엑스</td><td style="font-size:11px;color:var(--blue)">마리화나(대마)</td><td class="td-code">900100</td><td>KOSDAQ</td><td class="td-pos">+29.77%</td><td>19억</td></tr><tr><td>9</td><td class="td-name">케스피온</td><td style="font-size:11px;color:var(--blue)">핸드셋</td><td class="td-code">079190</td><td>KOSDAQ</td><td class="td-pos">+26.25%</td><td>45억</td></tr><tr><td>10</td><td class="td-name">온코닉테라퓨틱스</td><td style="font-size:11px;color:var(--blue)">제약</td><td class="td-code">476060</td><td>KOSDAQ</td><td class="td-pos">+24.02%</td><td>696억</td></tr><tr><td>11</td><td class="td-name">인바디</td><td style="font-size:11px;color:var(--blue)">건강관리장비와용품</td><td class="td-code">041830</td><td>KOSDAQ</td><td class="td-pos">+23.28%</td><td>426억</td></tr><tr><td>12</td><td class="td-name">누리플렉스</td><td style="font-size:11px;color:var(--blue)">IT서비스</td><td class="td-code">040160</td><td>KOSDAQ</td><td class="td-pos">+18.00%</td><td>10억</td></tr><tr><td>13</td><td class="td-name">져스텍</td><td style="font-size:11px;color:var(--blue)">기계</td><td class="td-code">153890</td><td>KOSDAQ</td><td class="td-pos">+17.24%</td><td>392억</td></tr><tr><td>14</td><td class="td-name">코스맥스엔비티</td><td style="font-size:11px;color:var(--blue)">건강관리업체및서비스</td><td class="td-code">222040</td><td>KOSDAQ</td><td class="td-pos">+15.06%</td><td>77억</td></tr><tr><td>15</td><td class="td-name">JW신약</td><td style="font-size:11px;color:var(--blue)">제약</td><td class="td-code">067290</td><td>KOSDAQ</td><td class="td-pos">+14.96%</td><td>692억</td></tr><tr><td>16</td><td class="td-name">피앤에스로보틱스</td><td style="font-size:11px;color:var(--blue)">건강관리장비와용품</td><td class="td-code">460940</td><td>KOSDAQ</td><td class="td-pos">+14.37%</td><td>158억</td></tr><tr><td>17</td><td class="td-name">아스플로</td><td style="font-size:11px;color:var(--blue)">기계</td><td class="td-code">159010</td><td>KOSDAQ</td><td class="td-pos">+14.12%</td><td>78억</td></tr><tr><td>18</td><td class="td-name">안국약품</td><td style="font-size:11px;color:var(--blue)">제약</td><td class="td-code">001540</td><td>KOSDAQ</td><td class="td-pos">+13.88%</td><td>49억</td></tr><tr><td>19</td><td class="td-name">엑스큐어</td><td style="font-size:11px;color:var(--blue)">유심(USIM)</td><td class="td-code">070300</td><td>KOSDAQ</td><td class="td-pos">+13.43%</td><td>6억</td></tr><tr><td>20</td><td class="td-name">뉴엔AI</td><td style="font-size:11px;color:var(--blue)">IT서비스</td><td class="td-code">463020</td><td>KOSDAQ</td><td class="td-pos">+13.17%</td><td>712억</td></tr></tbody></table></div>
+<div class="section-title">📅 최근 4주간 주도섹터</div><div class="tbl-wrap"><table class="cal-table"><thead><tr><th>월</th><th>화</th><th>수</th><th>목</th><th>금</th></tr></thead><tbody><tr><td class="cal-cell has-report" onclick="location.href='2026-07-13_1750.html'"><div class="cal-day">13</div><span class="cal-sector">제습기</span><span class="cal-sector">2차전지(생산)</span><span class="cal-sector">윤활유</span><span class="cal-sector">정유</span></td><td class="cal-cell has-report" onclick="location.href='2026-07-14_1750.html'"><div class="cal-day">14</div><span class="cal-sector">해운</span><span class="cal-sector">수산</span><span class="cal-sector">사료</span><span class="cal-sector">낙태/피임</span></td><td class="cal-cell has-report" onclick="location.href='2026-07-15_1750.html'"><div class="cal-day">15</div><span class="cal-sector">HBM(고대역폭메모리)</span><span class="cal-sector">소캠(SOCAMM)</span><span class="cal-sector">CXL(컴퓨트익스프레스링크)</span><span class="cal-sector">반도체 기판(FC-BGA/PCB/MLB 등)</span></td><td class="cal-cell has-report" onclick="location.href='2026-07-16_1750.html'"><div class="cal-day">16</div><span class="cal-sector">조선</span><span class="cal-sector">낙태/피임</span><span class="cal-sector">패션/의류</span><span class="cal-sector">日제품 불매운동(수혜)</span></td><td class="cal-cell has-report" onclick="location.href='2026-07-17_1750.html'"><div class="cal-day">17</div><span class="cal-sector">조선</span><span class="cal-sector">낙태/피임</span><span class="cal-sector">패션/의류</span><span class="cal-sector">日제품 불매운동(수혜)</span></td></tr><tr><td class="cal-cell has-report" onclick="location.href='2026-07-20_1750.html'"><div class="cal-day">20</div><span class="cal-sector">사료</span><span class="cal-sector">2026 하반기 신규상장</span><span class="cal-sector">해운</span><span class="cal-sector">탈 플라스틱(친환경/생분해성 등)</span></td><td class="cal-cell has-report" onclick="location.href='2026-07-21_1750.html'"><div class="cal-day">21</div><span class="cal-sector">S7(삼성전자/SK하이닉스 등)</span><span class="cal-sector">피지컬 AI/휴머노이드 로봇</span><span class="cal-sector">로봇(산업용/협동로봇 등)</span><span class="cal-sector">자원개발</span></td><td class="cal-cell has-report" onclick="location.href='2026-07-22_1750.html'"><div class="cal-day">22</div><span class="cal-sector">피지컬 AI/휴머노이드 로봇</span><span class="cal-sector">로봇(산업용/협동로봇 등)</span><span class="cal-sector">스마트팩토리(스마트공장)</span><span class="cal-sector">건설 대표주</span></td><td class="cal-cell has-report" onclick="location.href='2026-07-23_1750.html'"><div class="cal-day">23</div><span class="cal-sector">전력설비</span><span class="cal-sector">고체산화물 연료전지(SOFC)</span><span class="cal-sector">전선</span><span class="cal-sector">2차전지(생산)</span></td><td class="cal-cell has-report" onclick="location.href='2026-07-24_1750.html'"><div class="cal-day">24</div><span class="cal-sector">조선기자재</span><span class="cal-sector">겨울</span><span class="cal-sector">제습기</span><span class="cal-sector">손해보험</span></td></tr><tr><td class="cal-cell has-report" onclick="location.href='2026-07-27_1750.html'"><div class="cal-day">27</div><span class="cal-sector">온디바이스 AI</span><span class="cal-sector">피지컬 AI/휴머노이드 로봇</span><span class="cal-sector">AI 챗봇(챗GPT 등)</span><span class="cal-sector">인터넷 대표주</span></td><td class="cal-cell has-report" onclick="location.href='2026-07-28_1750.html'"><div class="cal-day">28</div><span class="cal-sector">CCTV＆DVR</span><span class="cal-sector">보안주(물리)</span><span class="cal-sector">마리화나(대마)</span></td><td class="cal-cell has-report" onclick="location.href='2026-07-29_1750.html'"><div class="cal-day">29</div><span class="cal-sector">해운</span><span class="cal-sector">2026 하반기 신규상장</span><span class="cal-sector">카지노</span><span class="cal-sector">육계</span></td><td class="cal-cell has-report" onclick="location.href='2026-07-30_1750.html'"><div class="cal-day">30</div><span class="cal-sector">조선</span><span class="cal-sector">정유</span><span class="cal-sector">토스(toss)</span><span class="cal-sector">2026 하반기 신규상장</span></td><td class="cal-cell has-report" onclick="location.href='2026-07-31_1750.html'"><div class="cal-day">31</div><span class="cal-sector">S7(삼성전자/SK하이닉스 등)</span><span class="cal-sector">HBM(고대역폭메모리)</span><span class="cal-sector">소캠(SOCAMM)</span><span class="cal-sector">반도체 대표주(생산)</span></td></tr><tr><td class="cal-cell has-report" onclick="location.href='2026-08-03_1750.html'"><div class="cal-day">3</div><span class="cal-sector">유리 기판</span><span class="cal-sector">로봇(산업용/협동로봇 등)</span><span class="cal-sector">피지컬 AI/휴머노이드 로봇</span><span class="cal-sector">제습기</span></td><td class="cal-cell has-report" onclick="location.href='2026-08-04_1750.html'"><div class="cal-day">4</div><span class="cal-sector">고체산화물 연료전지(SOFC)</span><span class="cal-sector">우주항공산업(누리호/인공위성 등)</span><span class="cal-sector">건설 대표주</span><span class="cal-sector">광통신(광케이블/광섬유 등)</span></td><td class="cal-cell has-report" onclick="location.href='2026-08-05_1750.html'"><div class="cal-day">5</div><span class="cal-sector">반도체 기판(FC-BGA/PCB/MLB 등)</span><span class="cal-sector">전력설비</span><span class="cal-sector">전선</span><span class="cal-sector">광통신(광케이블/광섬유 등)</span></td><td class="cal-cell cal-today has-report" onclick="location.href='2026-08-06_1450.html'"><div class="cal-day">6</div><span class="cal-sector">2026 하반기 신규상장</span><span class="cal-sector">귀금속(금/은)</span><span class="cal-sector">낙태/피임</span><span class="cal-sector">화학섬유</span></td><td class="cal-cell"><div class="cal-day">7</div></td></tr></tbody></table></div>
+<div class="section-title">🔀 교집합 후보</div><div class="empty-msg">교집합 없음</div>
+<div class="section-title">🚫 탈락 요약</div><div class="rejected-summary"><details style="display:inline-block;vertical-align:top;margin-right:14px"><summary style="cursor:pointer;user-select:none"><span class="status-badge status-no">매수불가</span> 상한가 (진입 불가): <span style="color:var(--blue);text-decoration:underline dotted">8개</span></summary><div style="margin:4px 0 6px 8px"><div style="font-size:12px;padding:2px 0">매드업 <span style="color:var(--muted);font-size:11px">0039P0</span> &nbsp;<span class="td-pos">+29.93%</span> &nbsp;<span style="color:var(--muted)">1,293억</span></div><div style="font-size:12px;padding:2px 0">아로마티카 <span style="color:var(--muted);font-size:11px">0015N0</span> &nbsp;<span class="td-pos">+29.90%</span> &nbsp;<span style="color:var(--muted)">325억</span></div><div style="font-size:12px;padding:2px 0">본느 <span style="color:var(--muted);font-size:11px">226340</span> &nbsp;<span class="td-pos">+29.93%</span> &nbsp;<span style="color:var(--muted)">156억</span></div><div style="font-size:12px;padding:2px 0">SK디앤디 <span style="color:var(--muted);font-size:11px">210980</span> &nbsp;<span class="td-pos">+29.84%</span> &nbsp;<span style="color:var(--muted)">80억</span></div><div style="font-size:12px;padding:2px 0">파이온엑스 <span style="color:var(--muted);font-size:11px">900100</span> &nbsp;<span class="td-pos">+29.77%</span> &nbsp;<span style="color:var(--muted)">19억</span></div><div style="font-size:12px;padding:2px 0">비큐AI <span style="color:var(--muted);font-size:11px">148780</span> &nbsp;<span class="td-pos">+29.99%</span> &nbsp;<span style="color:var(--muted)">16억</span></div><div style="font-size:12px;padding:2px 0">유니켐 <span style="color:var(--muted);font-size:11px">011330</span> &nbsp;<span class="td-pos">+30.00%</span> &nbsp;<span style="color:var(--muted)">3억</span></div><div style="font-size:12px;padding:2px 0">큐라티스 <span style="color:var(--muted);font-size:11px">348080</span> &nbsp;<span class="td-pos">+29.93%</span> &nbsp;<span style="color:var(--muted)">2억</span></div></div></details><details style="display:inline-block;vertical-align:top;margin-right:14px"><summary style="cursor:pointer;user-select:none"><span class="status-badge status-no">매수불가</span> 거래대금 부족: <span style="color:var(--blue);text-decoration:underline dotted">22개</span></summary><div style="margin:4px 0 6px 8px"><div style="font-size:12px;padding:2px 0">금호타이어 <span style="color:var(--muted);font-size:11px">073240</span> &nbsp;<span class="td-pos">+6.10%</span> &nbsp;<span style="color:var(--muted)">1,487억</span></div><div style="font-size:12px;padding:2px 0">SK이터닉스 <span style="color:var(--muted);font-size:11px">475150</span> &nbsp;<span class="td-neg">-4.51%</span> &nbsp;<span style="color:var(--muted)">1,437억</span></div><div style="font-size:12px;padding:2px 0">레몬헬스케어 <span style="color:var(--muted);font-size:11px">365660</span> &nbsp;<span class="td-pos">+9.34%</span> &nbsp;<span style="color:var(--muted)">1,391억</span></div><div style="font-size:12px;padding:2px 0">코스모로보틱스 <span style="color:var(--muted);font-size:11px">439960</span> &nbsp;<span class="td-neg">-0.16%</span> &nbsp;<span style="color:var(--muted)">1,389억</span></div><div style="font-size:12px;padding:2px 0">셀트리온 <span style="color:var(--muted);font-size:11px">068270</span> &nbsp;<span class="td-pos">+2.42%</span> &nbsp;<span style="color:var(--muted)">1,372억</span></div><div style="font-size:12px;padding:2px 0">한화에어로스페이스 <span style="color:var(--muted);font-size:11px">012450</span> &nbsp;<span class="td-pos">+5.26%</span> &nbsp;<span style="color:var(--muted)">1,360억</span></div><div style="font-size:12px;padding:2px 0">LG전자 <span style="color:var(--muted);font-size:11px">066570</span> &nbsp;<span class="td-neg">-2.62%</span> &nbsp;<span style="color:var(--muted)">1,329억</span></div><div style="font-size:12px;padding:2px 0">두산에너빌리티 <span style="color:var(--muted);font-size:11px">034020</span> &nbsp;<span class="td-neg">-1.17%</span> &nbsp;<span style="color:var(--muted)">1,314억</span></div><div style="font-size:12px;padding:2px 0">삼성SDI <span style="color:var(--muted);font-size:11px">006400</span> &nbsp;<span class="td-neg">-0.47%</span> &nbsp;<span style="color:var(--muted)">1,229억</span></div><div style="font-size:12px;padding:2px 0">빛과전자 <span style="color:var(--muted);font-size:11px">069540</span> &nbsp;<span class="td-neg">-1.21%</span> &nbsp;<span style="color:var(--muted)">1,220억</span></div><div style="font-size:12px;padding:2px 0">뉴엔AI <span style="color:var(--muted);font-size:11px">463020</span> &nbsp;<span class="td-pos">+13.17%</span> &nbsp;<span style="color:var(--muted)">712억</span></div><div style="font-size:12px;padding:2px 0">온코닉테라퓨틱스 <span style="color:var(--muted);font-size:11px">476060</span> &nbsp;<span class="td-pos">+24.02%</span> &nbsp;<span style="color:var(--muted)">696억</span></div><div style="font-size:12px;padding:2px 0">JW신약 <span style="color:var(--muted);font-size:11px">067290</span> &nbsp;<span class="td-pos">+14.96%</span> &nbsp;<span style="color:var(--muted)">692억</span></div><div style="font-size:12px;padding:2px 0">인바디 <span style="color:var(--muted);font-size:11px">041830</span> &nbsp;<span class="td-pos">+23.28%</span> &nbsp;<span style="color:var(--muted)">426억</span></div><div style="font-size:12px;padding:2px 0">져스텍 <span style="color:var(--muted);font-size:11px">153890</span> &nbsp;<span class="td-pos">+17.24%</span> &nbsp;<span style="color:var(--muted)">392억</span></div><div style="font-size:12px;padding:2px 0">피앤에스로보틱스 <span style="color:var(--muted);font-size:11px">460940</span> &nbsp;<span class="td-pos">+14.37%</span> &nbsp;<span style="color:var(--muted)">158억</span></div><div style="font-size:12px;padding:2px 0">아스플로 <span style="color:var(--muted);font-size:11px">159010</span> &nbsp;<span class="td-pos">+14.12%</span> &nbsp;<span style="color:var(--muted)">78억</span></div><div style="font-size:12px;padding:2px 0">코스맥스엔비티 <span style="color:var(--muted);font-size:11px">222040</span> &nbsp;<span class="td-pos">+15.06%</span> &nbsp;<span style="color:var(--muted)">77억</span></div><div style="font-size:12px;padding:2px 0">안국약품 <span style="color:var(--muted);font-size:11px">001540</span> &nbsp;<span class="td-pos">+13.88%</span> &nbsp;<span style="color:var(--muted)">49억</span></div><div style="font-size:12px;padding:2px 0">케스피온 <span style="color:var(--muted);font-size:11px">079190</span> &nbsp;<span class="td-pos">+26.25%</span> &nbsp;<span style="color:var(--muted)">45억</span></div><div style="font-size:12px;padding:2px 0">누리플렉스 <span style="color:var(--muted);font-size:11px">040160</span> &nbsp;<span class="td-pos">+18.00%</span> &nbsp;<span style="color:var(--muted)">10억</span></div><div style="font-size:12px;padding:2px 0">엑스큐어 <span style="color:var(--muted);font-size:11px">070300</span> &nbsp;<span class="td-pos">+13.43%</span> &nbsp;<span style="color:var(--muted)">6억</span></div></div></details><details style="display:inline-block;vertical-align:top;margin-right:14px"><summary style="cursor:pointer;user-select:none"><span class="status-badge status-no">매수불가</span> 패턴 없음 + 교집합 아님: <span style="color:var(--blue);text-decoration:underline dotted">9개</span></summary><div style="margin:4px 0 6px 8px"><div style="font-size:12px;padding:2px 0">마키나락스 <span style="color:var(--muted);font-size:11px">477850</span> &nbsp;<span class="td-pos">+7.55%</span> &nbsp;<span style="color:var(--muted)">2,787억</span></div><div style="font-size:12px;padding:2px 0">GS건설 <span style="color:var(--muted);font-size:11px">006360</span> &nbsp;<span class="td-pos">+5.62%</span> &nbsp;<span style="color:var(--muted)">2,227억</span></div><div style="font-size:12px;padding:2px 0">알테오젠 <span style="color:var(--muted);font-size:11px">196170</span> &nbsp;<span class="td-pos">+6.32%</span> &nbsp;<span style="color:var(--muted)">2,022억</span></div><div style="font-size:12px;padding:2px 0">NAVER <span style="color:var(--muted);font-size:11px">035420</span> &nbsp;<span class="td-neg">-1.75%</span> &nbsp;<span style="color:var(--muted)">1,825억</span></div><div style="font-size:12px;padding:2px 0">대우건설 <span style="color:var(--muted);font-size:11px">047040</span> &nbsp;<span class="td-pos">+3.76%</span> &nbsp;<span style="color:var(--muted)">1,813억</span></div><div style="font-size:12px;padding:2px 0">현대차 <span style="color:var(--muted);font-size:11px">005380</span> &nbsp;<span class="td-neg">-1.98%</span> &nbsp;<span style="color:var(--muted)">1,783억</span></div><div style="font-size:12px;padding:2px 0">심텍 <span style="color:var(--muted);font-size:11px">222800</span> &nbsp;<span class="td-pos">+3.40%</span> &nbsp;<span style="color:var(--muted)">1,676억</span></div><div style="font-size:12px;padding:2px 0">에이피알 <span style="color:var(--muted);font-size:11px">278470</span> &nbsp;<span class="td-pos">+5.31%</span> &nbsp;<span style="color:var(--muted)">1,645억</span></div><div style="font-size:12px;padding:2px 0">디앤디파마텍 <span style="color:var(--muted);font-size:11px">347850</span> &nbsp;<span class="td-pos">+4.71%</span> &nbsp;<span style="color:var(--muted)">1,547억</span></div></div></details></div><details style="margin-top:10px"><summary style="cursor:pointer;font-size:13px;color:var(--blue);user-select:none">📋 패턴미충족 주시 5개 (거래대금 상위) — 매수 후보 아님</summary><div class="watch-grid" style="margin-top:8px"><div class="watch-card"><div><span class="name">마키나락스</span><span class="code">477850</span></div><div style="font-size:11px;color:var(--muted);margin:2px 0">패턴 미충족 · 거래대금 상위</div><div class="watch-body">거래대금 <strong>2,787억</strong> &nbsp;·&nbsp; 등락률 <strong class="pos">+7.55%</strong></div></div><div class="watch-card"><div><span class="name">GS건설</span><span class="code">006360</span></div><div style="font-size:11px;color:var(--muted);margin:2px 0">패턴 미충족 · 거래대금 상위</div><div class="watch-body">거래대금 <strong>2,227억</strong> &nbsp;·&nbsp; 등락률 <strong class="pos">+5.62%</strong></div></div><div class="watch-card"><div><span class="name">알테오젠</span><span class="code">196170</span></div><div style="font-size:11px;color:var(--muted);margin:2px 0">패턴 미충족 · 거래대금 상위</div><div class="watch-body">거래대금 <strong>2,022억</strong> &nbsp;·&nbsp; 등락률 <strong class="pos">+6.32%</strong></div></div><div class="watch-card"><div><span class="name">NAVER</span><span class="code">035420</span></div><div style="font-size:11px;color:var(--muted);margin:2px 0">패턴 미충족 · 거래대금 상위</div><div class="watch-body">거래대금 <strong>1,825억</strong> &nbsp;·&nbsp; 등락률 <strong class="neg">-1.75%</strong></div></div><div class="watch-card"><div><span class="name">대우건설</span><span class="code">047040</span></div><div style="font-size:11px;color:var(--muted);margin:2px 0">패턴 미충족 · 거래대금 상위</div><div class="watch-body">거래대금 <strong>1,813억</strong> &nbsp;·&nbsp; 등락률 <strong class="pos">+3.76%</strong></div></div></div></details>
+
+<div class="section-title">🔄 기준봉 후 추적</div><div style="font-size:12px;color:var(--muted);margin-bottom:8px">눌림생존·고가수축형·고가횡보형 통합 · D+1~D+2 · 참고 정보 (매수 신호 아님)</div><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="text-align:left;color:var(--muted);font-size:12px"><th>종목</th><th>섹터</th><th>등급</th><th style="text-align:center">단계</th><th>신호일</th></tr></thead><tbody><tr><td class="td-name">한화솔루션<br><small class="muted">009830</small></td><td><small style="color:var(--muted)">에너지장비및서비스</small></td><td style="color:#8b949e;font-weight:600">⚪ 생존</td><td style="text-align:center">D+1</td><td><small class="muted">2026-08-05</small></td></tr><tr><td class="td-name">SK이터닉스<br><small class="muted">475150</small></td><td><small style="color:var(--muted)">고체산화물 연료전지(SOFC)</small></td><td style="color:#8b949e;font-weight:600">⚪ 생존</td><td style="text-align:center">D+2</td><td><small class="muted">2026-08-04</small></td></tr><tr><td class="td-name">SK텔레콤<br><small class="muted">017670</small></td><td><small style="color:var(--muted)">무선통신서비스</small></td><td style="color:#8b949e;font-weight:600">⚪ 생존</td><td style="text-align:center">D+2</td><td><small class="muted">2026-08-04</small></td></tr></tbody></table><div style="font-size:11px;color:var(--muted);margin-top:6px">🟢수축형 🟡횡보형 ⚪생존 (성과 우선순위순) · 청산 기준: 단기, 기준봉 고가/신호가 이탈 시 정리</div>
+<div style="text-align:center;color:var(--muted);font-size:11px;margin-top:24px;padding:16px 0;">
+  korea-close-betting-bot &middot; 2026-08-06 1450
+</div>
+</div>
+</body>
+</html>

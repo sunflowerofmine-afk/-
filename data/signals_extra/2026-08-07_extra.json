@@ -1,0 +1,20 @@
+{
+  "date": "2026-08-07",
+  "generated": "2026-08-07",
+  "stocks": {
+    "096770": {
+      "name": "SK이노베이션",
+      "signal_price": 120300,
+      "is_nxt": true,
+      "nxt_dominant": false,
+      "change_pct": 10.77,
+      "sector": "2차전지(생산)",
+      "total_score": 7,
+      "52w_high": 155400,
+      "52w_low": 87700,
+      "pct_from_52w_high": -22.59,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 65
+    }
+  }
+}

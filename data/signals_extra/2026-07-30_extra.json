@@ -1,0 +1,20 @@
+{
+  "date": "2026-07-30",
+  "generated": "2026-07-30",
+  "stocks": {
+    "207940": {
+      "name": "삼성바이오로직스",
+      "signal_price": 1527000,
+      "is_nxt": false,
+      "nxt_dominant": false,
+      "change_pct": 3.25,
+      "sector": "제약",
+      "total_score": 6,
+      "52w_high": 1987000,
+      "52w_low": 0,
+      "pct_from_52w_high": -23.15,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 131
+    }
+  }
+}
