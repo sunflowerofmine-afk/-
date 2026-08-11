@@ -1,0 +1,48 @@
+{
+  "date": "2026-08-11",
+  "generated": "2026-08-11",
+  "stocks": {
+    "036930": {
+      "name": "주성엔지니어링",
+      "signal_price": 162400,
+      "is_nxt": false,
+      "nxt_dominant": false,
+      "change_pct": 12.15,
+      "sector": "LED장비",
+      "total_score": 8,
+      "52w_high": 283000,
+      "52w_low": 26050,
+      "pct_from_52w_high": -42.61,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 41
+    },
+    "090460": {
+      "name": "비에이치",
+      "signal_price": 18120,
+      "is_nxt": true,
+      "nxt_dominant": false,
+      "change_pct": 16.83,
+      "sector": "전자장비와기기",
+      "total_score": 11,
+      "52w_high": 43400,
+      "52w_low": 12440,
+      "pct_from_52w_high": -58.25,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 53
+    },
+    "010170": {
+      "name": "대한광통신",
+      "signal_price": 13450,
+      "is_nxt": false,
+      "nxt_dominant": false,
+      "change_pct": -4.2,
+      "sector": "통신장비",
+      "total_score": 5,
+      "52w_high": 31500,
+      "52w_low": 895,
+      "pct_from_52w_high": -57.3,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 62
+    }
+  }
+}
