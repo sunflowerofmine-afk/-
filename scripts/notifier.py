@@ -284,6 +284,7 @@ def format_market_summary(market_totals: dict, run_time: str, run_type: str,
     _grade, _, _why = compute_daily_gate(
         ex.get("core_count", 0), _kd_gate, market_adl,
         ex.get("top5_concentration_pct"), ex.get("risk_appetite"),
+        ex.get("buy_review_count"),
     )
     _gate_emoji = {"매매 금지": "🔴", "관찰만": "🟠",
                    "소액만": "🟡", "종가베팅 허용": "🟢"}.get(_grade, "⚪")

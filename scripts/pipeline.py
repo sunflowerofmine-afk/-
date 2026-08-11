@@ -1454,35 +1454,6 @@ def run(preview: bool = False):
         except Exception as e:
             logger.warning(f"연기금 순매수 수집 실패 (무시): {e}")
 
-    # ── daily_summary.json 저장 (복기 대시보드 크로스레퍼런스용) ────────────
-    import json as _json_daily
-    _summary_path = Path("data") / "signals" / f"daily_summary_{report_date}.json"
-    _summary_path.parent.mkdir(parents=True, exist_ok=True)
-    _summary_data = {
-        "date":                 report_date,
-        "run_time":             run_time,
-        "run_type":             run_type,
-        "kospi_level":          index_levels.get("kospi_level"),
-        "kosdaq_level":         index_levels.get("kosdaq_level"),
-        "kospi_chg":            _kospi_chg,
-        "kosdaq_chg":           index_levels.get("kosdaq_chg"),
-        "kospi_tv_eok":         market_totals.get("kospi_total_tv_eok", 0),
-        "kosdaq_tv_eok":        market_totals.get("kosdaq_total_tv_eok", 0),
-        "market_regime":        market_regime,
-        "market_type":          market_type,
-        "leading_sector_names": [s["sector_name"] for s in leading_sectors[:4]],
-        "limit_up_count":       limit_up_count,
-        "code_to_sector":       code_to_sector,
-    }
-    try:
-        _summary_path.write_text(
-            _json_daily.dumps(_summary_data, ensure_ascii=False, indent=2),
-            encoding="utf-8",
-        )
-        logger.info(f"daily_summary.json 저장: {_summary_path}")
-    except Exception as e:
-        logger.warning(f"daily_summary.json 저장 실패: {e}")
-
     # 시그널 저장
     def _kh_sig(c: dict, is_kh_only: bool = False) -> dict:
         pat = c.get("patterns", {})
@@ -1608,6 +1579,84 @@ def run(preview: bool = False):
     report_data["pullback_obs_candidates"] = pullback_obs_candidates
     report_data["tracked_candidates"]      = _collect_tracked()
 
+    # 핵심 후보 중 '매수검토' 건수 — 게이트(compute_daily_gate)와 daily_summary 공용.
+    # 대시보드와 동일 함수를 써서 두 경로 판정이 갈리지 않게 한다.
+    try:
+        from scripts._dashboard_sections import _compute_status as _status_fn
+        _buy_review_count = sum(
+            1 for _c in core_candidates if _status_fn(_c, market_regime) == "BUY_REVIEW"
+        )
+    except Exception as e:
+        logger.warning(f"매수검토 건수 집계 실패 (게이트 집계 미반영): {e}")
+        _buy_review_count = None
+
+    # ── daily_summary.json 저장 (복기 대시보드 크로스레퍼런스 + 사후 검증용) ──
+    # 대형주·투탑 트랙과 게이트 입력값을 포함해야 "봇이 그날 어떤 자리를 띄웠는가"를
+    # 나중에 검증할 수 있다. 그래서 두 트랙 계산 이후로 저장 위치를 옮겼다(2026-08-12).
+    import json as _json_daily
+    _summary_path = Path("data") / "signals" / f"daily_summary_{report_date}.json"
+    _summary_path.parent.mkdir(parents=True, exist_ok=True)
+    _kd_sum = (index_regime or {}).get("kosdaq_regime") or \
+        {"강세": "강세", "약세": "약세", "중립": "혼조"}.get(market_regime)
+    try:
+        from scripts._dashboard_sections import compute_daily_gate as _gate_fn
+        _gate_grade, _, _gate_why = _gate_fn(
+            len(core_candidates), _kd_sum, _market_adl,
+            _top5_concentration_pct, futures_data.get("risk_appetite"), _buy_review_count,
+        )
+    except Exception as e:
+        logger.warning(f"게이트 판정 집계 실패 (daily_summary에 미기록): {e}")
+        _gate_grade, _gate_why = None, None
+    _summary_data = {
+        "date":                 report_date,
+        "run_time":             run_time,
+        "run_type":             run_type,
+        "kospi_level":          index_levels.get("kospi_level"),
+        "kosdaq_level":         index_levels.get("kosdaq_level"),
+        "kospi_chg":            _kospi_chg,
+        "kosdaq_chg":           index_levels.get("kosdaq_chg"),
+        "kospi_tv_eok":         market_totals.get("kospi_total_tv_eok", 0),
+        "kosdaq_tv_eok":        market_totals.get("kosdaq_total_tv_eok", 0),
+        "market_regime":        market_regime,
+        "market_type":          market_type,
+        "leading_sector_names": [s["sector_name"] for s in leading_sectors[:4]],
+        "limit_up_count":       limit_up_count,
+        "code_to_sector":       code_to_sector,
+        # 게이트 재현용 입력값 — 없으면 사후에 판정을 되짚을 수 없다.
+        "market_adl":              _market_adl,
+        "top5_concentration_pct":  _top5_concentration_pct,
+        "risk_appetite":           futures_data.get("risk_appetite"),
+        "kosdaq_regime":           _kd_sum,
+        "core_count":              len(core_candidates),
+        "buy_review_count":        _buy_review_count,
+        "gate_grade":              _gate_grade,
+        "gate_why":                _gate_why,
+        # 대형주 트랙 — 개별주 후보와 별개 경로라 signals.csv에 안 남는다.
+        "largecap_candidates": [
+            {k: _lc.get(k) for k in ("code", "name", "close", "change_pct",
+                                     "trading_value", "near_high", "near_high_pct",
+                                     "dual_buy", "ma5_gap_pct")}
+            for _lc in (largecap_candidates or [])
+        ],
+        "twotop_oversold": [
+            {k: _tt.get(k) for k in ("code", "name", "close", "change_pct",
+                                     "cum2_pct", "grade")}
+            for _tt in (twotop_oversold or [])
+        ],
+    }
+    try:
+        _summary_path.write_text(
+            _json_daily.dumps(_summary_data, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+        logger.info(
+            f"daily_summary.json 저장: {_summary_path} "
+            f"(게이트={_gate_grade}, 매수검토 {_buy_review_count}/{len(core_candidates)}, "
+            f"대형주 {len(largecap_candidates or [])}, 투탑 {len(twotop_oversold or [])})"
+        )
+    except Exception as e:
+        logger.warning(f"daily_summary.json 저장 실패: {e}")
+
     dashboard_links = {}
     if ENABLE_DASHBOARD:
         try:
@@ -1635,6 +1684,7 @@ def run(preview: bool = False):
         "gainers_tv_1500_count": gainers_tv_1500_count,
         "intersection_count":    len(intersection) if not intersection.empty else 0,
         "core_count":            len(core_candidates),
+        "buy_review_count":      _buy_review_count,
         "market_regime":         market_regime,
         "market_subtype":        market_subtype,
         "market_type":           market_type,

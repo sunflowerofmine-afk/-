@@ -165,6 +165,12 @@ def _compute_status(c: dict, market_regime: str = "중립") -> str:
     # 교집합(상승률+거래대금 동시강세)은 예외. 강등만.
     if status == "BUY_REVIEW" and c.get("theme_role") == "후속주" and not in_inter:
         status = "WATCH_ONLY"
+    # NXT(대체거래소) 거래 불가면 매수검토→관찰 강등 (돌팬티 매매 1원칙 "NXT 우선확인").
+    # 근거: 2026-08-10 대한광통신(is_nxt=False)이 당일돌파형+교집합으로 최고 등급을 받았으나,
+    # 돌팬티는 "대체거래소 안 되는 종목은 배제"로 회피 → 익일 시초가 -7.26%.
+    # nxt_fetch_ran일 때만 적용 — 1차(14:50)는 NXT 미수집이라 전 종목 오강등 방지. 강등만.
+    if status == "BUY_REVIEW" and c.get("nxt_fetch_ran") and not c.get("is_nxt"):
+        status = "WATCH_ONLY"
     return status
 
 
@@ -439,11 +445,12 @@ def _top5_concentration_html(data: dict) -> str:
     )
 
 
-def compute_daily_gate(core_n: int, kd, adl, top5_ratio, risk):
+def compute_daily_gate(core_n: int, kd, adl, top5_ratio, risk, buy_n=None):
     """오늘 종가베팅 판정 (grade, color, why) — 텔레그램·대시보드 공용 단일 원천.
 
     kd: 코스닥 국면(강세/혼조/약세/None), adl: 상승 종목 비율 0~1,
-    top5_ratio: 거래대금 상위5 쏠림 %, risk: 위험자산 선호(우호/비우호/None).
+    top5_ratio: 거래대금 상위5 쏠림 %, risk: 위험자산 선호(우호/비우호/None),
+    buy_n: 핵심 후보 중 '매수검토(BUY_REVIEW)' 건수. None이면 집계 미반영(구버전 호환).
     기본값은 보수 — 허용은 조건이 여럿 동시 충족될 때만. 위에서부터 먼저 걸리는 순서.
     근거·임계값은 잠정(표본 10거래일·단일 국면). 룰북(매매일지분석/종베_판단_룰북.md) 참조.
     """
@@ -462,6 +469,13 @@ def compute_daily_gate(core_n: int, kd, adl, top5_ratio, risk):
     else:
         grade, col, why = "소액만", "#d97706", "조건 일부 미충족 — 기본값 보수"
 
+    # 종목별 등급 집계 반영 — 후보가 있어도 '매수검토'가 0건이면 관찰만을 넘지 못한다.
+    # 헤더는 하드코딩 서사가 아니라 종목 등급의 집계여야 한다는 원칙(2026-07-01 확립).
+    # 사례: 2026-08-05 신호 3건이지만 전부 교집합 미충족(WATCH_ONLY)인데 국면은 강세였음.
+    if buy_n is not None and buy_n == 0 and grade in ("종가베팅 허용", "소액만"):
+        grade, col = "관찰만", "#ea580c"
+        why += " · 매수검토 0건(후보 전부 관찰 등급)"
+
     # 미선물 비우호면 한 단계 강등 (강등 방향만 — 우호라고 승격시키지 않음).
     # 봇 국면은 전부 후행이라, 유일한 선행 입력인 미선물이 나쁘면 보수화한다.
     if risk == "비우호" and grade in ("종가베팅 허용", "소액만"):
@@ -478,7 +492,11 @@ def _daily_gate(data: dict) -> str:
     산출은 compute_daily_gate()에 위임 — 텔레그램 알림과 동일한 판정을 보장한다.
     """
     m = data.get("market_summary", {})
-    core_n = len(data.get("core_candidates", []) or [])
+    core = data.get("core_candidates", []) or []
+    core_n = len(core)
+    # 게이트에 종목 등급을 집계해 넘긴다 (건수만 세면 전부 관찰인 날도 허용이 나온다).
+    _regime_for_status = m.get("market_regime", "중립")
+    buy_n = sum(1 for c in core if _compute_status(c, _regime_for_status) == "BUY_REVIEW")
     ir = m.get("index_regime") or {}
     kd = ir.get("kosdaq_regime")  # 강세/혼조/약세
     if kd is None:
@@ -487,7 +505,7 @@ def _daily_gate(data: dict) -> str:
     ratio = _top5_ratio(data)           # 거래대금 상위5 쏠림 %
     risk = m.get("risk_appetite")       # 미선물·VIX 기반 (유일한 선행 입력)
 
-    grade, col, why = compute_daily_gate(core_n, kd, adl, ratio, risk)
+    grade, col, why = compute_daily_gate(core_n, kd, adl, ratio, risk, buy_n)
 
     return (
         f'<div style="margin-top:10px;padding:10px 14px;border-radius:8px;'
