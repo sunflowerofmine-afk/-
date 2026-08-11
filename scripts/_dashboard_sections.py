@@ -137,6 +137,20 @@ def _baseline_weak(c: dict) -> bool:
     return bool(entry and pc and entry <= pc)
 
 
+def _gap_from_52w(c: dict):
+    """signal_price가 52주 고가 대비 몇 %인지 (음수면 고가 아래). 산출 불가 시 None.
+
+    52주 고가(high_52w)는 KRX 일봉으로 계산되고 signal_price도 같은 '현재가'라
+    기준이 일치한다 — signals.csv의 pct_from_52w_high와 동일한 값이 나온다.
+    ※ 관찰·표시 전용. 등급 판정에는 쓰지 않는다(2026-08-12 사용자 결정).
+    """
+    hi = c.get("high_52w") or 0
+    px = c.get("signal_price") or 0
+    if hi <= 0 or px <= 0:
+        return None
+    return (px - hi) / hi * 100
+
+
 def _compute_status(c: dict, market_regime: str = "중립") -> str:
     """BUY_REVIEW / WATCH_ONLY / NOT_BUYABLE"""
     pat_label = c.get("patterns", {}).get("pattern_type_label", "없음")
@@ -910,12 +924,23 @@ def _section_stock_panel(candidates: list, rejected: list, market_regime: str = 
         if _baseline_weak(c): t2.append("⚠약한자리")
         if _fresh is not None and _fresh >= FRESHNESS_STALE_MIN_COUNT:
             t2.append(f"♻️{_fresh}일째")
-        # 참고(정배열·1조+·기간조정·되돌림지지·고가수축·프로그램·52w)는 상세 패널에서 확인
+        # 관찰 경고 — 강등하지 않는다(노랑). t2(빨강=강등)와 색으로 구분.
+        # 미모사 5강이 종베 필수 3요소로 [신고가·거래대금·좋은뉴스]를 드는데 봇은
+        # 신고가를 판정에 안 쓴다. 강등 전환 전에 분포부터 눈으로 보려는 목적이라
+        # 이진 태그가 아니라 실제 괴리율을 적는다. 임계값은 대형주 트랙과 같은 5%.
+        from config.settings import LARGECAP_NEAR_HIGH_PCT
+        t3 = []
+        _g52 = _gap_from_52w(c)
+        if _g52 is not None and _g52 < -LARGECAP_NEAR_HIGH_PCT:
+            t3.append(f"52주고가 {_g52:.0f}%")
+        # 참고(정배열·1조+·기간조정·되돌림지지·고가수축·프로그램)는 상세 패널에서 확인
         tags_html = ""
         if t1:
             tags_html += "  " + _e("  ".join(t1))
         if t2:
             tags_html += " <span style='color:var(--red)'>" + _e("  ".join(t2)) + "</span>"
+        if t3:
+            tags_html += " <span style='color:var(--yellow)'>" + _e("  ".join(t3)) + "</span>"
 
         pri_html   = _status_badge_html(status)
         pat_cls    = _PAT_CLS.get(pat_label, "")
