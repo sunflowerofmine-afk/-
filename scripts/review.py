@@ -53,6 +53,18 @@ def _find_yesterday_signals(today: date) -> tuple[pd.DataFrame | None, str | Non
     return None, None
 
 
+def _d1_row(hist: pd.DataFrame, signal_date_str: str) -> pd.Series | None:
+    """신호일 다음 거래일(D+1) 행. `_calc_multiday_returns`와 동일 기준.
+
+    실행일(today) 기준으로 재면 안 된다. `_find_yesterday_signals`가 최대 7일까지
+    소급 탐색하므로, 중간에 신호 0건인 날이 끼면 실행일이 D+2·D+3이 된다.
+    (실제 사례: 8/3 신호 0건 → 8/4 실행이 7/31 신호를 8/4 시가로 측정)
+    """
+    sig_dot = signal_date_str.replace("-", ".")
+    post = hist[hist["date"] > sig_dot].sort_values("date").reset_index(drop=True)
+    return post.iloc[0] if not post.empty else None
+
+
 def _classify_fail_reason(gap_pct: float, kospi_chg: float | None) -> str | None:
     """갭 기반 실패 원인 분류. 성공이면 None."""
     if gap_pct >= 0:
@@ -399,6 +411,63 @@ def _enrich_entry_with_returns(entry: dict, hist: pd.DataFrame) -> None:
             entry["sector_still_active"] = bool(sector and sector in leading)
 
 
+# ── 과거 기록 보정 ──────────────────────────────────────────────────
+
+def _repair_gap_from_d1() -> None:
+    """실행일 기준으로 잘못 측정된 gap_pct/result를 D+1 기준으로 되돌린다.
+
+    d1_open_pct·d1_close_pct는 처음부터 신호일 기준이라 값이 맞다. 저장된 그 값으로
+    gap_pct/hold_pct/t1_open/t1_close/result를 다시 맞춘다. 네트워크 조회 없음,
+    이미 일치하면 아무것도 쓰지 않는다(멱등).
+    """
+    fixed_files = fixed_rows = 0
+
+    for review_path in sorted(_SIGNALS_DIR.glob("*_review.json")):
+        try:
+            records: list[dict] = json.loads(review_path.read_text(encoding="utf-8"))
+        except Exception as e:
+            logger.warning(f"보정 로드 실패 {review_path}: {e}")
+            continue
+
+        changed = 0
+        for entry in records:
+            d1o = _safe_float(entry.get("d1_open_pct"))
+            gap = _safe_float(entry.get("gap_pct"))
+            sp  = _safe_float(entry.get("signal_price"))
+            # gap_pct=None(=result pending)인데 D+1 값이 있으면 그것도 확정시킨다.
+            # 최초 실행 때 갭 계산만 실패하고 백필이 나중에 D+1을 채운 경우다.
+            if d1o is None or not sp or sp <= 0:
+                continue
+            if gap is not None and abs(gap - d1o) < 0.01:
+                continue
+
+            d1c = _safe_float(entry.get("d1_close_pct"))
+            entry["gap_pct"]  = round(d1o, 2)
+            entry["hold_pct"] = round(d1c, 2) if d1c is not None else None
+            entry["t1_open"]  = round(sp * (1 + d1o / 100))
+            entry["t1_close"] = round(sp * (1 + d1c / 100)) if d1c is not None else None
+            entry["result"]   = "성공" if d1o >= 0 else "실패"
+            if d1o >= 0:
+                entry["fail_reason"] = None
+            elif not entry.get("fail_reason"):
+                entry["fail_reason"] = "혼조"
+            changed += 1
+
+        if changed:
+            try:
+                review_path.write_text(
+                    json.dumps(records, ensure_ascii=False, indent=2),
+                    encoding="utf-8",
+                )
+                fixed_files += 1
+                fixed_rows  += changed
+            except Exception as e:
+                logger.warning(f"보정 저장 실패 {review_path}: {e}")
+
+    if fixed_rows:
+        logger.info(f"복기 갭 보정: {fixed_files}개 파일 {fixed_rows}건을 D+1 기준으로 정정")
+
+
 # ── 백필 ────────────────────────────────────────────────────────────
 
 def _backfill_pending_reviews(today: date, exclude_date: str | None = None) -> None:
@@ -465,6 +534,11 @@ def run(today: date, kospi_chg_today: float | None) -> list[dict]:
     어제 신호 → D+1 성과 측정 + 멀티데이 백테스트.
     반환: list[dict] — 기존 필드 + 멀티데이 필드 포함.
     """
+    try:
+        _repair_gap_from_d1()
+    except Exception as e:
+        logger.warning(f"복기 갭 보정 실패 (무시): {e}")
+
     signals_df, yesterday_str = _find_yesterday_signals(today)
 
     if signals_df is None or signals_df.empty:
@@ -539,23 +613,23 @@ def run(today: date, kospi_chg_today: float | None) -> list[dict]:
                 results.append(entry)
                 continue
 
-            # ── 기존 D+1 갭/홀드 계산 ──────────────────
-            today_rows = hist[hist["date"] == today_str]
-            if today_rows.empty:
+            # ── D+1 갭/홀드 계산 (신호일 다음 거래일 기준) ──
+            t1 = _d1_row(hist, yesterday_str)
+            if t1 is None:
                 results.append(entry)
                 continue
 
-            t1       = today_rows.iloc[0]
             t1_open  = float(t1.get("open")  or 0)
             t1_close = float(t1.get("close") or 0)
+            d1_date_str = str(t1["date"])
 
             entry_price = float(sp) if sp and float(sp) > 0 else 0.0
             if entry_price <= 0:
-                prev_rows = hist[hist["date"] != today_str]
-                if prev_rows.empty:
+                sig_rows = hist[hist["date"] <= yesterday_str.replace("-", ".")].sort_values("date")
+                if sig_rows.empty:
                     results.append(entry)
                     continue
-                entry_price = float(prev_rows.iloc[0]["close"] or 0)
+                entry_price = float(sig_rows.iloc[-1]["close"] or 0)
 
             if entry_price <= 0 or t1_open <= 0:
                 results.append(entry)
@@ -564,21 +638,28 @@ def run(today: date, kospi_chg_today: float | None) -> list[dict]:
             gap_pct  = (t1_open  / entry_price - 1) * 100
             hold_pct = (t1_close / entry_price - 1) * 100 if t1_close > 0 else None
 
+            # 실패 사유의 시황 기준도 D+1 날짜에 맞춘다
+            if d1_date_str == today_str:
+                d1_kospi_chg = kospi_chg_today
+            else:
+                _s = _load_daily_summary(d1_date_str.replace(".", "-"))
+                d1_kospi_chg = _s.get("kospi_chg") if _s else None
+
             entry.update({
                 "t1_open":     t1_open,
                 "t1_close":    t1_close if t1_close > 0 else None,
                 "gap_pct":     round(gap_pct, 2),
                 "hold_pct":    round(hold_pct, 2) if hold_pct is not None else None,
                 "result":      "성공" if gap_pct >= 0 else "실패",
-                "fail_reason": _classify_fail_reason(gap_pct, kospi_chg_today),
+                "fail_reason": _classify_fail_reason(gap_pct, d1_kospi_chg),
             })
 
             # ── 멀티데이 수익률 + 분류 ──────────────────
             _enrich_entry_with_returns(entry, hist)
 
-            # sector_still_active: D+1=today 기준 daily_summary도 확인
+            # sector_still_active: D+1 날짜 daily_summary도 확인
             if entry.get("sector_still_active") is None:
-                summary = _load_daily_summary(today.isoformat())
+                summary = _load_daily_summary(d1_date_str.replace(".", "-"))
                 if summary is not None:
                     sector  = entry.get("sector", "")
                     leading = summary.get("leading_sector_names", [])
