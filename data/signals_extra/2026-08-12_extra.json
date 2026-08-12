@@ -1,0 +1,90 @@
+{
+  "date": "2026-08-12",
+  "generated": "2026-08-12",
+  "stocks": {
+    "103590": {
+      "name": "일진전기",
+      "signal_price": 72500,
+      "is_nxt": true,
+      "nxt_dominant": false,
+      "change_pct": 17.31,
+      "sector": "전선",
+      "total_score": 12,
+      "52w_high": 147900,
+      "52w_low": 33500,
+      "pct_from_52w_high": -50.98,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 68
+    },
+    "161890": {
+      "name": "한국콜마",
+      "signal_price": 132500,
+      "is_nxt": true,
+      "nxt_dominant": false,
+      "change_pct": 22.8,
+      "sector": "화장품",
+      "total_score": 9,
+      "52w_high": 139300,
+      "52w_low": 60600,
+      "pct_from_52w_high": -4.88,
+      "is_near_52w_high": true,
+      "days_since_52w_high": 0
+    },
+    "011070": {
+      "name": "LG이노텍",
+      "signal_price": 604000,
+      "is_nxt": true,
+      "nxt_dominant": false,
+      "change_pct": 10.02,
+      "sector": "반도체 기판(FC-BGA/PCB/MLB 등)",
+      "total_score": 7,
+      "52w_high": 1788000,
+      "52w_low": 150700,
+      "pct_from_52w_high": -66.22,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 50
+    },
+    "066570": {
+      "name": "LG전자",
+      "signal_price": 205000,
+      "is_nxt": true,
+      "nxt_dominant": true,
+      "change_pct": 12.82,
+      "sector": "IT 대표주",
+      "total_score": 9,
+      "52w_high": 438000,
+      "52w_low": 72000,
+      "pct_from_52w_high": -53.2,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 49
+    },
+    "006340": {
+      "name": "대원전선",
+      "signal_price": 16030,
+      "is_nxt": false,
+      "nxt_dominant": false,
+      "change_pct": 10.4,
+      "sector": "전선",
+      "total_score": 5,
+      "52w_high": 20300,
+      "52w_low": 2765,
+      "pct_from_52w_high": -21.03,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 67
+    },
+    "010170": {
+      "name": "대한광통신",
+      "signal_price": 13510,
+      "is_nxt": false,
+      "nxt_dominant": false,
+      "change_pct": 0.45,
+      "sector": "통신장비",
+      "total_score": 3,
+      "52w_high": 31500,
+      "52w_low": 923,
+      "pct_from_52w_high": -57.11,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 63
+    }
+  }
+}
