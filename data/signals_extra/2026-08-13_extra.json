@@ -1,0 +1,48 @@
+{
+  "date": "2026-08-13",
+  "generated": "2026-08-13",
+  "stocks": {
+    "009150": {
+      "name": "삼성전기",
+      "signal_price": 1503000,
+      "is_nxt": true,
+      "nxt_dominant": true,
+      "change_pct": 12.58,
+      "sector": "S7(삼성전자/SK하이닉스 등)",
+      "total_score": 10,
+      "52w_high": 2417000,
+      "52w_low": 142600,
+      "pct_from_52w_high": -37.82,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 38
+    },
+    "119850": {
+      "name": "지엔씨에너지",
+      "signal_price": 55400,
+      "is_nxt": true,
+      "nxt_dominant": false,
+      "change_pct": 14.94,
+      "sector": "전기장비",
+      "total_score": 9,
+      "52w_high": 58000,
+      "52w_low": 18350,
+      "pct_from_52w_high": -4.48,
+      "is_near_52w_high": true,
+      "days_since_52w_high": 4
+    },
+    "950160": {
+      "name": "코오롱티슈진",
+      "signal_price": 25600,
+      "is_nxt": false,
+      "nxt_dominant": false,
+      "change_pct": 19.91,
+      "sector": "생물공학",
+      "total_score": 6,
+      "52w_high": 149000,
+      "52w_low": 11470,
+      "pct_from_52w_high": -82.82,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 64
+    }
+  }
+}
