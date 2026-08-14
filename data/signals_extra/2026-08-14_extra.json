@@ -1,0 +1,62 @@
+{
+  "date": "2026-08-14",
+  "generated": "2026-08-14",
+  "stocks": {
+    "017670": {
+      "name": "SK텔레콤",
+      "signal_price": 100500,
+      "is_nxt": true,
+      "nxt_dominant": false,
+      "change_pct": 10.32,
+      "sector": "통신",
+      "total_score": 9,
+      "52w_high": 139500,
+      "52w_low": 51400,
+      "pct_from_52w_high": -27.96,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 51
+    },
+    "005180": {
+      "name": "빙그레",
+      "signal_price": 82400,
+      "is_nxt": true,
+      "nxt_dominant": false,
+      "change_pct": 19.94,
+      "sector": "식품",
+      "total_score": 10,
+      "52w_high": 87400,
+      "52w_low": 61500,
+      "pct_from_52w_high": -5.72,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 118
+    },
+    "090460": {
+      "name": "비에이치",
+      "signal_price": 18400,
+      "is_nxt": true,
+      "nxt_dominant": false,
+      "change_pct": -4.42,
+      "sector": "전자장비와기기",
+      "total_score": 4,
+      "52w_high": 43400,
+      "52w_low": 12440,
+      "pct_from_52w_high": -57.6,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 56
+    },
+    "010170": {
+      "name": "대한광통신",
+      "signal_price": 13370,
+      "is_nxt": false,
+      "nxt_dominant": false,
+      "change_pct": 0.98,
+      "sector": "통신장비",
+      "total_score": 2,
+      "52w_high": 31500,
+      "52w_low": 923,
+      "pct_from_52w_high": -57.56,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 65
+    }
+  }
+}
