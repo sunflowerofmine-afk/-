@@ -1,0 +1,20 @@
+{
+  "date": "2026-08-21",
+  "generated": "2026-08-21",
+  "stocks": {
+    "032830": {
+      "name": "삼성생명",
+      "signal_price": 328500,
+      "is_nxt": true,
+      "nxt_dominant": false,
+      "change_pct": 10.61,
+      "sector": "S7(삼성전자/SK하이닉스 등)",
+      "total_score": 13,
+      "52w_high": 516500,
+      "52w_low": 122200,
+      "pct_from_52w_high": -36.4,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 43
+    }
+  }
+}
