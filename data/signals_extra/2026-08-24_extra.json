@@ -1,0 +1,34 @@
+{
+  "date": "2026-08-24",
+  "generated": "2026-08-24",
+  "stocks": {
+    "008930": {
+      "name": "한미사이언스",
+      "signal_price": 56500,
+      "is_nxt": true,
+      "nxt_dominant": false,
+      "change_pct": 25.7,
+      "sector": "mRNA(메신저 리보핵산)",
+      "total_score": 13,
+      "52w_high": 57500,
+      "52w_low": 25600,
+      "pct_from_52w_high": -1.74,
+      "is_near_52w_high": true,
+      "days_since_52w_high": 0
+    },
+    "066970": {
+      "name": "엘앤에프",
+      "signal_price": 121600,
+      "is_nxt": true,
+      "nxt_dominant": false,
+      "change_pct": 16.36,
+      "sector": "전기제품",
+      "total_score": 9,
+      "52w_high": 225000,
+      "52w_low": 59200,
+      "pct_from_52w_high": -45.96,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 75
+    }
+  }
+}
