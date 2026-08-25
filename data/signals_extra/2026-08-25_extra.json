@@ -1,0 +1,76 @@
+{
+  "date": "2026-08-25",
+  "generated": "2026-08-25",
+  "stocks": {
+    "052690": {
+      "name": "한전기술",
+      "signal_price": 108600,
+      "is_nxt": true,
+      "nxt_dominant": false,
+      "change_pct": 20.27,
+      "sector": "원자력발전소 해체",
+      "total_score": 13,
+      "52w_high": 198000,
+      "52w_low": 77100,
+      "pct_from_52w_high": -45.15,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 87
+    },
+    "034020": {
+      "name": "두산에너빌리티",
+      "signal_price": 80700,
+      "is_nxt": true,
+      "nxt_dominant": true,
+      "change_pct": 10.55,
+      "sector": "원자력발전소 해체",
+      "total_score": 10,
+      "52w_high": 139200,
+      "52w_low": 51100,
+      "pct_from_52w_high": -42.03,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 74
+    },
+    "000720": {
+      "name": "현대건설",
+      "signal_price": 121300,
+      "is_nxt": true,
+      "nxt_dominant": false,
+      "change_pct": 14.87,
+      "sector": "원자력발전소 해체",
+      "total_score": 10,
+      "52w_high": 198400,
+      "52w_low": 54100,
+      "pct_from_52w_high": -38.86,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 93
+    },
+    "222800": {
+      "name": "심텍",
+      "signal_price": 116900,
+      "is_nxt": true,
+      "nxt_dominant": false,
+      "change_pct": 11.12,
+      "sector": "소캠(SOCAMM)",
+      "total_score": 8,
+      "52w_high": 164200,
+      "52w_low": 22750,
+      "pct_from_52w_high": -28.81,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 37
+    },
+    "403870": {
+      "name": "HPSP",
+      "signal_price": 48500,
+      "is_nxt": false,
+      "nxt_dominant": false,
+      "change_pct": 10.35,
+      "sector": "반도체와반도체장비",
+      "total_score": 6,
+      "52w_high": 92000,
+      "52w_low": 24700,
+      "pct_from_52w_high": -47.28,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 49
+    }
+  }
+}
