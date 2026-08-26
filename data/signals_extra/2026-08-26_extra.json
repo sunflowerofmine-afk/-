@@ -1,0 +1,20 @@
+{
+  "date": "2026-08-26",
+  "generated": "2026-08-26",
+  "stocks": {
+    "066970": {
+      "name": "엘앤에프",
+      "signal_price": 122200,
+      "is_nxt": true,
+      "nxt_dominant": false,
+      "change_pct": 1.5,
+      "sector": "전기제품",
+      "total_score": 3,
+      "52w_high": 225000,
+      "52w_low": 59200,
+      "pct_from_52w_high": -45.69,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 77
+    }
+  }
+}
