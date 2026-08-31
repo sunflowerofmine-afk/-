@@ -1323,6 +1323,7 @@ def run(preview: bool = False):
             "has_pattern":                   _obs_has_pat,
             "supply_ok":                     _obs_checklist.supply_ok,
             "near_high_52w":                 _obs_proc.near_high_52w,
+            "high_52w":                      _obs_proc.high_52w,
             "sector":                        _obs_sector,
             "is_leading_sector":             _obs_is_leading,
             "theme_role":                    _obs_theme_role,
