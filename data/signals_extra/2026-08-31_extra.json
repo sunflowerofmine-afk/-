@@ -1,0 +1,62 @@
+{
+  "date": "2026-08-31",
+  "generated": "2026-09-01",
+  "stocks": {
+    "476060": {
+      "name": "온코닉테라퓨틱스",
+      "signal_price": 18030,
+      "is_nxt": true,
+      "nxt_dominant": false,
+      "change_pct": 22.07,
+      "sector": "제약",
+      "total_score": 9,
+      "52w_high": 70800,
+      "52w_low": 8790,
+      "pct_from_52w_high": -74.53,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 219
+    },
+    "062040": {
+      "name": "산일전기",
+      "signal_price": 196100,
+      "is_nxt": true,
+      "nxt_dominant": false,
+      "change_pct": -3.16,
+      "sector": "전기장비",
+      "total_score": 5,
+      "52w_high": 341000,
+      "52w_low": 101700,
+      "pct_from_52w_high": -42.49,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 80
+    },
+    "000720": {
+      "name": "현대건설",
+      "signal_price": 123300,
+      "is_nxt": true,
+      "nxt_dominant": false,
+      "change_pct": -4.34,
+      "sector": "건설",
+      "total_score": 5,
+      "52w_high": 198400,
+      "52w_low": 54100,
+      "pct_from_52w_high": -37.85,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 97
+    },
+    "052690": {
+      "name": "한전기술",
+      "signal_price": 116400,
+      "is_nxt": true,
+      "nxt_dominant": false,
+      "change_pct": -4.9,
+      "sector": "전기유틸리티",
+      "total_score": 3,
+      "52w_high": 198000,
+      "52w_low": 77100,
+      "pct_from_52w_high": -41.21,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 91
+    }
+  }
+}
