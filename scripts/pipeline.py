@@ -1621,13 +1621,19 @@ def run(preview: bool = False):
         {"강세": "강세", "약세": "약세", "중립": "혼조"}.get(market_regime)
     try:
         from scripts._dashboard_sections import compute_daily_gate as _gate_fn
+        from scripts._dashboard_sections import compute_largecap_gate as _lc_gate_fn
         _gate_grade, _, _gate_why = _gate_fn(
             len(core_candidates), _kd_sum, _market_adl,
             _top5_concentration_pct, futures_data.get("risk_appetite"), _buy_review_count,
         )
+        # 대형주 트랙은 독립 판정 — 개별주 게이트와 함께 저장해야 사후 대조가 된다.
+        _lc_grade, _, _lc_why = _lc_gate_fn(
+            len(largecap_candidates or []), len(twotop_oversold or []),
+        )
     except Exception as e:
         logger.warning(f"게이트 판정 집계 실패 (daily_summary에 미기록): {e}")
         _gate_grade, _gate_why = None, None
+        _lc_grade, _lc_why = None, None
     _summary_data = {
         "date":                 report_date,
         "run_time":             run_time,
@@ -1650,6 +1656,8 @@ def run(preview: bool = False):
         "kosdaq_regime":           _kd_sum,
         "core_count":              len(core_candidates),
         "buy_review_count":        _buy_review_count,
+        "largecap_gate_grade":     _lc_grade,
+        "largecap_gate_why":       _lc_why,
         "gate_grade":              _gate_grade,
         "gate_why":                _gate_why,
         # 대형주 트랙 — 개별주 후보와 별개 경로라 signals.csv에 안 남는다.
@@ -1723,6 +1731,8 @@ def run(preview: bool = False):
         "index_regime":          index_regime,
         "top5_concentration_pct": _top5_concentration_pct,
         "risk_appetite":         futures_data.get("risk_appetite"),
+        "largecap_count":        len(largecap_candidates or []),
+        "twotop_count":          len(twotop_oversold or []),
     }
     if run_type == "1차":
         msg = ntf.build_first_alert(

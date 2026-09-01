@@ -289,6 +289,13 @@ def format_market_summary(market_totals: dict, run_time: str, run_type: str,
     _gate_emoji = {"매매 금지": "🔴", "관찰만": "🟠",
                    "소액만": "🟡", "종가베팅 허용": "🟢"}.get(_grade, "⚪")
 
+    # 대형주 트랙은 개별주와 독립 — 개별주 금지가 대형주 금지를 뜻하지 않는다.
+    from scripts._dashboard_sections import compute_largecap_gate
+    _lc_grade, _, _lc_why = compute_largecap_gate(
+        ex.get("largecap_count", 0), ex.get("twotop_count", 0),
+    )
+    _lc_emoji = "🔵" if _lc_grade != "자리 없음" else "⚫"
+
     # ── 지수방향 (1차만) ──────────────────────────────────────
     _direction_map = {"상승": "📈 상승", "하락": "📉 하락", "횡보": "➡ 횡보"}
     _timing_map = {
@@ -346,8 +353,10 @@ def format_market_summary(market_totals: dict, run_time: str, run_type: str,
         f"<b>{_bar}</b>\n"
         f"<b>📊 종가베팅 · {date_disp} · {base_time}</b>\n"
         f"<b>{_bar}</b>\n"
-        f"{_gate_emoji} <b>오늘 판정: {_grade}</b>\n"
-        f"    {_why}\n\n"
+        f"{_gate_emoji} <b>개별주 종베: {_grade}</b>\n"
+        f"    {_why}\n"
+        f"{_lc_emoji} <b>대형주 트랙: {_lc_grade}</b>\n"
+        f"    {_lc_why}\n\n"
         f"지수  코스피 {_idx(kospi_level, kospi_chg)} · 코스닥 {_idx(kosdaq_level, kosdaq_chg)}\n"
         f"자금  코스피 {_tv_jo(kospi_tv)} · 코스닥 {_tv_jo(kosdaq_tv)}\n"
         f"폭    {breadth_str}{subtype_str} · 굵은종목(1500억↑) {tv1500}\n"

@@ -501,6 +501,26 @@ def compute_daily_gate(core_n: int, kd, adl, top5_ratio, risk, buy_n=None):
     return grade, col, why
 
 
+def compute_largecap_gate(largecap_n: int, twotop_n: int):
+    """대형주 트랙 판정 — 개별주 게이트와 독립 산출 (grade, color, why).
+
+    compute_daily_gate는 '개별주 종베'만 판정한다. 그런데 화면에는 '매매 금지'로
+    떠서 대형주 자리까지 없는 것처럼 읽혔다. 실측(7/10~8/11 리포트 vs 돌팬티 일지):
+    돌팬티가 가장 크게 번 7/29·7/30·8/4에 봇 게이트는 전부 금지/관찰만이었고,
+    그날 그는 매매를 쉰 게 아니라 개별주에서 대형주 과대낙폭으로 판을 옮겼다.
+
+    두 트랙 모두 매수 신호가 아니라 관찰 정보다(운용 철학). 승격은 하지 않는다.
+    과매도를 먼저 보는 이유는 급락일에만 뜨는 희소 신호이고 검증 표본이 있어서다
+    (2일누적 -12% → D+1 반등 86%, n=14).
+    """
+    if twotop_n > 0:
+        return ("과매도 반등 관찰", "#0891b2",
+                f"투탑 과매도 {twotop_n}건 — 급락 반등 자리(손절 필수)")
+    if largecap_n > 0:
+        return ("추세 관찰", "#0891b2", f"대형주 추세 후보 {largecap_n}건")
+    return ("자리 없음", "#64748b", "대형주 트랙 후보 없음")
+
+
 def _daily_gate(data: dict) -> str:
     """오늘 종가베팅을 해도 되는 날인가 — 최상위 국면 게이트.
 
@@ -523,13 +543,22 @@ def _daily_gate(data: dict) -> str:
 
     grade, col, why = compute_daily_gate(core_n, kd, adl, ratio, risk, buy_n)
 
+    # 대형주 트랙은 개별주와 독립 판정 — 개별주가 금지여도 대형주 자리는 살아 있을 수 있다.
+    lc_n = len(data.get("largecap_candidates") or [])
+    tt_n = len(data.get("twotop_oversold") or [])
+    lc_grade, lc_col, lc_why = compute_largecap_gate(lc_n, tt_n)
+
     return (
         f'<div style="margin-top:10px;padding:10px 14px;border-radius:8px;'
         f'background:{col};color:#fff">'
-        f'<span style="font-size:18px;font-weight:800">오늘 판정: {grade}</span>'
+        f'<span style="font-size:18px;font-weight:800">개별주 종베: {grade}</span>'
         f'<span style="font-size:13px;margin-left:12px;opacity:0.95">{why}</span>'
-        f'<div style="font-size:11px;margin-top:3px;opacity:0.85">'
-        f'※ 국면 우선 판정 — 개별 종목이 좋아도 이 등급을 넘어 매수하지 않음 (잠정 기준)</div>'
+        f'<div style="margin-top:7px;padding-top:7px;border-top:1px solid rgba(255,255,255,0.3)">'
+        f'<span style="font-size:15px;font-weight:700">대형주 트랙: {lc_grade}</span>'
+        f'<span style="font-size:12px;margin-left:10px;opacity:0.95">{lc_why}</span></div>'
+        f'<div style="font-size:11px;margin-top:5px;opacity:0.85">'
+        f'※ 두 트랙은 별개다. 개별주 금지가 대형주 금지를 뜻하지 않는다. '
+        f'둘 다 관찰 정보이며 매수 신호가 아니다 (잠정 기준)</div>'
         f'</div>'
     )
 
