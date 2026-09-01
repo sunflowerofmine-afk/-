@@ -1,0 +1,62 @@
+{
+  "date": "2026-09-01",
+  "generated": "2026-09-02",
+  "stocks": {
+    "090460": {
+      "name": "비에이치",
+      "signal_price": 22000,
+      "is_nxt": true,
+      "nxt_dominant": false,
+      "change_pct": 20.68,
+      "sector": "전자장비와기기",
+      "total_score": 12,
+      "52w_high": 43400,
+      "52w_low": 12440,
+      "pct_from_52w_high": -49.31,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 67
+    },
+    "062040": {
+      "name": "산일전기",
+      "signal_price": 195600,
+      "is_nxt": true,
+      "nxt_dominant": false,
+      "change_pct": -0.25,
+      "sector": "전기장비",
+      "total_score": 5,
+      "52w_high": 341000,
+      "52w_low": 101700,
+      "pct_from_52w_high": -42.64,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 81
+    },
+    "000500": {
+      "name": "가온전선",
+      "signal_price": 208500,
+      "is_nxt": true,
+      "nxt_dominant": false,
+      "change_pct": -0.71,
+      "sector": "전기장비",
+      "total_score": 4,
+      "52w_high": 635000,
+      "52w_low": 0,
+      "pct_from_52w_high": -67.17,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 75
+    },
+    "000720": {
+      "name": "현대건설",
+      "signal_price": 120700,
+      "is_nxt": true,
+      "nxt_dominant": false,
+      "change_pct": -2.11,
+      "sector": "남북경협",
+      "total_score": 1,
+      "52w_high": 198400,
+      "52w_low": 54100,
+      "pct_from_52w_high": -39.16,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 98
+    }
+  }
+}
