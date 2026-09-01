@@ -185,6 +185,15 @@ def _compute_status(c: dict, market_regime: str = "중립") -> str:
     # nxt_fetch_ran일 때만 적용 — 1차(14:50)는 NXT 미수집이라 전 종목 오강등 방지. 강등만.
     if status == "BUY_REVIEW" and c.get("nxt_fetch_ran") and not c.get("is_nxt"):
         status = "WATCH_ONLY"
+    # 같은 종목이 관대한 경로(교집합 불요)로 반복 발화하면 강등.
+    # 근거: 고가수축형 5건 중 4건이 삼성바이오로직스 7/27~7/31 연속이었다(실질 2사례).
+    # 당일돌파형은 교집합을 요구하므로 제외한다. 성과 판단이 아니라 후보·표본 왜곡 방지다.
+    # 판단 보류 중인 성과(승률 0%, n=5)와 무관하게 적용하는 이유가 여기 있다. 강등만.
+    if status == "BUY_REVIEW" and pat_label in ("고가수축형", "고가횡보형"):
+        from config.settings import REPEAT_SUPPRESS_MIN_COUNT
+        _rep = c.get("freshness_count")
+        if _rep is not None and _rep >= REPEAT_SUPPRESS_MIN_COUNT:
+            status = "WATCH_ONLY"
     return status
 
 
@@ -959,6 +968,12 @@ def _section_stock_panel(candidates: list, rejected: list, market_regime: str = 
         # 이진 태그가 아니라 실제 괴리율을 적는다. 임계값은 대형주 트랙과 같은 5%.
         from config.settings import LARGECAP_NEAR_HIGH_PCT
         t3 = []
+        # 패턴 미검출인데 교집합에 든 후보 — 코드는 이 조합을 매수검토로 못 올린다
+        # (_compute_status에 '없음' 분기가 없어 관찰이 상한). 그런데 실측은 미검출 9건이
+        # 승률 77.8%/기대값 +2.42%로 전 패턴 1위였다(2026-08-31 점검, n=9).
+        # 지금까지 등급 변경은 전부 강등 방향뿐이라 승격은 보류하고, 어긋남만 눈에 보이게 한다.
+        if pat.get("pattern_type_label", "없음") == "없음" and in_inter:
+            t3.append("패턴無·교집합")
         _g52 = _gap_from_52w(c)
         if _g52 is not None and _g52 < -LARGECAP_NEAR_HIGH_PCT:
             t3.append(f"52주고가 {_g52:.0f}%")
