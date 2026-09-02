@@ -1,0 +1,3 @@
+﻿종목명,종목코드,시장,등락률,거래대금,signal_price,sector,source_pool,observation_only,pattern_type_label,is_htc_candidate,is_high_range_candidate,kim_hyungjun_flag,base_candle_date,base_candle_offset,today_tv_ratio,close_from_base_high_pct,above_ma5,supply_label,note
+금호전기,001210,KOSPI,1.76,103663245700.0,13300.0,디스플레이장비및부품,recent_base_pool,True,없음,False,False,False,2026-08-31,3,0.37708175967011437,24.531835205992508,,,최근 기준봉 이후 관찰 후보 (매수 신호 아님)
+가온전선,000500,KOSPI,-3.6,68822460000.0,199200.0,전기장비,recent_base_pool,True,없음,False,False,False,2026-08-27,4,0.4103860965444758,-8.202764976958525,,,최근 기준봉 이후 관찰 후보 (매수 신호 아님)
