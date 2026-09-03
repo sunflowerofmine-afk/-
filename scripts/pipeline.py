@@ -1629,6 +1629,7 @@ def run(preview: bool = False):
         # 대형주 트랙은 독립 판정 — 개별주 게이트와 함께 저장해야 사후 대조가 된다.
         _lc_grade, _, _lc_why = _lc_gate_fn(
             len(largecap_candidates or []), len(twotop_oversold or []),
+            run_type in ("2차", "수동"),
         )
     except Exception as e:
         logger.warning(f"게이트 판정 집계 실패 (daily_summary에 미기록): {e}")

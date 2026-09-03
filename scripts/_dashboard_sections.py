@@ -510,7 +510,7 @@ def compute_daily_gate(core_n: int, kd, adl, top5_ratio, risk, buy_n=None):
     return grade, col, why
 
 
-def compute_largecap_gate(largecap_n: int, twotop_n: int):
+def compute_largecap_gate(largecap_n: int, twotop_n: int, largecap_ran: bool = True):
     """대형주 트랙 판정 — 개별주 게이트와 독립 산출 (grade, color, why).
 
     compute_daily_gate는 '개별주 종베'만 판정한다. 그런데 화면에는 '매매 금지'로
@@ -525,8 +525,13 @@ def compute_largecap_gate(largecap_n: int, twotop_n: int):
     if twotop_n > 0:
         return ("과매도 반등 관찰", "#0891b2",
                 f"투탑 과매도 {twotop_n}건 — 급락 반등 자리(손절 필수)")
-    if largecap_n > 0:
+    if largecap_ran and largecap_n > 0:
         return ("추세 관찰", "#0891b2", f"대형주 추세 후보 {largecap_n}건")
+    if not largecap_ran:
+        # 추세 트랙(observe)은 2차·수동에서만 돈다. 1차에 "자리 없음"이라 쓰면
+        # 안 본 것을 없다고 말하는 셈이라 오독을 부른다(NXT의 nxt_fetch_ran 가드와 같은 이유).
+        return ("과매도 없음 · 추세는 2차 집계", "#64748b",
+                "투탑 과매도 0건 · 대형주 추세 트랙은 17:50에 집계")
     return ("자리 없음", "#64748b", "대형주 트랙 후보 없음")
 
 
@@ -555,7 +560,8 @@ def _daily_gate(data: dict) -> str:
     # 대형주 트랙은 개별주와 독립 판정 — 개별주가 금지여도 대형주 자리는 살아 있을 수 있다.
     lc_n = len(data.get("largecap_candidates") or [])
     tt_n = len(data.get("twotop_oversold") or [])
-    lc_grade, lc_col, lc_why = compute_largecap_gate(lc_n, tt_n)
+    lc_ran = (data.get("market_summary", {}) or {}).get("run_type") in ("2차", "수동")
+    lc_grade, lc_col, lc_why = compute_largecap_gate(lc_n, tt_n, lc_ran)
 
     return (
         f'<div style="margin-top:10px;padding:10px 14px;border-radius:8px;'

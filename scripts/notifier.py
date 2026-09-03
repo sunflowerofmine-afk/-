@@ -293,8 +293,10 @@ def format_market_summary(market_totals: dict, run_time: str, run_type: str,
     from scripts._dashboard_sections import compute_largecap_gate
     _lc_grade, _, _lc_why = compute_largecap_gate(
         ex.get("largecap_count", 0), ex.get("twotop_count", 0),
+        run_type in ("2차", "수동"),
     )
-    _lc_emoji = "🔵" if _lc_grade != "자리 없음" else "⚫"
+    # 실제로 볼 것이 있을 때만 파란불. 미집계·자리없음은 무채색.
+    _lc_emoji = "🔵" if _lc_grade in ("과매도 반등 관찰", "추세 관찰") else "⚫"
 
     # ── 지수방향 (1차만) ──────────────────────────────────────
     _direction_map = {"상승": "📈 상승", "하락": "📉 하락", "횡보": "➡ 횡보"}
