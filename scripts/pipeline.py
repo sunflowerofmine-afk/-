@@ -1324,6 +1324,7 @@ def run(preview: bool = False):
             "supply_ok":                     _obs_checklist.supply_ok,
             "near_high_52w":                 _obs_proc.near_high_52w,
             "high_52w":                      _obs_proc.high_52w,
+            "freshness_count":               freshness_map.get(_obs_code, 0),
             "sector":                        _obs_sector,
             "is_leading_sector":             _obs_is_leading,
             "theme_role":                    _obs_theme_role,
