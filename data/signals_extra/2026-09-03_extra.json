@@ -1,0 +1,20 @@
+{
+  "date": "2026-09-03",
+  "generated": "2026-09-04",
+  "stocks": {
+    "000500": {
+      "name": "가온전선",
+      "signal_price": 208500,
+      "is_nxt": true,
+      "nxt_dominant": false,
+      "change_pct": 3.73,
+      "sector": "전기장비",
+      "total_score": 4,
+      "52w_high": 635000,
+      "52w_low": 0,
+      "pct_from_52w_high": -67.17,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 77
+    }
+  }
+}
