@@ -1,6 +1,6 @@
 """
 scripts/pattern_diagnostics.py
-기준봉 발생 후 KH / 고가횡보형 / 고가수축형 탈락 사유 진단.
+기준봉 발생 후 고가횡보형 / 고가수축형 탈락 사유 진단.
 
 사용법:
     python -m scripts.pattern_diagnostics
@@ -28,12 +28,6 @@ from config.settings import (
     HTC_LOWEST_CLOSE_FROM_BASE_CLOSE_MIN_PCT,
     HTC_RANGE_MAX_PCT, HTC_CLOSE_RANGE_MAX_PCT,
     HTC_STRUCTURE_BREAK_FROM_BASE_HIGH_PCT,
-    KH_BASE_TV_EXPLOSION_MULT, KH_BASE_TV_MIN_EOK,
-    KH_TODAY_TV_RATIO_MAX, KH_CLOSE_FROM_BASE_HIGH_MIN_PCT,
-    KH_BASE_LOOKBACK_DAYS,
-    KH_VOLUME_UP_BEARISH_RATIO, KH_SQUEEZE_CANDLE_BODY_MAX_RATIO,
-    BASE_TV_EXPLOSION_MULT,
-    SIGNALS_DIR,
 )
 from scripts.fetch_stock_data import fetch_chart_data
 
@@ -143,71 +137,6 @@ def _find_base_candle(df: pd.DataFrame, start: int, lookback: int):
             continue
         return i
     return None
-
-
-def _trace_kh(df: pd.DataFrame, today_idx: int) -> str:
-    """KH 탈락 사유 1순위 반환. 통과하면 '통과'."""
-    today = df.iloc[today_idx]
-    today_close = float(today.get("close", 0) or 0)
-    today_open  = float(today.get("open",  0) or 0)
-    today_tv    = float(today.get("trading_value", 0) or 0)
-
-    # 기준봉 탐색
-    sub = df.iloc[today_idx:]
-    base_local = _find_base_candle(sub, start=1, lookback=KH_BASE_LOOKBACK_DAYS)
-    if base_local is None:
-        return "기준봉 없음 (최근 10일 내 장대양봉+3배 미충족)"
-    base_row  = sub.iloc[base_local]
-    base_high = float(base_row.get("high",          0) or 0)
-    base_tv   = float(base_row.get("trading_value", 0) or 0)
-
-    if base_tv < KH_BASE_TV_MIN_EOK * 100_000_000:
-        return f"기준봉 TV 최소 미달 (기준봉 {base_tv/1e8:.0f}억 < {KH_BASE_TV_MIN_EOK}억)"
-
-    past_tv  = sub.iloc[base_local+1:base_local+21]["trading_value"].replace(0, float("nan"))
-    avg_20d  = float(past_tv.mean()) if past_tv.notna().any() else float("nan")
-    import math
-    if not math.isnan(avg_20d) and avg_20d > 0 and base_tv < avg_20d * KH_BASE_TV_EXPLOSION_MULT:
-        return f"기준봉 TV 폭발 미달 ({base_tv/1e8:.0f}억 < 20일평균{avg_20d/1e8:.0f}억×{KH_BASE_TV_EXPLOSION_MULT}배)"
-
-    tv_ratio = today_tv / base_tv if base_tv > 0 else 0
-    if today_tv <= 0 or tv_ratio > KH_TODAY_TV_RATIO_MAX:
-        return f"TV 수축 부족 ({tv_ratio*100:.1f}% > {KH_TODAY_TV_RATIO_MAX*100:.0f}%)"
-
-    close_vs = (today_close - base_high) / base_high * 100 if base_high > 0 else -999
-    if close_vs < KH_CLOSE_FROM_BASE_HIGH_MIN_PCT:
-        return f"기준봉 고가 이탈 ({close_vs:.1f}% < {KH_CLOSE_FROM_BASE_HIGH_MIN_PCT}%)"
-
-    # 5일선
-    try:
-        recent_5 = df["close"].iloc[today_idx:today_idx+5].replace(0, float("nan"))
-        ma5 = float(recent_5.mean()) if recent_5.notna().sum() >= 5 else None
-    except Exception:
-        ma5 = None
-    if ma5 is not None and today_close < ma5:
-        return f"5일선 하회 (종가 {today_close:,.0f} < MA5 {ma5:,.0f})"
-
-    # 거래량 증가 음봉
-    if today_close < today_open and today_tv >= base_tv * KH_VOLUME_UP_BEARISH_RATIO:
-        return f"거래량 증가 음봉 ({tv_ratio*100:.1f}% ≥ {KH_VOLUME_UP_BEARISH_RATIO*100:.0f}%)"
-
-    # 짧은 캔들 체크
-    t_high = float(today.get("high", 0) or 0)
-    t_low  = float(today.get("low",  0) or 0)
-    rng = t_high - t_low
-    if rng > 0:
-        body = abs(today_close - today_open) / rng
-        if body > KH_SQUEEZE_CANDLE_BODY_MAX_RATIO:
-            return f"캔들 몸통 너무 큼 ({body*100:.1f}% > {KH_SQUEEZE_CANDLE_BODY_MAX_RATIO*100:.0f}%)"
-
-    # 60일 신고가 근접
-    past_highs = df["high"].iloc[today_idx+1:today_idx+61].replace(0, float("nan")).dropna()
-    high_60d = float(past_highs.max()) if not past_highs.empty else 0
-    near = high_60d > 0 and today_close >= high_60d * 0.97
-    if not near:
-        return f"60일 신고가 근처 아님 (종가 {today_close:,.0f}, 60일고가 {high_60d:,.0f})"
-
-    return "통과"
 
 
 def _trace_p3(df: pd.DataFrame, today_idx: int) -> str:
@@ -347,11 +276,9 @@ def run():
     print(f"총 기준봉 발생: {len(unique_stocks)}건 ({len(set(c for c,_ in unique_stocks))}개 종목)")
 
     # 2. 각 종목별 탈락 사유 수집
-    kh_reasons:  Counter = Counter()
     p3_reasons:  Counter = Counter()
     htc_reasons: Counter = Counter()
 
-    kh_pass  = []
     p3_pass  = []
     htc_pass = []
 
@@ -391,12 +318,8 @@ def run():
             pool_eligible += 1
             total_checks  += 1
 
-            kh_r  = _trace_kh(df,  today_idx)
             p3_r  = _trace_p3(df,  today_idx)
             htc_r = _trace_htc(df, today_idx)
-
-            if kh_r  != "통과": kh_reasons[kh_r]   += 1
-            else:               kh_pass.append((code, signal_date, d_offset))
 
             if p3_r  != "통과": p3_reasons[p3_r]   += 1
             else:               p3_pass.append((code, signal_date, d_offset))
@@ -406,19 +329,7 @@ def run():
 
     print(f"데이터 조회 성공: {len(unique_stocks) - no_data_count}개 종목")
     print(f"총 일별 체크 횟수: {total_checks}건")
-    print(f"KH 통과: {len(kh_pass)}건 / P3 통과: {len(p3_pass)}건 / HTC 통과: {len(htc_pass)}건")
-
-    # ── 3. KH 탈락 사유 ──────────────────────────────────────────────
-    print(f"\n{'─'*55}")
-    print(f" [KH 김형준기법] 탈락 사유 Top5  (총 {sum(kh_reasons.values())}건 탈락)")
-    print(f"{'─'*55}")
-    for i, (reason, cnt) in enumerate(kh_reasons.most_common(5), 1):
-        pct = cnt / total_checks * 100
-        print(f"  {i}위 ({cnt}건, {pct:.1f}%): {reason}")
-    if kh_pass:
-        print(f"\n  ★ KH 통과 {len(kh_pass)}건:")
-        for code, sdate, offset in kh_pass[:5]:
-            print(f"     {code} / 기준봉:{sdate} / D+{offset}")
+    print(f"P3 통과: {len(p3_pass)}건 / HTC 통과: {len(htc_pass)}건")
 
     # ── 4. 고가횡보형 탈락 사유 ──────────────────────────────────────
     print(f"\n{'─'*55}")
@@ -448,15 +359,12 @@ def run():
     print(f"\n{'─'*55}")
     print(f" [진단 요약]")
     print(f"{'─'*55}")
-    total_kh_fail  = sum(kh_reasons.values())
     total_p3_fail  = sum(p3_reasons.values())
     total_htc_fail = sum(htc_reasons.values())
 
-    no_base_kh  = kh_reasons.get("기준봉 없음 (최근 10일 내 장대양봉+3배 미충족)", 0)
     no_base_p3  = p3_reasons.get("기준봉 없음 (최근 5일 내 장대양봉+3배 미충족)", 0)
     no_base_htc = htc_reasons.get("기준봉 없음 (최근 5일 내 장대양봉+3배 미충족)", 0)
 
-    print(f"  KH:  기준봉 없어서 탈락 {no_base_kh/total_checks*100:.1f}% / 조건 탈락 {(total_kh_fail-no_base_kh)/total_checks*100:.1f}%")
     print(f"  P3:  기준봉 없어서 탈락 {no_base_p3/total_checks*100:.1f}% / 조건 탈락 {(total_p3_fail-no_base_p3)/total_checks*100:.1f}%")
     print(f"  HTC: 기준봉 없어서 탈락 {no_base_htc/total_checks*100:.1f}% / 조건 탈락 {(total_htc_fail-no_base_htc)/total_checks*100:.1f}%")
 

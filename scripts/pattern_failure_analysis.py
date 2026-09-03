@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-기준봉 발생 후 고가횡보/수축/KH 탈락 사유 분석.
+기준봉 발생 후 고가횡보/수축 탈락 사유 분석.
 최근 N일 1750 시그널에서 당일돌파형 → D+1~D+5 조건별 pass/fail 출력.
 
 사용법:
@@ -32,11 +32,6 @@ from config.settings import (
     HTC_STRUCTURE_BREAK_FROM_BASE_HIGH_PCT,
     HTC_BREAKDOWN_CANDLE_CHANGE_MIN_PCT,
     HTC_BREAKDOWN_CANDLE_TV_RATIO_MIN,
-    KH_BASE_TV_MIN_EOK,
-    KH_BASE_TV_EXPLOSION_MULT,
-    KH_TODAY_TV_RATIO_MAX,
-    KH_CLOSE_FROM_BASE_HIGH_MIN_PCT,
-    KH_VOLUME_UP_BEARISH_RATIO,
     SIGNALS_DIR,
     REPORTS_DIR,
 )
@@ -274,66 +269,6 @@ def eval_htc(today_close: float, today_high: float, today_open: float, today_tv:
     return res
 
 
-def eval_kh(today_close: float, today_open: float, today_tv: float,
-            base_high: float, base_tv: float, avg_20d_tv: float | None,
-            above_ma5: bool | None, near_high_60d: bool) -> dict[str, dict]:
-    """김형준 패턴 조건 평가."""
-    res = {}
-
-    # 1. 기준봉 TV 폭발
-    if avg_20d_tv and avg_20d_tv > 0:
-        explosion = base_tv / avg_20d_tv
-        res["기준봉TV폭발"] = _r(
-            explosion >= KH_BASE_TV_EXPLOSION_MULT,
-            f"{explosion:.1f}배", f"기준: ≥{KH_BASE_TV_EXPLOSION_MULT}배"
-        )
-    else:
-        res["기준봉TV폭발"] = _r(True, "N/A", "20일평균 없음")
-
-    # 2. 기준봉 TV 절대값
-    res["기준봉TV최소"] = _r(
-        base_tv >= KH_BASE_TV_MIN_EOK * 1e8,
-        f"{base_tv / 1e8:.0f}억", f"기준: ≥{KH_BASE_TV_MIN_EOK}억"
-    )
-
-    # 3. 오늘 TV 수축
-    tv_r = today_tv / base_tv if base_tv > 0 else 0
-    res["TV수축"] = _r(
-        tv_r <= KH_TODAY_TV_RATIO_MAX,
-        f"{tv_r:.2f}", f"기준: ≤{KH_TODAY_TV_RATIO_MAX}"
-    )
-
-    # 4. 가격 유지 (기준봉 고가 대비)
-    gap = (today_close - base_high) / base_high * 100
-    res["가격유지"] = _r(
-        gap >= KH_CLOSE_FROM_BASE_HIGH_MIN_PCT,
-        f"{gap:+.1f}%", f"기준: ≥{KH_CLOSE_FROM_BASE_HIGH_MIN_PCT}%"
-    )
-
-    # 5. 5일선 위
-    if above_ma5 is None:
-        res["5일선위"] = _r(True, "N/A", "계산불가")
-    else:
-        res["5일선위"] = _r(above_ma5, "✓" if above_ma5 else "✗")
-
-    # 6. 신고가권 (60일)
-    res["신고가권"] = _r(near_high_60d, "✓" if near_high_60d else "✗", "60일 고가 97% 이내")
-
-    # 7. 거래량 증가 음봉 제외
-    vol_bearish = today_close < today_open and tv_r >= KH_VOLUME_UP_BEARISH_RATIO
-    res["거래량증가음봉없음"] = _r(
-        not vol_bearish,
-        "발생" if vol_bearish else "정상",
-        f"음봉 + TV≥기준봉×{KH_VOLUME_UP_BEARISH_RATIO}"
-    )
-
-    ok = all(v["ok"] for k, v in res.items() if k != "최종")
-    res["최종"] = _r(ok, "✅ 해당" if ok else "❌ 탈락")
-    return res
-
-
-# ── 단일 이벤트 분석 ─────────────────────────────────────────────────
-
 def analyze_event(event: dict, signals: dict[date_t, pd.DataFrame]) -> dict:
     code       = event["code"]
     market     = event["market"]
@@ -448,9 +383,6 @@ def analyze_event(event: dict, signals: dict[date_t, pd.DataFrame]) -> dict:
                            [d["close"] for d in inter]),
             "htc": eval_htc(today_close, today_high, today_open, today_tv,
                             base_high, base_close, base_open, base_tv, inter),
-            "kh":  eval_kh(today_close, today_open, today_tv,
-                           base_high, base_tv, avg_20d_tv,
-                           above_ma5, near_high_60d),
         }
 
     return {**event, "base_high": base_high, "base_close": base_close,
@@ -487,8 +419,6 @@ _HTC_KEYS = ["가격(고가기준)", "가격(종가기준)", "중간일최저종
              "TV평균수축", "TV오늘수축", "TV최소(300억)",
              "고저변동폭", "종가변동폭",
              "구조붕괴없음", "몸통중간값유지", "장대음봉없음", "최종"]
-_KH_KEYS  = ["기준봉TV폭발", "기준봉TV최소", "TV수축", "가격유지",
-             "5일선위", "신고가권", "거래량증가음봉없음", "최종"]
 
 
 def _cell(item: dict | None, key: str) -> str:
@@ -569,11 +499,6 @@ def build_html(results: list[dict], days: int) -> str:
         rows_html += section("📊 고가수축형 (HTC)")
         for k in _HTC_KEYS:
             rows_html += data_row(k, "htc")
-
-        # KH
-        rows_html += section("📊 김형준 기법 (KH)")
-        for k in _KH_KEYS:
-            rows_html += data_row(k, "kh")
 
         rows_html += "</tbody></table></div>\n"
 

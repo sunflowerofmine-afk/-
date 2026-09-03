@@ -27,7 +27,6 @@ from config.settings import (
     ENABLE_PULLBACK_OBS,
     MARKET_REGIME_BULL_ADL, MARKET_REGIME_BEAR_ADL, MARKET_REGIME_BULL_TV1500,
     CANDIDATES_MAX_BULL, CANDIDATES_MAX_NEUTRAL, CANDIDATES_MAX_BEAR, CANDIDATES_MAX_CONCENTRATED_BEAR,
-    KH_CRAWL_MIN_TV_EOK,
     OBS_CRAWL_MIN_TV_EOK,
     INTRADAY_CLOSE_FROM_HIGH_MIN_PCT,
     BIG_CANDLE_MIN_PCT,
@@ -128,12 +127,10 @@ def _save_obs_pool(obs_candidates: list, report_date: str, reports_dir: Path) ->
             "pattern_type_label":          c.get("pattern_type_label", "없음"),
             "is_htc_candidate":        c.get("is_htc_candidate", False),
             "is_high_range_candidate": c.get("is_high_range_candidate", False),
-            "kim_hyungjun_flag":       c.get("kim_hyungjun_flag", False),
             "base_candle_date":            c.get("base_candle_date"),
             "base_candle_offset":          c.get("base_candle_offset"),
             "today_tv_ratio":              c.get("today_tv_ratio"),
             "close_from_base_high_pct":    c.get("close_from_base_high_pct"),
-            "above_ma5":                   c.get("above_ma5"),
             "supply_label":                c.get("supply_label", ""),
             "note":                        "최근 기준봉 이후 관찰 후보 (매수 신호 아님)",
         })
@@ -144,17 +141,6 @@ def _save_obs_pool(obs_candidates: list, report_date: str, reports_dir: Path) ->
     path = reports_dir / f"recent_base_pool_{report_date}.csv"
     df.to_csv(path, index=False, encoding="utf-8-sig")
 
-
-def _calc_kh_supply_ok(supply) -> bool | None:
-    """KH 수급 조건: 기관 당일 또는 5일 누적 순매수. supply 없으면 None."""
-    if supply is None:
-        return None
-    if not hasattr(supply, "status") or supply.status != "ok":
-        return None
-    inst_1d = (supply.institution_net    or 0) > 0
-    inst_5d = (supply.institution_net_5d or 0) > 0
-    frgn_1d = (supply.foreign_net        or 0) > 0
-    return inst_1d or inst_5d or (inst_1d and frgn_1d)
 
 
 def _setup_logging(timestamp_str: str):
@@ -531,7 +517,10 @@ def _build_freshness_map() -> dict[str, int]:
                     c = (r.get("종목코드") or "").strip().zfill(6)
                     if c:
                         code_dates.setdefault(c, set()).add(file_date)
-        except Exception:
+        except Exception as e:
+            # 조용히 건너뛰면 신선도가 0으로 떨어져 반복 억제 규칙이 무력해진다.
+            # Actions 아티팩트 복원이 부분 실패할 때 실제로 그렇게 될 수 있다.
+            logger.warning(f"신선도 집계: {p.name} 읽기 실패 (건너뜀) — {e}")
             continue
     if not code_dates:
         return {}
@@ -927,20 +916,6 @@ def run(preview: bool = False):
     logger.info(f"후보 종목 {len(crawl_codes)}개 지표 수집 시작 (TV필터 후, 원본 {len(candidate_codes)}개) [{run_type}]...")
     enriched = _enrich_candidates(crawl_codes, filtered_df, run_type)
 
-    # ── KH 전용 추가 크롤링 (B안: Top40 중 TV≥300억 + 상한가 아닌 + crawl_codes 제외) ──
-    _KH_MIN_TV_WON = KH_CRAWL_MIN_TV_EOK * 100_000_000
-    _crawl_code_set = set(crawl_codes)
-    kh_extra_codes = [
-        code for code in candidate_codes
-        if code not in _crawl_code_set
-        and float(chg_map.get(code, 0)) < 29.5
-        and float(tv_map.get(code, 0)) >= _KH_MIN_TV_WON
-    ]
-    kh_extra_enriched: dict = {}
-    if kh_extra_codes:
-        logger.info(f"KH 전용 추가 수집: {len(kh_extra_codes)}개 (TV≥{KH_CRAWL_MIN_TV_EOK}억)")
-        kh_extra_enriched = _enrich_candidates(kh_extra_codes, filtered_df, run_type)
-
     # ── 프로그램 수급 (2차/수동: 장후 확정치) ───────────────────────
     prog_data: dict = {}
     if run_type != "1차":
@@ -1099,55 +1074,11 @@ def run(preview: bool = False):
         )
 
     # ── KH supply_ok 추가 (crawl_codes 후보 — obs 편입 전) ────────────
-    for c in key_candidates:
-        pat = c.get("patterns", {})
-        if pat.get("kim_hyungjun_flag"):
-            kh_sup = _calc_kh_supply_ok(c.get("supply"))
-            pat["kim_hyungjun_supply_ok"] = kh_sup
-            c["kim_hyungjun_supply_ok"]   = kh_sup
-        else:
-            c["kim_hyungjun_supply_ok"] = None
-
-    # ── KH 전용 후보 수집 (kh_extra_codes 중 KH 조건 충족) ─────────
-    _key_codes = {c["code"] for c in key_candidates}
-    kh_only_candidates: list[dict] = []
-    for _kh_code in kh_extra_codes:
-        _kh_enr = kh_extra_enriched.get(_kh_code, {})
-        _kh_pat = _kh_enr.get("patterns", {})
-        if not _kh_pat.get("kim_hyungjun_flag", False):
-            continue
-        _kh_row = filtered_df[filtered_df["종목코드"] == _kh_code]
-        if _kh_row.empty:
-            continue
-        _kh_row_data = _kh_row.iloc[0]
-        _kh_tv       = float(_kh_row_data.get("거래대금", 0))
-        _kh_supply   = _kh_enr.get("supply", SupplyData(code=_kh_code))
-        _kh_sup_ok   = _calc_kh_supply_ok(_kh_supply)
-        _kh_pat["kim_hyungjun_supply_ok"] = _kh_sup_ok
-        kh_only_candidates.append({
-            "name":                   _kh_row_data.get("종목명", ""),
-            "code":                   _kh_code,
-            "market":                 _kh_row_data.get("시장", ""),
-            "change_pct":             float(_kh_row_data.get("등락률", 0)),
-            "trading_value":          _kh_tv,
-            "signal_price":           float(_kh_row_data.get("현재가", 0)),
-            "patterns":               _kh_pat,
-            "supply":                 _kh_supply,
-            "news":                   _kh_enr.get("news", NewsData(code=_kh_code)),
-            "in_inter":               _kh_code in inter_codes,
-            "sector":                 code_to_sector.get(_kh_code, ""),
-            "kim_hyungjun_supply_ok": _kh_sup_ok,
-            "is_nxt":                 _kh_code in nxt_codes,
-            "nxt_fetch_ran":          nxt_fetch_ran,
-        })
-    if kh_only_candidates:
-        logger.info(f"KH 전용 후보: {len(kh_only_candidates)}개")
-
     # ── recent_base_pool 관찰 풀 (2차/수동 실행 시) ─────────────────
     obs_candidates: list[dict] = []
     _obs_enriched:  dict       = {}   # if _obs_code_map 블록 미진입 시 NameError 방지
     if run_type != "1차":
-        _all_crawled = set(crawl_codes) | set(kh_extra_codes)
+        _all_crawled = set(crawl_codes)
         _OBS_MIN_TV_WON = OBS_CRAWL_MIN_TV_EOK * 100_000_000
         _obs_code_map = _build_recent_base_pool(
             signals_dir=SIGNALS_DIR,
@@ -1170,7 +1101,7 @@ def run(preview: bool = False):
                 if _obs_pat.get("structure_broken_flag"):
                     continue
                 _base_idx = (_obs_pat.get("details") or {}).get("base_idx")
-                if (_base_idx is None or _base_idx < 1) and not _obs_pat.get("kim_hyungjun_flag"):
+                if _base_idx is None or _base_idx < 1:
                     continue
 
                 _obs_today_high  = _obs_enr.get("today_high", 0)
@@ -1192,21 +1123,18 @@ def run(preview: bool = False):
                     "pattern_type_label":          _obs_pat.get("pattern_type_label", "없음"),
                     "is_htc_candidate":            bool(_obs_pat.get("high_tight_consolidation_flag")),
                     "is_high_range_candidate":     bool(_obs_pat.get("pattern3")),
-                    "kim_hyungjun_flag":           bool(_obs_pat.get("kim_hyungjun_flag")),
                     "base_candle_date":            _base_date,
                     "base_candle_offset":          _obs_pat.get("base_candle_day_offset"),
                     "today_tv_ratio":              _obs_pat.get("tv_ratio"),
                     "close_from_base_high_pct":    _obs_pat.get("base_high_gap_pct"),
                     "intraday_gap_pct":            _obs_intraday_gap,
-                    "above_ma5":                   _obs_pat.get("kim_hyungjun_above_ma5"),
                     "supply_label":                getattr(_obs_enr.get("supply"), "supply_label", "") or "",
                     "patterns":                    _obs_pat,
                     "supply":                      _obs_enr.get("supply"),
                 })
             logger.info(f"recent_base_pool 관찰 후보 최종: {len(obs_candidates)}개"
                         f" (HTC={sum(c['is_htc_candidate'] for c in obs_candidates)}"
-                        f" 횡보={sum(c['is_high_range_candidate'] for c in obs_candidates)}"
-                        f" KH={sum(c['kim_hyungjun_flag'] for c in obs_candidates)})")
+                        f" 횡보={sum(c['is_high_range_candidate'] for c in obs_candidates)})")
             if obs_candidates:
                 try:
                     _save_obs_pool(obs_candidates, report_date, REPORTS_DIR)
@@ -1214,56 +1142,6 @@ def run(preview: bool = False):
                     logger.warning(f"관찰 풀 CSV 저장 실패 (무시): {e}")
         else:
             logger.info("recent_base_pool: 과거 신호 데이터 없음 또는 조건 미충족 (정상)")
-
-    # ── KH 관찰 풀 확장 (recent_base_pool 10일 lookback → kh_only_candidates 추가) ──
-    if run_type != "1차":
-        _kh_obs_all_crawled = _all_crawled | set(_obs_code_map.keys())
-        _kh_obs_code_map = _build_recent_base_pool(
-            signals_dir=SIGNALS_DIR,
-            run_date=report_date,
-            filtered_df=filtered_df,
-            exclude_codes=_kh_obs_all_crawled,
-            obs_min_tv_won=KH_CRAWL_MIN_TV_EOK * 100_000_000,
-            lookback_dates=10,
-        )
-        if _kh_obs_code_map:
-            logger.info(f"KH 관찰 풀 크롤링: {len(_kh_obs_code_map)}개 (10일 lookback)...")
-            _kh_obs_enriched = _enrich_candidates(list(_kh_obs_code_map.keys()), filtered_df, run_type)
-            _kh_obs_existing = {c["code"] for c in kh_only_candidates}
-            _kh_obs_added = 0
-            for _ko_code in _kh_obs_code_map:
-                if _ko_code in _kh_obs_existing:
-                    continue
-                _ko_enr = _kh_obs_enriched.get(_ko_code, {})
-                _ko_pat = _ko_enr.get("patterns", {})
-                if not _ko_pat.get("kim_hyungjun_flag", False):
-                    continue
-                _ko_row = filtered_df[filtered_df["종목코드"] == _ko_code]
-                if _ko_row.empty:
-                    continue
-                _ko_row_data = _ko_row.iloc[0]
-                _ko_tv       = float(_ko_row_data.get("거래대금", 0))
-                _ko_supply   = _ko_enr.get("supply", SupplyData(code=_ko_code))
-                _ko_sup_ok   = _calc_kh_supply_ok(_ko_supply)
-                _ko_pat["kim_hyungjun_supply_ok"] = _ko_sup_ok
-                kh_only_candidates.append({
-                    "name":                   _ko_row_data.get("종목명", ""),
-                    "code":                   _ko_code,
-                    "market":                 _ko_row_data.get("시장", ""),
-                    "change_pct":             float(_ko_row_data.get("등락률", 0)),
-                    "trading_value":          _ko_tv,
-                    "signal_price":           float(_ko_row_data.get("현재가", 0)),
-                    "patterns":               _ko_pat,
-                    "supply":                 _ko_supply,
-                    "news":                   _ko_enr.get("news", NewsData(code=_ko_code)),
-                    "in_inter":               _ko_code in inter_codes,
-                    "sector":                 code_to_sector.get(_ko_code, ""),
-                    "kim_hyungjun_supply_ok": _ko_sup_ok,
-                    "is_nxt":                 _ko_code in nxt_codes,
-                    "nxt_fetch_ran":          nxt_fetch_ran,
-                })
-                _kh_obs_added += 1
-            logger.info(f"KH 관찰 풀 → kh_only 추가: {_kh_obs_added}개 / 합산 {len(kh_only_candidates)}개")
 
     # ── obs_candidates → key_candidates 편입 (패턴 통과 종목) ──────────
     _obs_remaining: list[dict] = []
@@ -1303,8 +1181,6 @@ def run(preview: bool = False):
         _obs_regular_close = _obs_enr_d.get("regular_close_price")
         _obs_signal_px     = _obs_c.get("signal_price", 0)
         _obs_entry_ref     = _obs_regular_close if _obs_regular_close else _obs_signal_px
-        _obs_kh_sup_ok     = _calc_kh_supply_ok(_obs_sup) if _obs_pat.get("kim_hyungjun_flag") else None
-        _obs_pat["kim_hyungjun_supply_ok"] = _obs_kh_sup_ok
 
         key_candidates.append({
             "name":                          _obs_c["name"],
@@ -1340,7 +1216,6 @@ def run(preview: bool = False):
             "entry_reference_price":         _obs_entry_ref,
             "price_source":                  "regular_close_price" if _obs_regular_close else "signal_price",
             "source_pool":                   "recent_base_pool",
-            "kim_hyungjun_supply_ok":        _obs_kh_sup_ok,
             "is_nxt":                        _obs_code in nxt_codes,
             "nxt_fetch_ran":                 nxt_fetch_ran,
         })
@@ -1464,20 +1339,6 @@ def run(preview: bool = False):
             logger.warning(f"연기금 순매수 수집 실패 (무시): {e}")
 
     # 시그널 저장
-    def _kh_sig(c: dict, is_kh_only: bool = False) -> dict:
-        pat = c.get("patterns", {})
-        return {
-            "kim_hyungjun_flag":                   pat.get("kim_hyungjun_flag", False),
-            "kim_hyungjun_stage":                  pat.get("kim_hyungjun_stage"),
-            "kim_hyungjun_base_offset":            pat.get("kim_hyungjun_base_offset"),
-            "kim_hyungjun_base_tv_ratio":          pat.get("kim_hyungjun_base_tv_ratio"),
-            "kim_hyungjun_today_tv_ratio":         pat.get("kim_hyungjun_today_tv_ratio"),
-            "kim_hyungjun_close_vs_base_high_pct": pat.get("kim_hyungjun_close_vs_base_high_pct"),
-            "kim_hyungjun_above_ma5":              pat.get("kim_hyungjun_above_ma5"),
-            "kim_hyungjun_supply_ok":              c.get("kim_hyungjun_supply_ok"),
-            "is_kh_only":                          is_kh_only,
-        }
-
     def _pct_from_52w(c: dict):
         """signal_price가 52주 고가 대비 몇 %인지(-면 아래). 고가 미확보 시 None.
 
@@ -1528,47 +1389,22 @@ def run(preview: bool = False):
         "regular_close_price_available": c.get("regular_close_price_available", False),
         "entry_reference_price":         c.get("entry_reference_price", 0),
         "price_source":                  c.get("price_source", ""),
-        **_kh_sig(c, is_kh_only=False),
+        # 등급 강등의 '입력값'을 함께 남긴다. 판정만 저장하고 근거를 안 남기면
+        # "후발주 강등·기준선 강등이 실제로 몇 번 걸렸나"를 사후에 확인할 수 없다.
+        # (2026-08-12 daily_summary에서 같은 문제를 고쳤던 것과 같은 유형)
+        "theme_role":                    c.get("theme_role", ""),
+        "is_leading_sector":             c.get("is_leading_sector", False),
+        "prev_close":                    c.get("prev_close"),
+        "prev_high":                     c.get("prev_high"),
+        "today_open_price":              c.get("today_open_price"),
+        "prog_net_eok":                  c.get("prog_net_eok"),
+        "supply_ok":                     c.get("supply_ok"),
+        "has_pattern":                   c.get("has_pattern"),
+        "nxt_fetch_ran":                 c.get("nxt_fetch_ran", False),
     } for c in key_candidates]
 
-    _kh_only_rows = [{
-        "종목명":             c["name"],
-        "종목코드":           c["code"],
-        "시장":               c["market"],
-        "등락률":             c["change_pct"],
-        "거래대금":           c["trading_value"],
-        "signal_price":       c.get("signal_price", 0),
-        "sector":             c.get("sector", ""),
-        "패턴":               "",
-        "pattern_type_label": "없음",
-        "base_candle_offset": None,
-        "base_high_gap_pct":  None,
-        "tv_ratio":           None,
-        "status_summary":     "",
-        "total_score":        0,
-        "checklist_pass":     0,
-        "in_inter":           c.get("in_inter", False),
-        "supply_label":       getattr(c.get("supply"), "supply_label", "") or "",
-        "inst_net":           getattr(c.get("supply"), "institution_net", None),
-        "foreign_net":        getattr(c.get("supply"), "foreign_net", None),
-        "inst_net_5d":        getattr(c.get("supply"), "institution_net_5d", None),
-        "foreign_net_5d":     getattr(c.get("supply"), "foreign_net_5d", None),
-        # KH 전용 후보는 52주 고가를 계산하지 않는다 (지표 산출 경로가 다름)
-        "near_high_52w":      False,
-        "high_52w":           None,
-        "pct_from_52w_high":  None,
-        "run_time":                      run_time,
-        "run_type":                      run_type,
-        "signal_time":                   run_time,
-        "regular_close_price":           None,
-        "regular_close_price_available": False,
-        "entry_reference_price":         c.get("signal_price", 0),
-        "price_source":                  "signal_price",
-        **_kh_sig(c, is_kh_only=True),
-    } for c in kh_only_candidates]
-
-    if _sig_rows or _kh_only_rows:
-        save_signals(pd.DataFrame(_sig_rows + _kh_only_rows), timestamp_str)
+    if _sig_rows:
+        save_signals(pd.DataFrame(_sig_rows), timestamp_str)
 
     # 대시보드 생성
     report_data["market_summary"]["core_count"] = len(core_candidates)
@@ -1600,7 +1436,6 @@ def run(preview: bool = False):
             logger.warning(f"투탑 과매도 관찰 실패 (무시): {e}")
     report_data["twotop_oversold"] = twotop_oversold
     report_data["rejected_candidates"]    = rejected_list
-    report_data["kh_only_candidates"]     = kh_only_candidates
     report_data["kh_candidates_scope"]    = "top40_only"
     report_data["obs_candidates"]         = obs_candidates
     report_data["followup_data"]          = followup_data

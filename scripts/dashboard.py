@@ -253,7 +253,7 @@ def _build_html(data: dict, nav_entries: list | None = None, current_filename: s
         _section_table_intersection(data.get("intersection_candidates", [])),
         _section_rejected_summary(rejected),
         # ── 기준봉 관찰 · 추적 ──
-        # KH(김형준)·눌림(pullback) 섹션은 출력 중단 — 종베 집중을 위해 화면에서 제외.
+        # 눌림(pullback) 섹션은 출력 중단 — 종베 집중을 위해 화면에서 제외.
         # 데이터 수집·저장은 유지(KH는 평일 signals.csv, 눌림은 금요일 weekly_research).
         # 전일 복기·누적 승률·멀티데이 통계·52주 신고가 추이는 백테스트 전용 — 대시보드 미표시.
         _section_recent_base_pool(data.get("obs_candidates", [])),

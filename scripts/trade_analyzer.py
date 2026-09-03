@@ -856,12 +856,6 @@ def _analyze(trades: list[dict], cache: SignalCache) -> dict:
             "extended_hold_allowed":     True,
             "extended_hold_intraday_only": True,
         },
-        "kim_hyungjun_rule": {
-            "trade_signal":          False,
-            "hold_signal":           False,
-            "observation_tag_only":  True,
-            "validation_period_weeks": "4-8",
-        },
     }
 
     return {

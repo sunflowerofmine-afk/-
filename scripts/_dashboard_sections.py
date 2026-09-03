@@ -1618,177 +1618,6 @@ def _freshness_html(c: dict) -> str:
     return ""
 
 
-def _candidate_card_html(c: dict) -> str:
-    ind  = c.get("indicators", {})
-    pat  = c.get("patterns",   {})
-    sup  = _supply_info(c.get("supply"))
-    news = _news_titles(c.get("news"))
-    score = _score_val(c.get("score"))
-    tv   = float(c.get("trading_value", 0))
-    chg  = float(c.get("change_pct",    0))
-    in_inter  = c.get("in_inter",    False)
-    has_pat   = c.get("has_pattern", False)
-
-    pat_label   = pat.get("pattern_type_label", "없음")
-    offset      = pat.get("base_candle_day_offset")
-    offset_str  = _OFFSET_LABEL.get(offset, "-") if offset is not None else "-"
-    gap_pct     = pat.get("base_high_gap_pct")
-    gap_str     = f"{gap_pct:+.1f}%" if gap_pct is not None else "-"
-    gap_cls     = "pos" if gap_pct is not None and gap_pct >= 0 else "neg" if gap_pct is not None and gap_pct < -3 else "warn"
-    vol_dec     = pat.get("post_base_volume_decline_flag", False)
-    overheated  = pat.get("overheated_3d_flag", False)
-    struct_ok   = not pat.get("structure_broken_flag", False)
-    new_high_60d  = pat.get("new_high_60d", False)
-    near_high_60d = pat.get("near_high_60d", False)
-
-    card_color = _PATTERN_CARD_COLOR.get(pat_label, "#8b949e")
-    card_cls   = "candidate-card"
-    if in_inter:  card_cls += " in-inter"
-    elif has_pat: card_cls += " has-pattern"
-
-    inter_badge = '<span class="badge inter">교집합</span> ' if in_inter else ""
-    if c.get("is_nxt"):
-        nxt_badge = '<span class="badge nxt">🔵NXT</span> '
-    elif c.get("nxt_fetch_ran"):
-        nxt_badge = '<span class="badge" style="background:#f0ad4e;color:#5a3e00;font-size:10px">KRX전용 ⚠15:20전</span> '
-    else:
-        nxt_badge = ""
-
-    chg_cls  = "val pos" if chg >= 0 else "val neg"
-    inst_str = _net_str(sup.get("institution_net"))
-    frgn_str = _net_str(sup.get("foreign_net"))
-    sup_ok   = sup.get("status") == "ok"
-
-    news_html = "".join(f'<div class="news-item">📰 {_e(t)}</div>' for t in news)
-    if not news_html:
-        news_html = '<div class="news-item" style="color:var(--muted)">뉴스 없음</div>'
-
-    raw_news = c.get("news")
-    llm_html = ""
-    if hasattr(raw_news, "llm_summary") and raw_news.llm_summary:
-        llm_html = (
-            f'<div style="margin-top:6px;font-size:12px;color:var(--fg);'
-            f'padding:4px 8px;background:var(--bg3);border-radius:4px">'
-            f'{_e(raw_news.llm_summary)}</div>'
-        )
-
-    tv_ratio     = pat.get("tv_ratio")
-    tv_ratio_str = f"{tv_ratio:.2f}" if tv_ratio is not None else "-"
-    tv_ratio_cls = "val pos" if tv_ratio is not None and tv_ratio >= 0.4 else "val warn" if tv_ratio is not None and tv_ratio >= 0.2 else "val neg"
-    status_summary = pat.get("status_summary", "-")
-    tv_3d_flow   = pat.get("tv_3d_flow", [])
-    tv_3d_str    = " → ".join(_tv_eok(v) for v in tv_3d_flow) if tv_3d_flow else "-"
-
-    post_base_days = pat.get("post_base_days", [])
-    post_base_html = ""
-    if post_base_days:
-        _OFFSET_L = {1: "1일전", 2: "2일전", 3: "3일전"}
-        rows_pb = ""
-        for d in post_base_days:
-            off = d.get("offset")
-            chg = d.get("change_pct", 0)
-            cvb = d.get("close_vs_base_high")
-            tv_d = d.get("tv", 0)
-            chg_cls = "val pos" if chg >= 0 else "val neg"
-            cvb_str = f"{cvb:+.1f}%" if cvb is not None else "-"
-            cvb_cls = "val pos" if cvb is not None and cvb >= -3 else "val warn" if cvb is not None and cvb >= -8 else "val neg"
-            rows_pb += (
-                f"<tr>"
-                f'<td style="color:var(--muted);font-size:11px">{_OFFSET_L.get(off, f"{off}일전")}</td>'
-                f'<td class="{chg_cls}">{_sign(chg)}</td>'
-                f'<td class="{cvb_cls}" title="기준봉고가 대비">{cvb_str}</td>'
-                f'<td style="color:var(--muted);font-size:11px">{_tv_eok(tv_d)}</td>'
-                f"</tr>"
-            )
-        post_base_html = (
-            f'<div class="card-row" style="flex-direction:column;align-items:flex-start">'
-            f'<span class="lbl" style="margin-bottom:4px">기준봉 후 경과</span>'
-            f'<table style="width:100%;font-size:12px;border-collapse:collapse">'
-            f'<thead><tr style="color:var(--muted);font-size:10px">'
-            f'<th style="text-align:left">일자</th><th>등락</th><th>고가比</th><th>거래대금</th>'
-            f'</tr></thead><tbody>{rows_pb}</tbody></table></div>'
-        )
-
-    return f"""
-<div class="{card_cls}" style="border-top: 3px solid {card_color}">
-  <div class="card-head">
-    <div>
-      <div class="name">{inter_badge}{nxt_badge}{_e(c.get('name',''))}</div>
-      <div class="code">{_e(c.get('code',''))} &middot; {_e(c.get('market',''))}</div>
-    </div>
-    <div class="score-badge">점수 {_e(score)}</div>
-  </div>
-  <div class="card-body">
-    <div class="card-row"><span class="lbl">패턴</span>
-      <span class="val" style="color:{card_color};font-weight:600">{_e(pat_label)}</span></div>
-    <div class="card-row"><span class="lbl">기준봉 시점</span>
-      <span class="val">{_e(offset_str)}</span></div>
-    <div class="card-row"><span class="lbl">상태</span>
-      <span class="val">{_e(status_summary)}</span></div>
-    <div class="card-row"><span class="lbl">기준봉고가 대비</span>
-      <span class="{gap_cls} val">{_e(gap_str)}</span></div>
-    <div class="card-row"><span class="lbl">대금ratio (기준봉 대비)</span>
-      <span class="{tv_ratio_cls}">{_e(tv_ratio_str)}</span></div>
-    <div class="card-row"><span class="lbl">최근3일 대금흐름</span>
-      <span class="val" style="font-size:11px">{_e(tv_3d_str)}</span></div>
-    {post_base_html}
-    <div class="card-row"><span class="lbl">60일 신고가</span>
-      <span class="val">{"🔺 신고가" if new_high_60d else ("📍 고점권(97%)" if near_high_60d else "—")}</span></div>
-    <div class="card-row"><span class="lbl">기준봉 후 대금감소</span>
-      <span class="val">{_badge(vol_dec)}</span></div>
-    <div class="card-row"><span class="lbl">상승률</span>
-      <span class="{chg_cls}">{_sign(chg)}</span></div>
-    <div class="card-row"><span class="lbl">거래대금</span>
-      <span class="val">{_tv_eok(tv)}</span></div>
-    <div class="card-row"><span class="lbl">장대/준장대/첫장대</span>
-      <span class="val">{_badge(ind.get('big_candle'))} / {_badge(ind.get('loose_big_candle'))} / {_badge(ind.get('first_big_candle'))}</span></div>
-    <div class="card-row"><span class="lbl">이평밀집</span>
-      <span class="val">{_badge(ind.get('ma_cluster'))}</span></div>
-    <div class="card-row"><span class="lbl">거래량/거래대금 60일최고</span>
-      <span class="val">{_badge(ind.get('vol_peak'))} / {_badge(ind.get('tv_peak'))}</span></div>
-    <div class="card-row"><span class="lbl">기관 순매수</span>
-      <span class="val">{inst_str if sup_ok else '확인불가'}</span></div>
-    <div class="card-row"><span class="lbl">외국인 순매수</span>
-      <span class="val">{frgn_str if sup_ok else '확인불가'}</span></div>
-    {_oversupply_html(c)}
-    {_freshness_html(c)}
-    {_short_html(c)}
-    {_pension_html(c)}
-    {_position_guide_html(c)}
-    {_risk_tags_html(c)}
-    <div style="margin-top:8px;">{news_html}{llm_html}</div>
-    {_dart_html(c)}
-  </div>
-</div>"""
-
-
-def _section_core_candidates(candidates: list) -> str:
-    parts = ['<div class="section-title">🎯 핵심 후보</div>']
-    if not candidates:
-        parts.append('<div class="empty-msg">조건 충족 핵심 후보 없음</div>')
-        return "".join(parts)
-
-    groups: dict[str, list] = {t: [] for t in _PATTERN_TYPE_ORDER}
-    for c in candidates:
-        label = c.get("patterns", {}).get("pattern_type_label", "없음")
-        groups.setdefault(label, []).append(c)
-
-    for label in _PATTERN_TYPE_ORDER:
-        group = groups.get(label, [])
-        if not group:
-            continue
-        title = _PATTERN_SECTION_TITLE.get(label, label)
-        color = _PATTERN_CARD_COLOR.get(label, "#8b949e")
-        parts.append(
-            f'<div class="section-title" style="border-color:{color}">{title} '
-            f'<span style="font-size:12px;font-weight:400;color:var(--muted)">({len(group)}개)</span></div>'
-        )
-        cards_html = "".join(_candidate_card_html(c) for c in group)
-        parts.append(f'<div class="candidate-grid">{cards_html}</div>')
-
-    return "".join(parts)
-
-
 def _section_table_gainers(rows: list) -> str:
     if not rows:
         return '<div class="section-title">📊 상승률 Top20</div><div class="empty-msg">데이터 없음</div>'
@@ -2302,115 +2131,9 @@ def _section_rejected(rejected: list) -> str:
     return "".join(parts)
 
 
-# ─── 김형준 기법 관찰 후보 섹션 ────────────────────────────────────────────────
-
-_KH_CSS = """
-<style>
-.kh-notice{background:#1c1c1c;border-left:3px solid #555;padding:10px 14px;
-  font-size:12px;color:#888;margin-bottom:14px;border-radius:4px;line-height:1.7;}
-.kh-card{background:var(--bg2);border:1px solid #444;border-radius:8px;
-  padding:12px 16px;margin-bottom:10px;}
-.kh-card-head{font-size:14px;font-weight:600;margin-bottom:6px;color:#ccc;}
-.kh-card-body{font-size:12px;color:#888;line-height:1.8;}
-.kh-title{color:#888!important;font-size:1rem!important;}
-.badge-kh-only{background:#333;color:#aaa;font-size:11px;
-  padding:1px 6px;border-radius:4px;margin-left:6px;}
-</style>
-"""
-
-
-def _section_kh_candidates(
-    key_candidates: list,
-    kh_only_candidates: list,
-    obs_candidates: list = [],
-    scope: str = "top40_only",
-) -> str:
-    """김형준 기법 탐지 섹션 — 관찰 상태, 매수 신호 아님."""
-
-    kh_from_key = [(c, "스캔") for c in key_candidates
-                   if c.get("patterns", {}).get("kim_hyungjun_flag")]
-    kh_main = kh_from_key + [( c, "종베외") for c in kh_only_candidates]
-
-    obs_kh = [(c, "기준봉추적") for c in obs_candidates
-              if c.get("kim_hyungjun_flag")]
-
-    header = (
-        _KH_CSS
-        + '<div class="section-title kh-title">📊 김형준 기법 관찰 후보'
-        + f' <span style="font-size:12px;color:var(--muted);font-weight:400">· 관찰 상태 · 매수 신호 아님</span></div>'
-    )
-
-    def _kh_card(c, source_label):
-        pat           = c.get("patterns", {})
-        base_offset   = pat.get("kim_hyungjun_base_offset")
-        base_tv_r     = pat.get("kim_hyungjun_base_tv_ratio")
-        today_tv_r    = pat.get("kim_hyungjun_today_tv_ratio")
-        close_vs_base = pat.get("kim_hyungjun_close_vs_base_high_pct")
-        above_ma5     = pat.get("kim_hyungjun_above_ma5")
-        supply_ok     = pat.get("kim_hyungjun_supply_ok")
-        in_inter      = c.get("in_inter", False)
-        sector        = c.get("sector", "")
-
-        offset_label = {1: "1일전", 2: "2일전", 3: "3일전"}.get(base_offset, "-")
-        tv_r_str     = f"{today_tv_r*100:.0f}%" if today_tv_r is not None else "-"
-        close_str    = f"{close_vs_base:+.1f}%" if close_vs_base is not None else "-"
-        base_r_str   = f"{base_tv_r}x" if base_tv_r is not None else "-"
-        supply_str   = ("기관O" if supply_ok is True
-                        else ("기관X" if supply_ok is False else "-"))
-
-        badges = f'<span class="badge na">{_e(source_label)}</span>'
-        if in_inter: badges += ' <span class="badge ok">★교집합</span>'
-
-        return (
-            f'<div class="kh-card">'
-            f'<div class="kh-card-head">'
-            f'<b>{_e(c.get("name"))}({_e(c.get("code"))})</b>'
-            f' [{_e(c.get("market"))}] {badges} '
-            f'{_status_badge_html("WATCH_ONLY")}</div>'
-            f'<div class="kh-card-body">'
-            f'등락률 {_sign(c.get("change_pct",0))} | 거래대금 {_tv_eok(c.get("trading_value",0))}'
-            f'{f" | {_e(sector)}" if sector else ""}<br>'
-            f'기준봉 {_e(offset_label)} | 기준봉TV {_e(base_r_str)} | 오늘TV {_e(tv_r_str)}'
-            f' | 고가대비 {_e(close_str)} | 5일선 {_badge(above_ma5)} | 수급 {_e(supply_str)}'
-            f'</div></div>'
-        )
-
-    main_html = "".join(_kh_card(c, lbl) for c, lbl in kh_main) if kh_main else (
-        '<p style="color:var(--muted);font-size:13px;padding:8px 0;">오늘 탐지된 김형준 기법 관찰 후보 없음</p>'
-    )
-
-    obs_html = ""
-    if obs_kh:
-        obs_cards = "".join(_kh_card(c, lbl) for c, lbl in obs_kh)
-        obs_html = (
-            f'<details style="margin-top:10px">'
-            f'<summary style="cursor:pointer;font-size:13px;color:var(--blue);user-select:none">'
-            f'🔭 기준봉 추적 관찰 중 {len(obs_kh)}개 (거자름 대기)</summary>'
-            f'<div style="margin-top:8px">{obs_cards}</div>'
-            f'</details>'
-        )
-
-    return header + main_html + obs_html
-
-
-# ─── 기준봉 이후 관찰 풀 섹션 ─────────────────────────────────────────────────
-
-_OBS_NOTICE_CSS = """
-<style>
-.obs-notice{background:#1a1a2e;border-left:3px solid #4a6fa5;padding:10px 14px;
-  font-size:12px;color:#8899aa;margin-bottom:14px;border-radius:4px;line-height:1.7;}
-</style>
-"""
-
-_OBS_TAG_COLOR = {
-    "당일돌파형": "#3fb950", "고가수축형": "#e3b341",
-    "고가횡보형": "#58a6ff", "없음": "#8b949e",
-}
-
-
 def _section_recent_base_pool(obs_candidates: list) -> str:
-    """기준봉 이후 관찰 후보 — KH 제외(KH 섹션에 표시), 비KH만."""
-    non_kh = [c for c in obs_candidates if not c.get("kim_hyungjun_flag")]
+    """기준봉 이후 관찰 후보."""
+    non_kh = list(obs_candidates)
     if not non_kh:
         return ""
 
@@ -2506,7 +2229,7 @@ def _section_recent_base_pool(obs_candidates: list) -> str:
         + '<div class="obs-notice">'
         + '<b>관찰 상태 · 매수 신호 아님</b> — 최근 기준봉 이후 고가수축/눌림 패턴 추적.'
         + ' 당일 고가 대비 -5% 초과 이격 종목은 탈락 처리.'
-        + ' 김형준 기법 관찰 후보는 위 김형준 기법 관찰 후보 섹션 참고.'
+        + ''
         + '</div>'
         + main_table
         + excl_html
@@ -2550,7 +2273,7 @@ def _section_tracked(candidates: list) -> str:
 
 
 def _section_pullback_observer(candidates: list) -> str:
-    """일반 눌림 관찰 — 매수 신호 아님. 기존 종가베팅/김형준 기법과 완전 분리."""
+    """일반 눌림 관찰 — 매수 신호 아님. 기존 종가베팅과 완전 분리."""
     if not candidates:
         return ""
 
@@ -2640,7 +2363,7 @@ def _section_pullback_observer(candidates: list) -> str:
         f'<div style="margin-top:8px">'
         f'<div class="obs-notice">'
         f'<b>관찰/검증용 · 매수 신호 아님</b> · '
-        f'기존 종가베팅/김형준 기법과 별도 기록 · '
+        f'기존 종가베팅과 별도 기록 · '
         f'지지선 근접 후 재상승 여부를 추후 D+수익률로 검증 예정'
         f'</div>'
         + main_html

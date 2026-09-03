@@ -145,15 +145,6 @@ HTC_STRUCTURE_BREAK_FROM_BASE_HIGH_PCT   = -8.0   # 중간 거래일 종가 기�
 HTC_BREAKDOWN_CANDLE_CHANGE_MIN_PCT      = -5.0   # 구조붕괴 장대음봉 등락률 기준
 HTC_BREAKDOWN_CANDLE_TV_RATIO_MIN        = 0.5    # 구조붕괴 장대음봉 거래대금 기준 (기준봉 대비)
 
-# ── 김형준 기법 (KH) 파라미터 ─────────────────────────────────
-KH_BASE_TV_EXPLOSION_MULT       = 3.0    # 기준봉 거래대금 폭발 배수 (이전 20일 평균 대비). 표본 부족 시 2.5→2.0으로 완화 검토.
-KH_BASE_TV_MIN_EOK              = 700    # 기준봉 거래대금 최소 (억원) — 강의 근거 없음, 3배 폭발 조건이 방어
-KH_TODAY_TV_RATIO_MAX           = 0.65   # 오늘 TV ≤ 기준봉 × 65% (0.5→0.65: 현대오토에버 미스 사례 반영)
-KH_CLOSE_FROM_BASE_HIGH_MIN_PCT = -8.0   # 오늘 종가 ≥ 기준봉 고가 × 92% (2~5일 눌림 허용)
-KH_BASE_LOOKBACK_DAYS           = 10     # 기준봉 탐색 범위 (거래일) — HTC(5일)와 분리, KH 전용
-KH_VOLUME_UP_BEARISH_RATIO      = 0.7    # 거래량 증가 음봉 판정 기준 (기준봉 대비 비율)
-KH_SQUEEZE_CANDLE_BODY_MAX_RATIO = 0.5   # 거자름 캔들 몸통 비율 상한 (고저 범위 대비) — "짧은" 음봉/양봉 조건
-KH_CRAWL_MIN_TV_EOK             = 300    # KH 전용 크롤링 최소 거래대금 (억원, B안)
 OBS_CRAWL_MIN_TV_EOK            = 100    # 기준봉 관찰 풀(recent_base_pool) 최소 거래대금 (억원)
 
 # ── 오버수급 (상장주식수 대비 5일 누적 순매수 비율) ──────────────
