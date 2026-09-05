@@ -1,0 +1,67 @@
+name: 장중 시세 스냅샷
+
+# 11:00 / 13:00 KST 실행. 수집·저장만 하고 알림은 보내지 않는다.
+# 목적: 14:50/17:50 두 컷으로는 관측 불가한 장중 축(지수 대비 강도,
+#       오전 저점 이후 흐름) 원자료 적재.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 2 * * 1-5"   # 11:00 KST (= 02:00 UTC), 월-금
+    - cron: "0 4 * * 1-5"   # 13:00 KST (= 04:00 UTC), 월-금
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Save intraday snapshot
+        env:
+          TZ: Asia/Seoul
+        run: python -m scripts.intraday_snapshot
+
+      - name: Upload artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: intraday-${{ github.run_id }}
+          path: data/intraday/
+          retention-days: 90
+
+      # 영구 백업 (비공개 레포 jongbe-data-backup). DATA_BACKUP_SSH_KEY 미설정 시 skip
+      - name: Backup intraday data to private repo
+        if: always()
+        env:
+          BACKUP_KEY: ${{ secrets.DATA_BACKUP_SSH_KEY }}
+        run: |
+          if [ -z "$BACKUP_KEY" ]; then
+            echo "DATA_BACKUP_SSH_KEY 미설정 — 백업 skip"
+            exit 0
+          fi
+          mkdir -p ~/.ssh
+          echo "$BACKUP_KEY" > ~/.ssh/backup_key
+          chmod 600 ~/.ssh/backup_key
+          export GIT_SSH_COMMAND="ssh -i ~/.ssh/backup_key -o StrictHostKeyChecking=accept-new"
+          git clone --depth 1 git@github.com:sunflowerofmine-afk/jongbe-data-backup.git /tmp/backup
+          mkdir -p /tmp/backup/data/intraday
+          cp -r data/intraday/* /tmp/backup/data/intraday/ 2>/dev/null || true
+          cd /tmp/backup
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet && echo "변경 없음" || \
+            git commit -m "intraday: $(TZ=Asia/Seoul date +%Y-%m-%d_%H%M)"
+          git push || echo "백업 push 실패"
