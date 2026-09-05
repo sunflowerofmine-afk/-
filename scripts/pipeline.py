@@ -746,6 +746,9 @@ def run(preview: bool = False):
 
     # 시장 비중(거래대금) 내림차순 정렬 — 대시보드 카드·섹터 캘린더·알림 표시 순서 통일
     leading_sectors.sort(key=lambda s: s.get("market_ratio_pct") or 0, reverse=True)
+    # 최종 주도섹터 선별: 등락률 상위 후보(fetch_sector_data) 중 거래대금 비중 상위 N개.
+    # 자르는 시점을 정렬 뒤로 미뤄야 돈이 실제로 몰린 테마가 살아남는다.
+    leading_sectors = leading_sectors[:SECTOR_TOP_N]
 
     # gainers_top20, trading_value_top20에 sector 태그 추가
     def _add_sector(records: list) -> list:
@@ -765,7 +768,10 @@ def run(preview: bool = False):
     gainers_tv_1500_count = int((gainers["거래대금"] >= _min_tv_won).sum()) if not gainers.empty else 0
 
     # 상한가 집계 (#1/#18): 등락률 29.5% 이상
-    _limit_up_df = filtered_df[filtered_df["등락률"] >= 29.5] if not filtered_df.empty else pd.DataFrame()
+    # tv_df(제외필터만 적용, 가격필터 전) 기준 — 상한가 개수는 매수 후보가 아니라
+    # 시장 열기 온도계로 쓰므로, 1,000원 미만 저가주 상한가도 세어야 실제 시장과 맞는다.
+    _lu_src = tv_df if not tv_df.empty else filtered_df
+    _limit_up_df = _lu_src[_lu_src["등락률"] >= 29.5] if not _lu_src.empty else pd.DataFrame()
     limit_up_count = len(_limit_up_df)
     _limit_up_top = _limit_up_df.nlargest(10, "거래대금") if not _limit_up_df.empty else pd.DataFrame()
     limit_up_list = (

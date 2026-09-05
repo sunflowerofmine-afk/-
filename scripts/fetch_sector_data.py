@@ -180,8 +180,12 @@ def run(top_n: int = 5) -> dict:
                 except Exception as e:
                     logger.warning(f"[테마 {tname}] 구성종목 수집 실패: {e}")
             if theme_sectors:
-                result["top_sectors"] = theme_sectors[:top_n]
-            logger.info(f"테마 override 완료: 상위 {len(theme_sectors)}개 테마 → 주도섹터 교체")
+                # 등락률 상위 후보를 전부 넘긴다. 최종 top_n 선별은 pipeline이
+                # 거래대금 비중으로 재정렬한 뒤 수행 — 여기서 자르면 종목 수가 많아
+                # 평균 등락률이 희석되는 대형 테마(로봇·반도체 등)가 후보에서
+                # 아예 빠져 거래대금 정렬로도 복구되지 않는다.
+                result["top_sectors"] = theme_sectors
+            logger.info(f"테마 override 완료: 상위 {len(theme_sectors)}개 테마 → 주도섹터 후보 교체")
     except Exception as e:
         logger.warning(f"테마 수집 실패 (무시, 업종명 유지): {e}")
 
