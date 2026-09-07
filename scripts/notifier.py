@@ -186,7 +186,18 @@ def _has_news(news) -> bool:
 
 # ── 시장 요약 ─────────────────────────────────────────────
 
-_BASE_TIME_MAP = {"1차": "14:50", "2차": "17:50"}
+
+def _gate_short(why: str) -> str:
+    """게이트 사유 축약 — '조건 — 권고' 구조에서 권고 절을 뺀다.
+
+    권고("평소보다 작게" 등)는 등급 이름에 이미 들어 있어 모바일에서 같은 말을
+    두 줄 더 읽게 만든다. 단 ' — ' 뒤에 ' · '로 덧붙는 강등 사유(매수검토 0건,
+    미선물 비우호)는 등급만으로 알 수 없으므로 살린다.
+    """
+    head, sep, tail = why.partition(" — ")
+    if not sep:
+        return why
+    return " · ".join([head, *tail.split(" · ")[1:]])
 
 
 def _short_sector_name(name: str) -> str:
@@ -197,11 +208,14 @@ def _short_sector_name(name: str) -> str:
 def format_market_summary(market_totals: dict, run_time: str, run_type: str,
                           extra: dict | None = None,
                           leading_sectors: list | None = None,
-                          pattern_counts: dict | None = None) -> str:
+                          pattern_counts: dict | None = None,
+                          core_candidates: list | None = None) -> str:
     parts     = run_time.split(" ", 1)
     date_str  = parts[0]
     time_str  = parts[1] if len(parts) > 1 else run_time
-    base_time = _BASE_TIME_MAP.get(run_type, time_str)
+    # 실제 실행 시각을 그대로 쓴다. run_type별 고정 표기는 2차가 15:35·17:50·19:30
+    # 세 번 돌게 된 2026-09-07 이후로 전부 '17:50'으로 잘못 찍힌다.
+    base_time = time_str
     kospi_tv  = market_totals.get("kospi_total_tv_eok", 0)
     kosdaq_tv = market_totals.get("kosdaq_total_tv_eok", 0)
 
@@ -219,10 +233,11 @@ def format_market_summary(market_totals: dict, run_time: str, run_type: str,
 
     # '폭'(오른 종목 비율) 지표 — 지수 추세 국면과 다른 축이라 강세/약세 단어를 쓰지 않는다.
     # 같은 메시지의 '오늘 판정'(코스닥 추세)과 단어가 충돌해 하락장을 강세로 오독할 위험이 있음.
+    # 비율을 숫자로 보여주므로 '우세/열세' 단어는 색만 남기고 뺀다(같은 말 두 번).
     _breadth_map = {"강세": ("🟢", "우세"), "약세": ("🔴", "열세"), "중립": ("⚪", "보통")}
     _b_emoji, _b_word = _breadth_map.get(regime, ("⚪", "보통"))
-    breadth_str = (f"{_b_emoji} 오른종목 {market_adl*100:.0f}% {_b_word}"
-                   if market_adl is not None else f"{_b_emoji} 오른종목 {_b_word}")
+    breadth_str = (f"{_b_emoji}오른종목 {market_adl*100:.0f}%"
+                   if market_adl is not None else f"{_b_emoji}오른종목 {_b_word}")
     subtype_str = f" · {market_subtype}" if market_subtype else ""
 
     # 날짜에 요일 부착 (한눈에 보기)
@@ -231,25 +246,6 @@ def format_market_summary(market_totals: dict, run_time: str, run_type: str,
         date_disp = f"{date_str}({_WD[_dt.date.fromisoformat(date_str).weekday()]})"
     except Exception:
         date_disp = date_str
-
-    # 등락폭에 따른 한 단어 주석 (해석 도움)
-    def _move_word(chg):
-        if chg is None:
-            return ""
-        if chg >= 5:   return ", 큰폭상승"
-        if chg >= 2:   return ", 상승"
-        if chg <= -5:  return ", 큰폭하락"
-        if chg <= -2:  return ", 하락"
-        return ""
-
-    def _idx(level, chg):
-        if level is None:
-            return "-"
-        s = f"{level:,.2f}"
-        if chg is not None:
-            arrow = "▲" if chg >= 0 else "▼"
-            s += f" ({arrow}{abs(chg):.2f}%{_move_word(chg)})"
-        return s
 
     # 거래대금: 억 → 조 환산 (한눈에)
     def _tv_jo(eok):
@@ -270,10 +266,23 @@ def format_market_summary(market_totals: dict, run_time: str, run_type: str,
     etc_n = pc.get("없음", 0)
     if etc_n > 0:
         pat_parts.append(f"기타 {etc_n}")
-    cand_str        = " · ".join(pat_parts) if pat_parts else "없음"
-    limit_up_suffix = f"   (상한가 {limit_up_n})" if limit_up_n > 0 else ""
+    cand_str  = " · ".join(pat_parts) if pat_parts else "없음"
+    limit_up_str = f" · 상한가 {limit_up_n}" if limit_up_n > 0 else ""
 
-    _KD_PLAIN = {"강세": "강세", "혼조": "혼조(엇갈림)", "약세": "약세"}
+    # 핵심 후보 종목명 — 대시보드를 열지 않고도 무엇이 걸렸는지 보이게 한다.
+    _cand_lines = []
+    for i, c in enumerate((core_candidates or [])[:5]):
+        _nxt = " ⚡" if c.get("nxt_dominant") else ""
+        _cand_lines.append(
+            f"  {i+1} {c.get('name','')} {_sign(float(c.get('change_pct', 0)))}"
+            f" {_tv_eok(float(c.get('trading_value', 0)))}{_nxt}"
+        )
+    _rest = len(core_candidates or []) - 5
+    if _rest > 0:
+        _cand_lines.append(f"  … 외 {_rest}건")
+    cand_names = ("\n".join(_cand_lines) + "\n") if _cand_lines else ""
+
+    _KD_PLAIN = {"강세": "강세", "혼조": "혼조", "약세": "약세"}
 
     # ── 오늘 판정 (게이트) — 대시보드와 동일 산출 (compute_daily_gate) ──
     from scripts._dashboard_sections import compute_daily_gate
@@ -313,16 +322,23 @@ def format_market_summary(market_totals: dict, run_time: str, run_type: str,
         direction_line = ""
 
     # ── 국면 (코스피·코스닥 독립 판정 — 서로 비교 아님) ────────
-    index_regime = ex.get("index_regime")
-    regime_line = ""
-    if index_regime:
-        _emoji_map = {"강세": "🟢", "혼조": "🟡", "약세": "🔴", "?": "⚪"}
-        _kdr = index_regime.get("kosdaq_regime", "?")
-        _kp  = index_regime.get("kospi_regime", "?")
-        regime_line = (
-            f"국면  코스피 {_emoji_map.get(_kp,'')} {_KD_PLAIN.get(_kp,_kp)}"
-            f" · 코스닥 {_emoji_map.get(_kdr,'')} {_KD_PLAIN.get(_kdr,_kdr)}\n"
-        )
+    # 별도 줄로 빼지 않고 각 시장 줄 끝에 붙인다. 지수·자금·국면을 시장별로 모아야
+    # 한 줄만 읽고 그 시장을 판단할 수 있다.
+    index_regime = ex.get("index_regime") or {}
+    _emoji_map = {"강세": "🟢", "혼조": "🟡", "약세": "🔴", "?": "⚪"}
+
+    def _regime_chip(key):
+        r = index_regime.get(key)
+        if not r:
+            return ""
+        return f" · {_emoji_map.get(r,'')}{_KD_PLAIN.get(r, r)}"
+
+    def _mkt_line(label, level, chg, tv_eok, regime_key):
+        s = f"{label} "
+        s += f"{level:,.0f}" if level is not None else "-"
+        if chg is not None:
+            s += f" {'▲' if chg >= 0 else '▼'}{abs(chg):.2f}%"
+        return s + f" · {_tv_jo(tv_eok)}{_regime_chip(regime_key)}\n"
 
     # ── 거시 (환율·WTI·미선물 — 돌팬티 루틴: 미선물·유가·환율 확인) ──
     macro = ex.get("macro") or {}
@@ -342,7 +358,7 @@ def format_market_summary(market_totals: dict, run_time: str, run_type: str,
     _risk = ex.get("risk_appetite")
     if _risk:
         macro_bits.append(f"미선물 {_risk}")
-    macro_line = ("거시  " + " · ".join(macro_bits) + "\n") if macro_bits else ""
+    macro_line = ("거시 " + " · ".join(macro_bits) + "\n") if macro_bits else ""
 
     # ── 원칙 한 줄 (실행 리마인드) ────────────────────────────
     if run_type == "2차":
@@ -356,16 +372,16 @@ def format_market_summary(market_totals: dict, run_time: str, run_type: str,
         f"<b>📊 종가베팅 · {date_disp} · {base_time}</b>\n"
         f"<b>{_bar}</b>\n"
         f"{_gate_emoji} <b>개별주 종베: {_grade}</b>\n"
-        f"    {_why}\n"
+        f"    {_gate_short(_why)}\n"
         f"{_lc_emoji} <b>대형주 트랙: {_lc_grade}</b>\n"
         f"    {_lc_why}\n\n"
-        f"지수  코스피 {_idx(kospi_level, kospi_chg)} · 코스닥 {_idx(kosdaq_level, kosdaq_chg)}\n"
-        f"자금  코스피 {_tv_jo(kospi_tv)} · 코스닥 {_tv_jo(kosdaq_tv)}\n"
-        f"폭    {breadth_str}{subtype_str} · 굵은종목(1500억↑) {tv1500}\n"
-        f"{regime_line}"
+        f"{_mkt_line('코스피', kospi_level, kospi_chg, kospi_tv, 'kospi_regime')}"
+        f"{_mkt_line('코스닥', kosdaq_level, kosdaq_chg, kosdaq_tv, 'kosdaq_regime')}"
+        f"폭 {breadth_str}{subtype_str} · 1500억↑ {tv1500}{limit_up_str}\n"
         f"{macro_line}"
-        f"{direction_line}"
-        f"후보  {cand_str}{limit_up_suffix}\n"
+        f"{direction_line}\n"
+        f"<b>후보 {cand_str}</b>\n"
+        f"{cand_names}"
         f"{'─' * 16}\n"
         f"{principle}\n"
     )
@@ -572,7 +588,8 @@ def build_first_alert(
     parts = [
         format_market_summary(market_totals, run_time, "1차", extra=ex,
                               leading_sectors=leading_sectors,
-                              pattern_counts=pattern_counts),
+                              pattern_counts=pattern_counts,
+                              core_candidates=list(key_candidates)),
         format_limit_up_followup(followup_data or []),
     ]
     link_str = _format_dashboard_links(dashboard_links)
@@ -601,7 +618,8 @@ def build_second_alert(
     parts = [
         format_market_summary(market_totals, run_time, run_type, extra=ex,
                               leading_sectors=leading_sectors,
-                              pattern_counts=pattern_counts),
+                              pattern_counts=pattern_counts,
+                              core_candidates=list(key_candidates)),
         format_limit_up_followup(followup_data or []),
     ]
     link_str = _format_dashboard_links(dashboard_links)
