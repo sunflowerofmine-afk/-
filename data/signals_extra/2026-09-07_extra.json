@@ -1,0 +1,48 @@
+{
+  "date": "2026-09-07",
+  "generated": "2026-09-08",
+  "stocks": {
+    "034020": {
+      "name": "두산에너빌리티",
+      "signal_price": 87900,
+      "is_nxt": true,
+      "nxt_dominant": true,
+      "change_pct": 10.98,
+      "sector": "원자력발전소 해체",
+      "total_score": 10,
+      "52w_high": 139200,
+      "52w_low": 57000,
+      "pct_from_52w_high": -36.85,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 83
+    },
+    "083650": {
+      "name": "비에이치아이",
+      "signal_price": 67700,
+      "is_nxt": true,
+      "nxt_dominant": false,
+      "change_pct": 12.83,
+      "sector": "고체산화물 연료전지(SOFC)",
+      "total_score": 9,
+      "52w_high": 114200,
+      "52w_low": 33150,
+      "pct_from_52w_high": -40.72,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 123
+    },
+    "052690": {
+      "name": "한전기술",
+      "signal_price": 122300,
+      "is_nxt": true,
+      "nxt_dominant": false,
+      "change_pct": 13.66,
+      "sector": "원자력발전소 해체",
+      "total_score": 8,
+      "52w_high": 198000,
+      "52w_low": 77100,
+      "pct_from_52w_high": -38.23,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 96
+    }
+  }
+}
