@@ -26,6 +26,20 @@ def _sign(v: float) -> str:
     return f"+{v:.2f}%" if v >= 0 else f"{v:.2f}%"
 
 
+def _is_pre_open() -> bool:
+    """NXT 프리마켓(08:00) 개장 전인가.
+
+    2026-09-08: 이 알림을 08:50 → 07:40으로 앞당겼다. 돌팬티 3강 00:09:28이
+    "프리장에서 8시에서 8시 50분까지 종가베팅 대응 필수"라고 못박는데,
+    08:50 알림은 그 대응 창이 닫힐 때 도착했다. 이유도 명시한다 —
+    "다음 날 아침 8시에 시작할 때 예상 시초가를 전혀 알 수가 없습니다"(00:08:39).
+
+    개장 전에는 시가가 존재하지 않으므로 갭을 계산할 수 없다. 대신 청산
+    시나리오를 미리 세우는 자리로 쓴다(준돌 07:30~07:40 시나리오 설계와 같은 자리).
+    """
+    return datetime.now().hour < 8
+
+
 def _gap_guide(gap_pct: float | None) -> str:
     """갭 기준 행동 가이드."""
     if gap_pct is None:
@@ -78,9 +92,15 @@ def build_message(df: pd.DataFrame, signal_date: str) -> str:
     now = datetime.now()
     date_str = f"{now.month:02d}/{now.day:02d} ({_DAY_KO[now.weekday()]})"
 
+    pre_open = _is_pre_open()
+
     lines = [f"<b>🌅 아침 브리핑 | {date_str}</b>"]
     # 직전 거래일 검증은 main()에서 수행 — 여기 도달하면 signal_date는 직전 거래일
-    lines.append(f"전일({signal_date}) 신호 종목 현황\n")
+    if pre_open:
+        lines.append("<b>NXT 개장(08:00) 전 — 청산 계획을 먼저 정하는 자리</b>")
+        lines.append(f"전일({signal_date}) 신호 종목\n")
+    else:
+        lines.append(f"전일({signal_date}) 신호 종목 현황\n")
 
     # 핵심 후보만 (in_inter 또는 점수 상위)
     if "in_inter" in df.columns:
@@ -99,6 +119,18 @@ def build_message(df: pd.DataFrame, signal_date: str) -> str:
         sector      = str(row.get("sector", ""))
         pattern     = str(row.get("pattern_type_label", "없음"))
 
+        sector_str = f"[{sector}] " if sector else ""
+
+        if pre_open:
+            # 개장 전이라 시가가 없다. yfinance를 부르면 전일 시가가 돌아와
+            # 갭 0%로 읽히므로 아예 조회하지 않는다.
+            lines.append(
+                f"• <b>{name}</b>({code}) {sector_str}{pattern}\n"
+                f"  진입가 {entry_price:,.0f}원\n"
+                f"  → 08:00 개장가를 보고 정할 것: 청산 시각 · 손절 기준가"
+            )
+            continue
+
         # 당일 시가 조회 (없으면 "-")
         cur_price = _stock_current_price(code)
         if cur_price and entry_price > 0:
@@ -109,7 +141,6 @@ def build_message(df: pd.DataFrame, signal_date: str) -> str:
             price_str = "시가 조회 중"
 
         guide = _gap_guide(gap_pct)
-        sector_str = f"[{sector}] " if sector else ""
         lines.append(
             f"• <b>{name}</b>({code}) {sector_str}{pattern}\n"
             f"  진입가 {entry_price:,.0f}원 | {price_str}\n"
@@ -129,6 +160,13 @@ def build_message(df: pd.DataFrame, signal_date: str) -> str:
             lines.append(f"\n📊 미국(전일) {' | '.join(idx_parts)}")
     except Exception as e:
         logger.debug(f"지수 조회 실패: {e}")
+
+    if pre_open:
+        lines.append(
+            "\n─────────────\n"
+            "⏱ <b>08:00~08:50이 대응 창</b>\n"
+            "    KRX 정규장으로 넘기지 않는다 (NXT보다 더 빠지는 경우가 많음)"
+        )
 
     return "\n".join(lines)
 

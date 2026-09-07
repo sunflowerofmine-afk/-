@@ -216,6 +216,9 @@ def format_market_summary(market_totals: dict, run_time: str, run_type: str,
     # 실제 실행 시각을 그대로 쓴다. run_type별 고정 표기는 2차가 15:35·17:50·19:30
     # 세 번 돌게 된 2026-09-07 이후로 전부 '17:50'으로 잘못 찍힌다.
     base_time = time_str
+    # 1차는 마감 전이라 종가·거래대금이 확정 전이다. 성과 집계에서도 빠진다.
+    if run_type == "1차":
+        base_time += " (마감 전 잠정)"
     kospi_tv  = market_totals.get("kospi_total_tv_eok", 0)
     kosdaq_tv = market_totals.get("kosdaq_total_tv_eok", 0)
 
@@ -378,10 +381,13 @@ def format_market_summary(market_totals: dict, run_time: str, run_type: str,
     macro_line = ("거시 " + " · ".join(macro_bits) + "\n") if macro_bits else ""
 
     # ── 원칙 한 줄 (실행 리마인드) ────────────────────────────
-    if run_type == "2차":
-        principle = "💡 진입은 NXT 막판 · 청산은 D+1 오전 · 물타기 금지"
+    # 1차만 마감 전이다. 2차·수동은 전부 장 마감 뒤(15:35 이후) 실행이라
+    # "종가 진입 준비"가 맞지 않는다 — 19:30 실행이 "수동"으로 떨어지면서
+    # 이 문구가 나오던 것을 2026-09-08에 고쳤다.
+    if run_type == "1차":
+        principle = "💡 종가 진입 준비 · 비중을 먼저 정할 것 · D+1 청산계획"
     else:
-        principle = "💡 종가 진입 준비 · D+1 장초 청산계획 · 물타기 금지"
+        principle = "💡 진입은 NXT 막판 · 청산은 D+1 오전 · 물타기 금지"
 
     _bar = "━" * 15
     return (
