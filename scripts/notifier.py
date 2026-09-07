@@ -337,7 +337,7 @@ def format_market_summary(market_totals: dict, run_time: str, run_type: str,
     direction_str = _direction_map.get(market_direction, "")
     timing_str    = _timing_map.get(market_direction, "")
     if run_type == "1차" and direction_str:
-        direction_line = f"방향  {direction_str} → {timing_str}\n"
+        direction_line = f"방향 {direction_str} → {timing_str}\n"
     else:
         direction_line = ""
 
