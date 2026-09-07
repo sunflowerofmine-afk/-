@@ -943,7 +943,6 @@ def _section_stock_panel(candidates: list, rejected: list, market_regime: str = 
         if _fresh == 0: t1.append("🆕신규")
         t2 = []   # 경고 — 강등 신호만 (빨강)
         if c.get("theme_role") == "후속주": t2.append("🐟후발주")
-        if chg >= 25: t2.append("⚠급등")
         if _baseline_weak(c): t2.append("⚠약한자리")
         if _fresh is not None and _fresh >= FRESHNESS_STALE_MIN_COUNT:
             t2.append(f"♻️{_fresh}일째")
@@ -1214,11 +1213,13 @@ def _position_guide_parts(c: dict) -> tuple[str, str] | None:
 
     # 점수 기반 밴드는 제거 — 예측력 없음이 독립 검증 3건에서 확인됨
     # (신호검증 "고점수 무효" / 돌침 재검증 "전국면 일관=거래대금·수급뿐" / 실측 25건 단조성 없음).
-    # 검증된 축(국면 · 당일 과열 · 교집합)만 남긴다.
+    #
+    # 2026-09-07: 당일 +25% 초과 회피 규칙도 철회했다. 근거가 n=2였는데(7월 25건 표본)
+    # 230건 재계산에서 +25% 초과는 n=30·평균 +1.04%로 +20~25%(n=47·+0.97%)보다 낮지
+    # 않았다. 오히려 이 구간을 빼면 전체 평균이 +0.63%에서 +0.56%로 내려간다.
+    # 외부 교차검증 지적으로 확인. 국면 · 교집합만 남긴다.
     if regime == "약세":
         return "약세장 — 관망 권고 (약세장 승률 39%)", "neg"
-    if chg >= 25:
-        return "⚠ 회피 (당일 +25%↑ 과열 — D+1 시가 승률 0%, n=2)", "neg"
     if inter:
         return "소액 (교집합) — D+1 시가 청산 필수 (종가 홀딩 실측 -5.05%)", "warn"
     return "소액 테스트 (10~20%)", "warn"
@@ -1343,11 +1344,8 @@ def _position_guide_html(c: dict) -> str:
 
 def _risk_tags_html(c: dict) -> str:
     """리스크 경고 뱃지 HTML — 해당 없으면 빈 문자열"""
-    chg   = float(c.get("change_pct", 0))
     tv    = float(c.get("trading_value", 0))
     tags  = []
-    if chg >= 25:
-        tags.append("⚠ 급등25%↑")
     if 0 < tv < 250_000_000_000:
         tags.append("⚠ 대금근접")
     if c.get("kosdaq_regime") == "약세":
