@@ -583,6 +583,14 @@ def run(today: date, kospi_chg_today: float | None) -> list[dict]:
             "base_high_gap_pct": row.get("base_high_gap_pct"),
             "signal_inst_net":    _safe_float(row.get("inst_net")),
             "signal_foreign_net": _safe_float(row.get("foreign_net")),
+            # 2026-09-07: 아래 4개는 신호 CSV에만 있고 리뷰에는 안 남아 사후 검증이
+            # 불가능했다. 외부 교차검증에서 theme_role은 290건 중 0건, 기간수급은 139건,
+            # freshness는 99건만 유효해 "판정 불가"로 분류됐다. 판정에 쓰는 값은
+            # 결과와 같은 파일에 남겨야 나중에 검증할 수 있다.
+            "signal_inst_net_5d":    _safe_float(row.get("inst_net_5d")),
+            "signal_foreign_net_5d": _safe_float(row.get("foreign_net_5d")),
+            "freshness_count":       row.get("freshness_count"),
+            "theme_role":            str(row.get("theme_role", "")),
             # ── 멀티데이 수익률 ─────────────────────────
             "d1_open_pct":  None,
             "d1_high_pct":  None,
