@@ -761,7 +761,13 @@ def run(preview: bool = False):
 
     # ── 6. report_data 기본 구조 (1차/2차 공통) ──────────────
     report_date   = now.strftime("%Y-%m-%d")
-    snapshot_time = {"1차": "1450", "2차": "1750"}.get(run_type, timestamp_str.split("_")[1])
+    # 하루 두 번의 "2차"(15:35 종가확정 / 17:50 NXT반영)를 파일명으로 구분한다.
+    # 백테스트 스크립트가 `*_1750_signals.csv`로 저녁분을 집계하므로 그 이름은 유지.
+    _hhmm = timestamp_str.split("_")[1]
+    if run_type == "2차":
+        snapshot_time = "1535" if _hhmm < "1700" else "1750"
+    else:
+        snapshot_time = _hhmm
 
     _min_tv_won = MIN_TRADING_VALUE_EOK * 100_000_000
     tv_1500_count = int((filtered_df["거래대금"] >= _min_tv_won).sum()) if not filtered_df.empty else 0

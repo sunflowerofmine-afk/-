@@ -146,8 +146,38 @@ def _build_no_signal_message(expected_fmt: str | None) -> str:
     )
 
 
+def _us_section() -> str:
+    """미국장 지수·관련주 블록 — 2026-09-08 us_briefing(07:40)에서 흡수.
+
+    07:40과 08:50이 한 시간 간격으로 연달아 와 알림 피로가 컸다. 08:50 하나로
+    합친다 — NXT 프리마켓(~08:50)까지 반영되고 KRX 개장 10분 전이라 실행에 더 가깝다.
+    LLM 뉴스요약은 옮기지 않는다. 아침 알림은 보유 종목을 어떻게 팔지 판단하는
+    자리인데, 거기에 AI가 쓴 해석을 얹으면 본인 판단보다 먼저 읽히게 된다.
+    지수 등락률 같은 원자료는 판단의 입력이라 그대로 가져온다.
+    """
+    try:
+        from scripts.us_briefing import (
+            _index_table, _related_table, _load_prev_candidates,
+        )
+        from scripts.fetch_us_market import fetch_indices, fetch_candidate_related
+        indices = fetch_indices()
+        if not indices:
+            return ""
+        parts = [f"<b>🌏 미국장</b>\n<pre>{_index_table(indices)}</pre>"]
+        cands = _load_prev_candidates()
+        if cands:
+            related = fetch_candidate_related(cands)
+            if related:
+                parts.append(f"<b>🔗 전일 후보 관련 미국주식</b>\n<pre>{_related_table(related)}</pre>")
+        return "\n".join(parts)
+    except Exception as e:
+        logger.warning(f"미국장 블록 생성 실패 (무시): {e}")
+        return ""
+
+
 def main():
     logger.info("아침 브리핑 시작")
+    us_block = _us_section()
     df, signal_date = _load_prev_signals()
 
     # 직전 거래일 계산 (오늘 기준)
@@ -160,12 +190,15 @@ def main():
     sig8 = signal_date.replace("-", "") if signal_date else ""
     if df is None or df.empty or (expected and sig8 != expected):
         logger.info(f"직전 거래일({expected}) 신호 없음 — 관망 브리핑 발송")
-        ok = send_message(_build_no_signal_message(expected_fmt))
+        _m = _build_no_signal_message(expected_fmt)
+        ok = send_message(f"{us_block}\n\n{_m}" if us_block else _m)
         logger.info(f"관망 브리핑 발송 {'성공' if ok else '실패'}")
         return
 
     logger.info(f"전일 신호 {len(df)}개 ({signal_date})")
     msg = build_message(df, signal_date)
+    if us_block:
+        msg = f"{us_block}\n\n{msg}"
     logger.info(f"메시지 미리보기:\n{msg}")
 
     ok = send_message(msg)
