@@ -1503,6 +1503,11 @@ def run(preview: bool = False):
         "market_type":          market_type,
         "leading_sector_names": [s["sector_name"] for s in leading_sectors[:4]],
         "limit_up_count":       limit_up_count,
+        # 상한가 종목명 — 개수만 남기면 사후에 "그날 상한가가 뭐였나"를 못 되짚는다.
+        # 2026-09-07 돌팬티가 신규주 상한가(스카이랩스)를 판단 축의 절반으로 썼는데
+        # 봇 백업에는 개수 10만 있고 명단이 없어 대조가 불가능했다. 명단은 그동안
+        # 대시보드 HTML에만 들어갔다. 거래대금 상위 10개까지 남긴다.
+        "limit_up_list":        limit_up_list,
         "code_to_sector":       code_to_sector,
         # 게이트 재현용 입력값 — 없으면 사후에 판정을 되짚을 수 없다.
         "market_adl":              _market_adl,
