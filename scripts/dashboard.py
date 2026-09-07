@@ -37,6 +37,7 @@ from scripts._dashboard_sections import (
     _section_table_gainers,
     _section_table_tv,
     _section_tracked,
+    _section_limit_up,
 )
 
 logger = logging.getLogger(__name__)
@@ -237,28 +238,47 @@ def _build_html(data: dict, nav_entries: list | None = None, current_filename: s
     date_map      = _date_map_from_entries(nav_entries) if nav_entries else {}
     market_regime = data.get("market_summary", {}).get("market_regime", "중립")
 
-    body_parts = [
+    # 섹션 순서는 돌팬티 8강 5.1의 14:30 점검 순서를 따른다.
+    #   거래대금 → 지수 → 상한가 → 최대 이슈(주도섹터) → 그 안에서 종목
+    # 종목을 먼저 보면 시황 판단이 종목에 끌려간다. 시장을 먼저 확정하고 후보로
+    # 내려오는 순서를 화면이 강제하도록 2026-09-07 재배치.
+    # ── 1층: 시황 ──
+    market_layer = [
         _section_header(data),
         _section_env_and_signals(data),
-        # ── 종가베팅 후보 (양분화: 중소형 핵심+관심 → 대형주) ──
+        _section_table_tv(data.get("trading_value_top20", [])),
+        _section_limit_up(data.get("market_summary", {})),
+        _section_leading_sectors(data.get("leading_sectors", [])),
+    ]
+    # ── 2층: 후보 (중소형 핵심+관심 → 대형주) ──
+    candidate_layer = [
         _section_stock_panel(core, rejected, market_regime),
         _section_watch_panel(data.get("watch_candidates", []), market_regime),
         _section_largecap(data.get("largecap_candidates", [])),
         _section_twotop_oversold(data.get("twotop_oversold", [])),
-        # ── 시장 정보 ──
-        _section_leading_sectors(data.get("leading_sectors", [])),
-        _section_table_tv(data.get("trading_value_top20", [])),
+    ]
+    # ── 3층: 참고 (기본 접힘) ──
+    # 눌림(pullback) 섹션은 출력 중단 — 종베 집중을 위해 화면에서 제외.
+    # 데이터 수집·저장은 유지(KH는 평일 signals.csv, 눌림은 금요일 weekly_research).
+    # 전일 복기·누적 승률·멀티데이 통계·52주 신고가 추이는 백테스트 전용 — 대시보드 미표시.
+    ref_layer = [
         _section_table_gainers(data.get("gainers_top20", [])),
         _section_sector_calendar(data.get("sector_calendar", {}), today_str, date_map),
         _section_table_intersection(data.get("intersection_candidates", [])),
         _section_rejected_summary(rejected),
-        # ── 기준봉 관찰 · 추적 ──
-        # 눌림(pullback) 섹션은 출력 중단 — 종베 집중을 위해 화면에서 제외.
-        # 데이터 수집·저장은 유지(KH는 평일 signals.csv, 눌림은 금요일 weekly_research).
-        # 전일 복기·누적 승률·멀티데이 통계·52주 신고가 추이는 백테스트 전용 — 대시보드 미표시.
         _section_recent_base_pool(data.get("obs_candidates", [])),
         _section_tracked(data.get("tracked_candidates", [])),
     ]
+    ref_html = "\n".join(p for p in ref_layer if p)
+    ref_block = (
+        '<details style="margin-top:18px">'
+        '<summary class="section-title" style="cursor:pointer;list-style:none">'
+        '▸ 참고 자료 (상승률 · 섹터 캘린더 · 교집합 · 제외 요약 · 관찰 풀 · 추적)</summary>'
+        f'<div style="margin-top:10px">{ref_html}</div>'
+        '</details>'
+    ) if ref_html else ""
+
+    body_parts = market_layer + candidate_layer + ([ref_block] if ref_block else [])
     body     = "\n".join(body_parts)
     nav_html = _nav_bar(nav_entries, current_filename) if nav_entries else ""
 

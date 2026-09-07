@@ -101,13 +101,6 @@ def _news_titles(news) -> list:
         return result
     return []
 
-def _score_val(score) -> str:
-    if score is None: return "-"
-    if hasattr(score, "total_score"): return str(score.total_score)
-    if isinstance(score, dict): return str(score.get("total_score", "-"))
-    return "-"
-
-
 # ─── 상수 ─────────────────────────────────────────────────────────────────────
 
 _OFFSET_LABEL = {0: "당일", 1: "1일전", 2: "2일전", 3: "3일전"}
@@ -135,20 +128,6 @@ def _baseline_weak(c: dict) -> bool:
     entry = c.get("entry_reference_price") or 0
     pc = c.get("prev_close")
     return bool(entry and pc and entry <= pc)
-
-
-def _gap_from_52w(c: dict):
-    """signal_price가 52주 고가 대비 몇 %인지 (음수면 고가 아래). 산출 불가 시 None.
-
-    52주 고가(high_52w)는 KRX 일봉으로 계산되고 signal_price도 같은 '현재가'라
-    기준이 일치한다 — signals.csv의 pct_from_52w_high와 동일한 값이 나온다.
-    ※ 관찰·표시 전용. 등급 판정에는 쓰지 않는다(2026-08-12 사용자 결정).
-    """
-    hi = c.get("high_52w") or 0
-    px = c.get("signal_price") or 0
-    if hi <= 0 or px <= 0:
-        return None
-    return (px - hi) / hi * 100
 
 
 def _compute_status(c: dict, market_regime: str = "중립") -> str:
@@ -968,29 +947,16 @@ def _section_stock_panel(candidates: list, rejected: list, market_regime: str = 
         if _baseline_weak(c): t2.append("⚠약한자리")
         if _fresh is not None and _fresh >= FRESHNESS_STALE_MIN_COUNT:
             t2.append(f"♻️{_fresh}일째")
-        # 관찰 경고 — 강등하지 않는다(노랑). t2(빨강=강등)와 색으로 구분.
-        # 미모사 5강이 종베 필수 3요소로 [신고가·거래대금·좋은뉴스]를 드는데 봇은
-        # 신고가를 판정에 안 쓴다. 강등 전환 전에 분포부터 눈으로 보려는 목적이라
-        # 이진 태그가 아니라 실제 괴리율을 적는다. 임계값은 대형주 트랙과 같은 5%.
-        from config.settings import LARGECAP_NEAR_HIGH_PCT
-        t3 = []
-        # 패턴 미검출인데 교집합에 든 후보 — 코드는 이 조합을 매수검토로 못 올린다
-        # (_compute_status에 '없음' 분기가 없어 관찰이 상한). 그런데 실측은 미검출 9건이
-        # 승률 77.8%/기대값 +2.42%로 전 패턴 1위였다(2026-08-31 점검, n=9).
-        # 지금까지 등급 변경은 전부 강등 방향뿐이라 승격은 보류하고, 어긋남만 눈에 보이게 한다.
-        if pat.get("pattern_type_label", "없음") == "없음" and in_inter:
-            t3.append("패턴無·교집합")
-        _g52 = _gap_from_52w(c)
-        if _g52 is not None and _g52 < -LARGECAP_NEAR_HIGH_PCT:
-            t3.append(f"52주고가 {_g52:.0f}%")
+        # 관찰(노랑) 계층은 2026-09-07 제거. 52주 괴리율은 전기간 279건 상관 +0.000으로
+        # 예측력이 확인되지 않았고, "패턴無·교집합"은 승격 여부를 결정하지 못한 상태를
+        # 화면에 전시하는 것이었다. 판정에 쓰지 않는 값은 표시하지 않는다 — 볼 때마다
+        # 다시 판단하게 만드는 것이 단순화의 실제 비용이다. 원자료는 CSV에 그대로 있다.
         # 참고(정배열·1조+·기간조정·되돌림지지·고가수축·프로그램)는 상세 패널에서 확인
         tags_html = ""
         if t1:
             tags_html += "  " + _e("  ".join(t1))
         if t2:
             tags_html += " <span style='color:var(--red)'>" + _e("  ".join(t2)) + "</span>"
-        if t3:
-            tags_html += " <span style='color:var(--yellow)'>" + _e("  ".join(t3)) + "</span>"
 
         pri_html   = _status_badge_html(status)
         pat_cls    = _PAT_CLS.get(pat_label, "")
@@ -1034,13 +1000,6 @@ def _section_stock_panel(candidates: list, rejected: list, market_regime: str = 
             "pbs_flag":     pbs_flag,
             "status":       status,
             "llm_summary":  llm_summary,
-            "score":        _score_val(c.get("score")),
-            "score_news":   getattr(c.get("score"), "news_score",          "-"),
-            "score_tv":     getattr(c.get("score"), "trading_value_score", "-"),
-            "score_candle": getattr(c.get("score"), "candle_score",        "-"),
-            "score_supply": getattr(c.get("score"), "supply_score",        "-"),
-            "score_bonus":  getattr(c.get("score"), "bonus_score",         "-"),
-            "score_reasons": getattr(c.get("score"), "reasons", []) or [],
             "tv_ratio":     f"{pat.get('tv_ratio'):.2f}" if pat.get("tv_ratio") is not None else "-",
             "inst_str":     _fmt_flow(sup_inst) if sup_inst is not None else "-",
             "frgn_str":     _fmt_flow(sup_frgn) if sup_frgn is not None else "-",
@@ -1123,10 +1082,6 @@ function renderDetail(idx) {{
   h += '<div class="detail-kv"><span class="k">등락률</span><span class="v ' + chgCls + '">' + c.chg_str + '</span></div>';
   h += '<div class="detail-kv"><span class="k">거래대금</span><span class="v">' + c.tv_str + '</span></div>';
   h += '<div class="detail-kv"><span class="k">패턴</span><span class="v">' + c.pat_str + '</span></div>';
-  const reasonsHtml = (c.score_reasons && c.score_reasons.length)
-    ? '<details style="margin-top:3px"><summary style="cursor:pointer;font-size:11px;color:var(--blue)">산출 근거 보기</summary><div style="font-size:11px;color:var(--text);margin-top:3px;line-height:1.7">' + c.score_reasons.map(r => '· ' + r).join('<br>') + '</div></details>'
-    : '';
-  h += '<div class="detail-kv"><span class="k">점수 <span style="font-size:10px;color:var(--muted)">(참고용)</span></span><span class="v" style="color:var(--muted)">' + c.score + '점</span><div style="font-size:11px;color:var(--muted);margin-top:2px">뉴스 ' + c.score_news + ' · 대금 ' + c.score_tv + ' · 캔들 ' + c.score_candle + ' · 수급 ' + c.score_supply + ' · 보너스 ' + c.score_bonus + '</div><div style="font-size:10px;color:var(--red);margin-top:2px">⚠ 점수는 D+1 예측력 없음(독립 검증 3건) — 매수 근거로 쓰지 말 것</div>' + reasonsHtml + '</div>';
   h += '<div class="detail-kv"><span class="k">신호가</span><span class="v">' + c.entry_ref_str + (c.price_src ? ' <span style="color:var(--muted);font-size:11px">(' + c.price_src + ')</span>' : '') + '</span></div>';
   h += '</div></div>';
   const _colMap = {{pos:'var(--green)', neg:'var(--red)', warn:'var(--yellow)'}};
@@ -1389,16 +1344,10 @@ def _position_guide_html(c: dict) -> str:
 def _risk_tags_html(c: dict) -> str:
     """리스크 경고 뱃지 HTML — 해당 없으면 빈 문자열"""
     chg   = float(c.get("change_pct", 0))
-    _sc   = c.get("score")
-    score = int(_sc.total_score) if _sc and hasattr(_sc, "total_score") else int(c.get("total_score") or 0)
     tv    = float(c.get("trading_value", 0))
     tags  = []
     if chg >= 25:
         tags.append("⚠ 급등25%↑")
-    if score >= 13:
-        tags.append("⚠ 고점수 과열(13+)")   # 검증: 13점+ 승률 50%, 10-12점 61%보다 낮음
-    if 0 < score <= 9:
-        tags.append("⚠ 저스코어")
     if 0 < tv < 250_000_000_000:
         tags.append("⚠ 대금근접")
     if c.get("kosdaq_regime") == "약세":

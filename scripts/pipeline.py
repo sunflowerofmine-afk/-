@@ -1618,33 +1618,24 @@ def run(preview: bool = False):
             run_type=run_type,
             followup_data=followup_data,
         )
+        # 대형주 상세는 본 알림에 이어붙여 한 번에 보낸다 (2026-09-07).
+        # 본 알림에 이미 "대형주 트랙" 게이트 2줄이 있어 별도 메시지는 같은 내용을
+        # 두 번 읽게 만들었다. 긴 메시지는 send_message가 알아서 분할한다.
+        if largecap_candidates:
+            try:
+                _lc_msg = ntf.build_largecap_message(largecap_candidates, run_time, run_type)
+                if _lc_msg:
+                    msg += "\n" + _lc_msg
+            except Exception as e:
+                logger.warning(f"대형주 상세 결합 실패 (무시): {e}")
         ntf.send_message(msg)
         logger.info(f"2차 알림 전송 완료 (핵심 {len(core_candidates)}개 / 관심 {len(watch_candidates)}개)")
 
-        # 대형주 주도주 후속 알림 (2차 — NXT 막판 진입 판단용, 이미 수집된 결과 재사용)
-        if largecap_candidates:
-            try:
-                ntf.send_message(ntf.build_largecap_message(largecap_candidates, run_time, run_type))
-                logger.info(f"대형주 후속 알림(2차): {len(largecap_candidates)}개")
-            except Exception as e:
-                logger.warning(f"대형주 후속 알림 실패 (무시): {e}")
-
-        # ── 시장 흐름 심층 요약 (TELEGRAM_CHAT_ID 전용) ────────────────
-        try:
-            from scripts.llm_analyzer import summarize_market_flow
-            flow_text = summarize_market_flow(
-                run_date       = report_date,
-                market_regime  = market_regime,
-                adl            = _market_adl,
-                leading_sectors= leading_sectors,
-                limit_up_names = limit_up_names,
-                candidates     = core_candidates,
-            )
-            private_msg = f"📊 <b>오늘 시장 흐름 분석</b> ({run_time} KST)\n\n{flow_text}"
-            ntf.send_private(private_msg)
-            logger.info("시장 흐름 요약 전송 완료")
-        except Exception as e:
-            logger.warning(f"시장 흐름 요약 실패 (무시): {e}")
+        # 시장 흐름 LLM 요약은 2026-09-07 발송 중단.
+        # 17:50 알림은 사용자가 NXT 진입을 판단하는 시점에 도착한다. 여기에 AI가 쓴
+        # 해석을 함께 보내면 본인 판단을 세우기 전에 남의 결론을 먼저 읽게 된다 —
+        # daily_view_log에 세운 "내 사전 판단을 먼저 쓴다"는 원칙과 정면으로 충돌한다.
+        # summarize_market_flow 함수는 보존(백테스트·사후 분석용).
 
     # ── 기준봉 후 추적 알림 (1차/2차 공통) ── 비활성화: 강한 종목 종베 집중 기간
     # try:
