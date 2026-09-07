@@ -266,8 +266,25 @@ def format_market_summary(market_totals: dict, run_time: str, run_type: str,
     etc_n = pc.get("없음", 0)
     if etc_n > 0:
         pat_parts.append(f"기타 {etc_n}")
-    cand_str  = " · ".join(pat_parts) if pat_parts else "없음"
-    limit_up_str = f" · 상한가 {limit_up_n}" if limit_up_n > 0 else ""
+    cand_str = " · ".join(pat_parts) if pat_parts else "없음"
+
+    # 상한가 — 돌팬티 6.1 점검 4단계는 "상한가와 그 뉴스는 무엇인가"다.
+    # 건수만으로는 MTS에서 뭘 찾아봐야 할지 알 수 없어 종목명을 함께 낸다.
+    _lu_names = (ex.get("limit_up_names") or [])[:4]
+    if limit_up_n > 0:
+        _lu_tail = f" — {' · '.join(_lu_names)}" if _lu_names else ""
+        limit_up_line = f"상한가 {limit_up_n}{_lu_tail}\n"
+    else:
+        limit_up_line = ""
+
+    # 주도섹터 — 점검 5단계(테마). 지금까지 대시보드에만 있고 알림에 없었다.
+    _sec_bits = []
+    for s in (leading_sectors or [])[:3]:
+        _r = s.get("market_ratio_pct")
+        # 괄호 부연("S7(삼성전자/SK하이닉스 등)")은 한 줄을 넘겨서 뺀다.
+        _nm = _short_sector_name(s.get("sector_name", "")).split("(")[0].strip()
+        _sec_bits.append(_nm + (f" {_r:.0f}%" if _r is not None else ""))
+    sector_line = ("주도 " + " · ".join(_sec_bits) + "\n") if _sec_bits else ""
 
     # 핵심 후보 종목명 — 대시보드를 열지 않고도 무엇이 걸렸는지 보이게 한다.
     _cand_lines = []
@@ -377,7 +394,9 @@ def format_market_summary(market_totals: dict, run_time: str, run_type: str,
         f"    {_lc_why}\n\n"
         f"{_mkt_line('코스피', kospi_level, kospi_chg, kospi_tv, 'kospi_regime')}"
         f"{_mkt_line('코스닥', kosdaq_level, kosdaq_chg, kosdaq_tv, 'kosdaq_regime')}"
-        f"폭 {breadth_str}{subtype_str} · 1500억↑ {tv1500}{limit_up_str}\n"
+        f"폭 {breadth_str}{subtype_str} · 1500억↑ {tv1500}\n"
+        f"{sector_line}"
+        f"{limit_up_line}"
         f"{macro_line}"
         f"{direction_line}\n"
         f"<b>후보 {cand_str}</b>\n"
