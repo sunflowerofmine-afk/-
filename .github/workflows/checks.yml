@@ -1,0 +1,49 @@
+name: Checks
+
+# 알림이 실제로 도는 건 하루 4번뿐이고, 분기마다 다른 데이터가 흐른다.
+# 그래서 잘못 들어간 코드가 몇 시간에서 며칠 뒤에야 드러났다.
+# 여기서 푸시 즉시 잡는다.
+on:
+  push:
+    paths:
+      - "scripts/**.py"
+      - "config/**.py"
+      - ".github/workflows/checks.yml"
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install deps
+        run: |
+          pip install -r requirements.txt
+          pip install pyflakes
+
+      # ① 미정의 이름 — import는 통과하고 실행할 때 죽는 유형.
+      #    2026-09-08 대시보드가 이렇게 죽었다(_OBS_TAG_COLOR). 죽은 코드를
+      #    정리하면서 정의만 지우고 사용처를 남긴 것이 원인이었다.
+      - name: 미정의 이름 검사
+        run: |
+          out=$(python -m pyflakes scripts/*.py config/*.py 2>&1 | grep "undefined name" || true)
+          if [ -n "$out" ]; then
+            echo "$out"
+            echo "::error::정의 없이 쓰이는 이름이 있습니다. 실행 시 NameError로 죽습니다."
+            exit 1
+          fi
+          echo "미정의 이름 없음"
+
+      # ② 분기별 렌더 — 데이터가 있어야만 타는 경로를 강제로 태운다.
+      - name: 알림·대시보드 출력 스모크
+        run: python -m scripts.smoke_render
+
+      # 참고용. 실패시키지 않는다 — 미사용 import 같은 건 급하지 않다.
+      - name: 그 밖의 린트 (참고)
+        continue-on-error: true
+        run: python -m pyflakes scripts/*.py config/*.py
