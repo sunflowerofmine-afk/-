@@ -1430,8 +1430,17 @@ def run(preview: bool = False):
     # 대형주 주도주 관찰 — 코스피 강세 게이트를 신고가근접+거래대금 질적필터로 교체
     # (2026-06-30 백테스트: 신고가근접+거래대금+양봉 D+1 시가67%/종가58%. 신고가 필터가
     #  약세장 잡주를 자동 배제 → 혼조장 삼성전기도 포착). 관찰정보, 매수신호 아님.
+    # ── 15:35 실행만 대형주 관찰을 알림 뒤로 미룬다 (2026-09-08) ──────────────
+    # 실측: 시총상위 47종목 점검에 16.4분이 걸려 15:35 알림이 16:06에 도착했다.
+    # 종가 진입을 판단할 시각을 이미 지난 뒤다(로그: 15:49 signals 저장 →
+    # 16:05 대형주 완료 → 16:06 발송). 미루면 15:49 전후로 앞당겨진다.
+    # 저녁 실행(17:50·19:30)은 NXT 마감(20:00)까지 여유가 있어 지금처럼 앞에서 돈다 —
+    # 대시보드·daily_summary에 대형주 값이 온전히 남는 쪽이 낫고, 성과 검증도
+    # 17:50 파일을 쓴다(`review.py`가 그날 마지막 CSV를 읽음).
+    _defer_largecap = (snapshot_time == "1535")
+
     largecap_candidates = []
-    if run_type in ("2차", "수동") and ENABLE_LARGECAP_OBSERVER:
+    if run_type in ("2차", "수동") and ENABLE_LARGECAP_OBSERVER and not _defer_largecap:
         try:
             from scripts.largecap_observer import observe as _observe_largecap
             largecap_candidates = _observe_largecap()
@@ -1483,7 +1492,7 @@ def run(preview: bool = False):
         # 대형주 트랙은 독립 판정 — 개별주 게이트와 함께 저장해야 사후 대조가 된다.
         _lc_grade, _, _lc_why = _lc_gate_fn(
             len(largecap_candidates or []), len(twotop_oversold or []),
-            run_type in ("2차", "수동"),
+            run_type in ("2차", "수동"), deferred=_defer_largecap,
         )
     except Exception as e:
         logger.warning(f"게이트 판정 집계 실패 (daily_summary에 미기록): {e}")
@@ -1593,6 +1602,7 @@ def run(preview: bool = False):
         "risk_appetite":         futures_data.get("risk_appetite"),
         "largecap_count":        len(largecap_candidates or []),
         "twotop_count":          len(twotop_oversold or []),
+        "largecap_deferred":     _defer_largecap,
     }
     if run_type == "1차":
         msg = ntf.build_first_alert(
@@ -1641,6 +1651,23 @@ def run(preview: bool = False):
                 logger.warning(f"대형주 상세 결합 실패 (무시): {e}")
         ntf.send_message(msg)
         logger.info(f"2차 알림 전송 완료 (핵심 {len(core_candidates)}개 / 관심 {len(watch_candidates)}개)")
+
+        # 15:35 실행은 대형주 관찰을 여기서 돈다 — 본 알림 발송 뒤라 타이밍을 잡아먹지
+        # 않는다(1차와 같은 처리). 47종목 점검에 16분이 걸려 앞에 두면 알림이 16시를
+        # 넘긴다. 저녁 실행은 위에서 이미 돌았으므로 여기 들어오지 않는다.
+        if _defer_largecap and ENABLE_LARGECAP_OBSERVER:
+            try:
+                from scripts.largecap_observer import observe as _observe_largecap_late
+                _lc_late = _observe_largecap_late()
+                if _lc_late:
+                    _lc_msg = ntf.build_largecap_message(_lc_late, run_time, run_type)
+                    if _lc_msg:
+                        ntf.send_message(_lc_msg)
+                        logger.info(f"대형주 후속 알림(15:35): {len(_lc_late)}개")
+                else:
+                    logger.info("대형주 후속: 후보 0개 — 발송 생략")
+            except Exception as e:
+                logger.warning(f"대형주 관찰(지연 실행) 실패 (무시): {e}")
 
         # 시장 흐름 LLM 요약은 2026-09-07 발송 중단.
         # 17:50 알림은 사용자가 NXT 진입을 판단하는 시점에 도착한다. 여기에 AI가 쓴

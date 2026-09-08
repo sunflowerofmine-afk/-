@@ -489,7 +489,8 @@ def compute_daily_gate(core_n: int, kd, adl, top5_ratio, risk, buy_n=None):
     return grade, col, why
 
 
-def compute_largecap_gate(largecap_n: int, twotop_n: int, largecap_ran: bool = True):
+def compute_largecap_gate(largecap_n: int, twotop_n: int, largecap_ran: bool = True,
+                          deferred: bool = False):
     """대형주 트랙 판정 — 개별주 게이트와 독립 산출 (grade, color, why).
 
     compute_daily_gate는 '개별주 종베'만 판정한다. 그런데 화면에는 '매매 금지'로
@@ -506,6 +507,11 @@ def compute_largecap_gate(largecap_n: int, twotop_n: int, largecap_ran: bool = T
                 f"투탑 과매도 {twotop_n}건 — 급락 반등 자리(손절 필수)")
     if largecap_ran and largecap_n > 0:
         return ("추세 관찰", "#0891b2", f"대형주 추세 후보 {largecap_n}건")
+    if deferred:
+        # 15:35 실행은 대형주 관찰을 알림 뒤로 미룬다(시총상위 47종목 점검에 16분).
+        # "자리 없음"이 아니라 "아직 안 봤다"를 명확히 해야 오독이 없다.
+        return ("집계 중", "#64748b",
+                "투탑 과매도 0건 · 대형주 추세는 잠시 뒤 별도 발송")
     if not largecap_ran:
         # 추세 트랙(observe)은 2차·수동에서만 돈다. 1차에 "자리 없음"이라 쓰면
         # 안 본 것을 없다고 말하는 셈이라 오독을 부른다(NXT의 nxt_fetch_ran 가드와 같은 이유).
