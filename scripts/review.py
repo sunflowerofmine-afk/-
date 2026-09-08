@@ -65,9 +65,22 @@ def _d1_row(hist: pd.DataFrame, signal_date_str: str) -> pd.Series | None:
     return post.iloc[0] if not post.empty else None
 
 
+def is_win(d1_open_pct: float) -> bool:
+    """성공 판정 — 익일 시가가 기준가보다 **높은가**. 보합(0.00%)은 실패다.
+
+    ⚠ 이 정의를 여기 한 곳에만 둔다. 2026-09-07까지 `>= 0`이었고 그 판정이
+    코드 네 곳에 복사돼 있었다. 283건 중 12건의 보합이 성공으로 집계돼
+    전체 승률이 48.1%가 아니라 52.3%로 부풀려져 있었다(5개월간). 외부
+    교차검증에서 발견됐다 — 우리 쪽 검증으로는 못 잡았다.
+
+    복사본이 늘면 한 곳을 고쳐도 나머지가 남는다. 판정이 필요하면 이 함수를 부를 것.
+    """
+    return d1_open_pct > 0
+
+
 def _classify_fail_reason(gap_pct: float, kospi_chg: float | None) -> str | None:
     """갭 기반 실패 원인 분류. 성공이면 None."""
-    if gap_pct > 0:
+    if is_win(gap_pct):
         return None
     if kospi_chg is None:
         return "혼조"
@@ -449,8 +462,8 @@ def _repair_gap_from_d1() -> None:
             # 2026-09-07: 보합(0.00%)을 성공에서 제외. 이전에는 >= 0 이라 D+1 시가가
             # 정확히 본전인 건을 승리로 셌다. 283건 중 12건이 여기 해당해 승률이
             # 48.1%에서 52.3%로 부풀려져 있었다. 외부 교차검증에서 지적받아 정정.
-            entry["result"]   = "성공" if d1o > 0 else "실패"
-            if d1o > 0:
+            entry["result"]   = "성공" if is_win(d1o) else "실패"
+            if is_win(d1o):
                 entry["fail_reason"] = None
             elif not entry.get("fail_reason"):
                 entry["fail_reason"] = "혼조"
@@ -661,7 +674,7 @@ def run(today: date, kospi_chg_today: float | None) -> list[dict]:
                 "t1_close":    t1_close if t1_close > 0 else None,
                 "gap_pct":     round(gap_pct, 2),
                 "hold_pct":    round(hold_pct, 2) if hold_pct is not None else None,
-                "result":      "성공" if gap_pct > 0 else "실패",
+                "result":      "성공" if is_win(gap_pct) else "실패",
                 "fail_reason": _classify_fail_reason(gap_pct, d1_kospi_chg),
             })
 

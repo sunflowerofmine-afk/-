@@ -72,6 +72,22 @@ def _check_market_summary(verbose: bool) -> list[str]:
             # 마감 전은 1차뿐이다 — 19:30이 '종가 진입 준비'로 나가던 회귀 방지
             if rt != "1차":
                 assert "종가 진입 준비" not in msg, "마감 후 실행에 '종가 진입 준비' 문구"
+            # ── 출력 계약 — 입력에 넣은 것이 출력에 나오는가 ──────────────
+            # 2026-09-07까지 leading_sectors를 넘기고도 본문에서 안 썼고
+            # (format_sector_section은 정의만 되고 호출된 적이 없다), 상한가는
+            # 건수만 나가고 종목명이 없었다. 둘 다 에러가 아니라 "조용한 누락"이라
+            # 실행 로그로는 절대 드러나지 않는다.
+            if secs:
+                head = secs[0]["sector_name"].split("와")[0].split("(")[0].strip()
+                assert head in msg, f"주도섹터 '{head}'를 넘겼는데 본문에 없다"
+            if extra.get("limit_up_names"):
+                first = extra["limit_up_names"][0]
+                assert first in msg, f"상한가 '{first}'를 넘겼는데 본문에 없다"
+            if cands:
+                assert cands[0]["name"] in msg, "핵심 후보 종목명이 본문에 없다"
+            if extra.get("macro", {}).get("usdkrw"):
+                assert "환율" in msg, "거시를 넘겼는데 본문에 없다"
+
             if verbose:
                 print(f"\n----- {name} -----\n{msg}")
         except Exception as e:
@@ -114,6 +130,26 @@ def _check_dashboard_sections(verbose: bool) -> list[str]:
     return fails
 
 
+def _check_definitions() -> list[str]:
+    """판정 정의 고정 — 값이 틀려도 코드는 잘 돌기 때문에 여기서만 잡힌다.
+
+    승률 정의는 2026-09-07까지 `>= 0`이었고 판정이 코드 네 곳에 복사돼 있었다.
+    283건 중 12건의 보합이 성공으로 집계돼 5개월간 승률이 48.1%가 아니라
+    52.3%로 나가 있었다. 정의를 `review.is_win` 한 곳으로 모으고 여기서 고정한다.
+    """
+    from scripts.review import is_win
+    fails = []
+    for pct, want, why in [
+        (0.01, True, "미세 상승은 성공"),
+        (0.0, False, "★ 보합은 실패다 — 5개월짜리 버그의 지점"),
+        (-0.01, False, "미세 하락은 실패"),
+        (10.0, True, "큰 상승은 성공"),
+    ]:
+        if is_win(pct) is not want:
+            fails.append(f"[정의] is_win({pct}) → {is_win(pct)}, 기대 {want} ({why})")
+    return fails
+
+
 def _check_morning(verbose: bool) -> list[str]:
     """아침 브리핑 개장 전 분기 — 네트워크를 타지 않는 쪽만."""
     fails = []
@@ -151,6 +187,7 @@ def main() -> int:
 
     fails = (_check_market_summary(args.verbose)
              + _check_dashboard_sections(args.verbose)
+             + _check_definitions()
              + _check_morning(args.verbose))
 
     if fails:
