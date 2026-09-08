@@ -2093,7 +2093,11 @@ def _section_recent_base_pool(obs_candidates: list) -> str:
 
     def _obs_row(c: dict, show_excl_reason: bool = False) -> str:
         pat_label   = c.get("pattern_type_label", "없음")
-        label_color = _OBS_TAG_COLOR.get(pat_label, "#8b949e")
+        # 2026-09-08: `_OBS_TAG_COLOR`는 7840b0f(죽은 코드 정리)에서 정의만 지워지고
+        # 이 사용처가 남아 대시보드가 죽었다. 관찰 후보가 있는 날에만 터져서
+        # 오래 안 드러났다(9/8 15:35 실행에서 처음 확인). 같은 색을 담은
+        # `_PATTERN_CARD_COLOR`가 이미 있으므로 그걸 쓴다 — 재돌파형도 포함된다.
+        label_color = _PATTERN_CARD_COLOR.get(pat_label, "#8b949e")
 
         tags = []
         if c.get("is_htc_candidate"):        tags.append('<span class="badge ok">HTC</span>')
@@ -2171,8 +2175,7 @@ def _section_recent_base_pool(obs_candidates: list) -> str:
         main_table = '<p style="color:var(--muted);font-size:13px;padding:8px 0;">당일 조건 통과 관찰 후보 없음</p>'
 
     return (
-        _OBS_NOTICE_CSS
-        + '<div class="section-title">🔭 기준봉 이후 관찰 후보</div>'
+        '<div class="section-title">🔭 기준봉 이후 관찰 후보</div>'
         + '<div class="obs-notice">'
         + '<b>관찰 상태 · 매수 신호 아님</b> — 최근 기준봉 이후 고가수축/눌림 패턴 추적.'
         + ' 당일 고가 대비 -5% 초과 이격 종목은 탈락 처리.'

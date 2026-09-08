@@ -159,6 +159,11 @@ body {
 .badge.inter { background: transparent; color: var(--muted); border: 1px solid var(--border); font-size: 10px; font-weight: 400; }
 .badge.nxt { background: #1a3a5c; color: #58a6ff; border: 1px solid #58a6ff; font-size: 10px; font-weight: 600; }
 
+/* 관찰 후보 안내 박스. 7840b0f에서 섹션 내부의 인라인 <style>이 지워지면서
+   클래스만 남아 두 섹션이 스타일 없이 렌더링됐다. 공용 CSS로 옮긴다. */
+.obs-notice { background: #1a1a2e; border-left: 3px solid #4a6fa5; padding: 10px 14px;
+  font-size: 12px; color: #8899aa; margin-bottom: 14px; border-radius: 4px; line-height: 1.7; }
+
 /* ── 테이블 ── */
 .tbl-wrap { overflow-x: auto; margin-bottom: 8px; }
 table {
