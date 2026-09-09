@@ -1,10 +1,22 @@
 name: Morning NXT Price Collector
 
+# 08:52 KST — NXT 장전 단일가(08:00~08:50) 세션 종료 직후.
+#
+# 이 데이터가 필요한 이유: 돌팬티 3강 14:33 "대체거래소에서 종가베팅한 종목은
+# 대체거래소에서 마무리를 지으세요 / 9시까지 끌고 가는 건 손실 확률이 높다".
+# 실제 청산 시점이 08:50이라면 성과도 거기서 재야 하는데, 지금 복기는 KRX
+# 09:00 시가(`review.d1_open_pct`)로 잰다. 두 축을 비교하려면 이 파일이 있어야 한다.
+#
+# ⚠ 2026-09-09까지 이 워크플로는 매일 돌면서 파일을 한 번도 만들지 않았다.
+#    ① 신호 CSV를 이 레포의 data/signals/에서 찾는데 거기엔 커밋되지 않는다
+#       (백업 레포로만 간다) → 매번 "어제 신호 파일 없음 → skip" + exit 0.
+#    ② schedule 트리거가 1.5~2시간 늦게 또 돌았다. 09:00 이후엔 naver polling이
+#       정규장 가격을 주므로 늦은 실행은 값을 오염시킨다. nxt_evening.yml에도
+#       같은 이유로 schedule을 빼둔 주석이 있다.
+# → 신호는 백업 레포에서 읽고, 결과도 거기에 쓴다. schedule은 제거하고
+#   cron-job.org의 workflow_dispatch(08:52)만 남긴다.
 on:
-  # 08:52 KST = 23:52 UTC (전날) — 장전 단일가 세션 종료 직후
-  schedule:
-    - cron: "52 23 * * 0-4"   # UTC 일~목 = KST 월~금
-  workflow_dispatch:           # 수동 실행 (테스트용)
+  workflow_dispatch:
 
 jobs:
   collect:
@@ -12,14 +24,9 @@ jobs:
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
-    permissions:
-      contents: write
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -30,18 +37,42 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      # 신호 CSV와 산출물이 모두 사는 곳. 키가 없으면 여기서 실패시킨다 —
+      # 없는 채로 돌면 예전처럼 조용히 아무것도 안 만든다.
+      - name: Clone data backup repo
+        env:
+          BACKUP_KEY: ${{ secrets.DATA_BACKUP_SSH_KEY }}
+        run: |
+          if [ -z "$BACKUP_KEY" ]; then
+            echo "::error::DATA_BACKUP_SSH_KEY 미설정 — 신호 CSV를 읽을 수 없습니다."
+            exit 1
+          fi
+          mkdir -p ~/.ssh
+          echo "$BACKUP_KEY" > ~/.ssh/backup_key
+          chmod 600 ~/.ssh/backup_key
+          export GIT_SSH_COMMAND="ssh -i ~/.ssh/backup_key -o StrictHostKeyChecking=accept-new"
+          git clone --depth 1 git@github.com:sunflowerofmine-afk/jongbe-data-backup.git /tmp/backup
+          ls /tmp/backup/data/signals/*_signals.csv | tail -3
+
       - name: Fetch morning NXT prices
         env:
           TZ: Asia/Seoul
+          SIGNALS_DIR: /tmp/backup/data/signals
+          NXT_MORNING_DIR: /tmp/backup/data/nxt_morning
         run: python -m scripts.fetch_morning_nxt
 
-      - name: Commit NXT morning data
+      - name: Commit to backup repo
+        env:
+          BACKUP_KEY: ${{ secrets.DATA_BACKUP_SSH_KEY }}
         run: |
+          export GIT_SSH_COMMAND="ssh -i ~/.ssh/backup_key -o StrictHostKeyChecking=accept-new"
+          cd /tmp/backup
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          mkdir -p data/nxt_morning
-          git add data/nxt_morning/ 2>/dev/null || true
-          git diff --cached --quiet && echo "No changes" || \
-            git commit -m "data: NXT morning prices $(date +%Y-%m-%d) [skip ci]"
-          git pull --rebase --autostash origin main
+          git add data/nxt_morning/
+          if git diff --cached --quiet; then
+            echo "::error::수집은 끝났는데 새 파일이 없습니다 — 저장 경로를 확인하세요."
+            exit 1
+          fi
+          git commit -m "nxt_morning: $(TZ=Asia/Seoul date +%Y-%m-%d) 장전 단일가"
           git push

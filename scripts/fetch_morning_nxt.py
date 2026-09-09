@@ -5,8 +5,16 @@ D+1 NXT 장전 단일가 수집 — 매일 08:52 KST 실행.
 GitHub Actions cron: "52 23 * * 0-4"  (23:52 UTC = 08:52 KST 월~금)
 
 어제 신호 종목들의 08:50 장전 단일가(또는 형성 중인 가격)를 수집해
-data/nxt_morning/{YYYY-MM-DD}.json 으로 저장.
-(data/signals/ 는 gitignored 이므로 data/nxt_morning/ 에 별도 저장)
+nxt_morning_{YYYY-MM-DD}.json 으로 저장.
+
+⚠ 2026-09-09까지 이 스크립트는 **한 번도 파일을 만든 적이 없다.**
+   `data/signals/`를 봇 레포에서 읽었는데 거기엔 신호 CSV가 커밋되지 않는다
+   (백업 레포로만 간다). 매 실행이 "어제 신호 파일 없음 → skip"을 찍고
+   exit 0으로 끝나서 워크플로는 3개월간 초록불이었다.
+   → 입출력 경로를 환경변수로 받고, 신호를 못 찾으면 **exit 1로 죽인다.**
+
+   SIGNALS_DIR      신호 CSV가 있는 디렉터리 (기본: 이 레포의 data/signals)
+   NXT_MORNING_DIR  결과 저장 위치 (기본: 이 레포의 data/nxt_morning)
 
 {
   "date": "2026-06-02",
@@ -23,6 +31,7 @@ data/nxt_morning/{YYYY-MM-DD}.json 으로 저장.
 """
 import json
 import logging
+import os
 import sys
 import time
 from datetime import date, timedelta
@@ -36,8 +45,9 @@ from config.settings import HEADERS, REQUEST_DELAY
 logger = logging.getLogger(__name__)
 
 _POLL_URL = "https://polling.finance.naver.com/api/realtime/domestic/stock/{code}"
-_OUT_DIR  = Path(__file__).parent.parent / "data" / "nxt_morning"
-_SIGNALS_DIR = Path(__file__).parent.parent / "data" / "signals"
+_ROOT     = Path(__file__).parent.parent
+_OUT_DIR     = Path(os.environ.get("NXT_MORNING_DIR") or (_ROOT / "data" / "nxt_morning"))
+_SIGNALS_DIR = Path(os.environ.get("SIGNALS_DIR")     or (_ROOT / "data" / "signals"))
 
 
 def _fetch_price(code: str) -> int | None:
@@ -107,18 +117,31 @@ def _load_signal_prices(sig_date: str) -> dict[str, float]:
         return {}
 
 
-def main() -> None:
+def main() -> int:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
+    logger.info(f"신호 경로: {_SIGNALS_DIR}  (존재={_SIGNALS_DIR.exists()})")
+    logger.info(f"저장 경로: {_OUT_DIR}")
+
+    from scripts.market_calendar import is_trading_day, get_now_kst
+    today = get_now_kst().date()
+    if not is_trading_day(today):
+        logger.info("비거래일 — 수집 생략")
+        return 0
 
     sig_date, stocks = _find_yesterday_signals()
     if not stocks:
-        logger.warning("어제 신호 파일 없음 → skip")
-        return
+        # 조용히 넘어가면 안 된다. 이 스크립트는 이 분기에서 3개월간 아무것도
+        # 만들지 않으면서 워크플로는 초록불이었다(2026-09-09 발견).
+        logger.error(
+            f"신호 파일을 못 찾았다 — {_SIGNALS_DIR} 안에 최근 4일치 2차 CSV가 없다. "
+            "SIGNALS_DIR가 백업 레포를 가리키는지 확인할 것."
+        )
+        return 1
 
     out_path = _OUT_DIR / f"nxt_morning_{sig_date}.json"
     if out_path.exists():
         logger.info(f"이미 존재: {out_path} → skip")
-        return
+        return 0
 
     signal_prices = _load_signal_prices(sig_date)
     now_str = __import__("datetime").datetime.now().strftime("%H:%M")
@@ -155,6 +178,12 @@ def main() -> None:
         win = sum(1 for _, v in valid if v["pct"] > 0)
         logger.info(f"장전 단가 요약: {len(valid)}개 / 평균 {avg:+.2f}% / 양봉 {win}개")
 
+    # 가격을 하나도 못 받았으면 파일만 남고 쓸모가 없다. 이것도 드러내야 한다.
+    if not any(v["nxt_price"] for v in prices.values()):
+        logger.error(f"{len(prices)}개 종목 전부 가격 조회 실패 — 저장은 했으나 내용이 비었다")
+        return 1
+    return 0
+
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
