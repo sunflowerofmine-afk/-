@@ -134,6 +134,36 @@ def _check_dashboard_sections(verbose: bool) -> list[str]:
         fails.append(f"[게이트] {e}")
 
     fails += _check_gate_banner(verbose)
+    fails += _check_header_time(verbose)
+    return fails
+
+
+def _check_header_time(verbose: bool) -> list[str]:
+    """헤더 기준시각 — 표시된 시각이 실제 스냅샷과 같아야 한다.
+
+    2026-09-08까지 알림이, 09-09까지 대시보드가 실행 종류로 시각을 되짚었다
+    ({"1차": "14:50", "2차": "17:50"}). 1차가 14:20으로 당겨지고 2차가 15:35·17:50
+    두 번이 되면서 15:35 대시보드가 "기준시각 17:50"으로 나갔다. 마감 스냅샷을
+    NXT 반영본으로 읽게 만드는 오표기라 돈이 걸린다.
+    """
+    import re
+    from scripts._dashboard_sections import _section_header
+    fails = []
+    for snap, rt in (("1420", "1차"), ("1535", "2차"), ("1750", "2차"), ("1930", "수동")):
+        try:
+            html = _section_header({
+                "metadata": {"date": "2026-09-09", "snapshot_time": snap,
+                             "run_time": f"2026-09-09 {snap[:2]}:{snap[2:]}", "run_type": rt},
+                "market_summary": {"kospi_tv_eok": 298000, "kosdaq_tv_eok": 64000},
+            })
+            m = re.search(r"기준시각\s*([0-9:]+)", html)
+            assert m, "기준시각 표기가 없다"
+            want = f"{snap[:2]}:{snap[2:]}"
+            assert m.group(1) == want, f"{want}이어야 하는데 {m.group(1)}로 표시된다"
+            if verbose:
+                print(f"[헤더] {snap}({rt}) → 기준시각 {m.group(1)}")
+        except Exception as e:
+            fails.append(f"[헤더] {snap}({rt}): {e}")
     return fails
 
 

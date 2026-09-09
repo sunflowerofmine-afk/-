@@ -299,8 +299,13 @@ def _section_header(data: dict) -> str:
     run_time_raw = _e(meta.get("run_time", "-"))
     run_type     = _e(meta.get("run_type", "-"))
     run_time_hm  = run_time_raw.split(" ")[-1] if " " in run_time_raw else run_time_raw
-    base_map     = {"1차": "14:50", "2차": "17:50"}
-    base_time    = base_map.get(meta.get("run_type", ""), run_time_hm)
+    # ⚠ 예전엔 {"1차": "14:50", "2차": "17:50"} 하드코딩이었다. 1차는 14:20으로
+    #   당겨졌고 2차는 15:35·17:50 두 번이라, 15:35 대시보드가 "기준시각 17:50"으로
+    #   나갔다 — 마감 직후 스냅샷을 NXT 반영본으로 오독하게 만든다. 알림 쪽은
+    #   2026-09-08에 고쳤는데 대시보드 사본이 남아 있었다(2026-09-09 수정).
+    #   snapshot_time이 실제 기준이다. 실행 종류로 되짚지 않는다.
+    base_time    = (f"{snapshot[:2]}:{snapshot[2:]}"
+                    if len(snapshot) == 4 and snapshot.isdigit() else run_time_hm)
     kospi_tv  = _tv_eok(market.get("kospi_tv_eok",  0) * 1e8)
     kosdaq_tv = _tv_eok(market.get("kosdaq_tv_eok", 0) * 1e8)
     kospi_level  = market.get("kospi_level")
