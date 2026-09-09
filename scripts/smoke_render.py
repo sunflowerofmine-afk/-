@@ -50,6 +50,8 @@ def _cases():
     yield "2차 · 투탑 과매도", "2차", dict(full, twotop_count=2, largecap_deferred=True), _CAND, _SECTORS
     yield "수동 19:30", "수동", dict(full, largecap_count=2), _CAND, _SECTORS
     yield "2차 · 전부 빈 값", "2차", dict(_BASE_EXTRA), [], []
+    # 대시보드가 죽은 날 — 알림이 그 사실을 말해야 한다(9/3·9/8이 조용히 죽었다)
+    yield "2차 · 대시보드 실패", "2차", dict(full, dashboard_ok=False), _CAND, _SECTORS
 
 
 def _check_market_summary(verbose: bool) -> list[str]:
@@ -87,6 +89,11 @@ def _check_market_summary(verbose: bool) -> list[str]:
                 assert cands[0]["name"] in msg, "핵심 후보 종목명이 본문에 없다"
             if extra.get("macro", {}).get("usdkrw"):
                 assert "환율" in msg, "거시를 넘겼는데 본문에 없다"
+            # 대시보드 실패는 반드시 눈에 보여야 한다. 성공한 날엔 안 보여야 한다.
+            if extra.get("dashboard_ok") is False:
+                assert "대시보드 생성 실패" in msg, "대시보드가 죽었는데 알림이 조용하다"
+            else:
+                assert "대시보드 생성 실패" not in msg, "멀쩡한데 실패 문구가 붙었다"
 
             if verbose:
                 print(f"\n----- {name} -----\n{msg}")

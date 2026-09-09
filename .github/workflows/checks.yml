@@ -43,6 +43,13 @@ jobs:
       - name: 알림·대시보드 출력 스모크
         run: python -m scripts.smoke_render
 
+      # ③ 운반 딕셔너리에 없는 키를 읽는 곳.
+      #    2026-09-09: _daily_gate가 run_type을 market_summary에서 읽었는데 그 키는
+      #    metadata에만 있었다. 늘 None이라 엿새간 대시보드가 조용히 틀린 값을 냈다.
+      #    .get()은 에러를 안 내므로 pyflakes도 스모크도 못 잡는 유형이다.
+      - name: 운반 딕셔너리 키 대조
+        run: python -m scripts.audit_carriers -v
+
       # 참고용. 실패시키지 않는다 — 미사용 import 같은 건 급하지 않다.
       - name: 그 밖의 린트 (참고)
         continue-on-error: true

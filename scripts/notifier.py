@@ -330,6 +330,11 @@ def format_market_summary(market_totals: dict, run_time: str, run_type: str,
     # 실제로 볼 것이 있을 때만 파란불. 미집계·자리없음은 무채색.
     _lc_emoji = "🔵" if _lc_grade in ("과매도 반등 관찰", "추세 관찰") else "⚫"
 
+    # 대시보드가 안 만들어진 날은 알림에 띄운다. 예전엔 로그에만 남아서
+    # 9/3 17:50과 9/8 15:35 두 번이 죽은 것을 닷새 뒤에야 알았다.
+    _dash_line = ("" if ex.get("dashboard_ok", True)
+                  else "⚠️ <b>대시보드 생성 실패 — 오늘은 이 알림만 보고 판단할 것</b>\n")
+
     # ── 지수방향 (1차만) ──────────────────────────────────────
     _direction_map = {"상승": "📈 상승", "하락": "📉 하락", "횡보": "➡ 횡보"}
     _timing_map = {
@@ -400,7 +405,8 @@ def format_market_summary(market_totals: dict, run_time: str, run_type: str,
         f"{_gate_emoji} <b>개별주 종베: {_grade}</b>\n"
         f"    {_gate_short(_why)}\n"
         f"{_lc_emoji} <b>대형주 트랙: {_lc_grade}</b>\n"
-        f"    {_lc_why}\n\n"
+        f"    {_lc_why}\n"
+        f"{_dash_line}\n"
         f"{_mkt_line('코스피', kospi_level, kospi_chg, kospi_tv, 'kospi_regime')}"
         f"{_mkt_line('코스닥', kosdaq_level, kosdaq_chg, kosdaq_tv, 'kosdaq_regime')}"
         f"폭 {breadth_str}{subtype_str} · 1500억↑ {tv1500}\n"

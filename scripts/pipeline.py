@@ -1563,16 +1563,23 @@ def run(preview: bool = False):
         logger.warning(f"daily_summary.json 저장 실패: {e}")
 
     dashboard_links = {}
+    # 대시보드 실패는 지금까지 로그에만 남고 워크플로는 success로 끝났다. 그래서
+    # 9/3 17:50과 9/8 15:35 두 번이 죽은 걸 닷새 뒤에야 알았다(둘 다 _OBS_TAG_COLOR).
+    # 실패하면 알림에 한 줄로 띄운다 — 대시보드 없이 알림만 보고 판단해야 하는 날이다.
+    _dashboard_ok = True
     if ENABLE_DASHBOARD:
         try:
             latest_name = f"latest_{snapshot_time}.html" if run_type in ("1차", "2차") else "latest.html"
             dated_path  = REPORTS_DIR / f"{report_date}_{snapshot_time}.html"
             latest_path = REPORTS_DIR / latest_name
-            generate_dashboard_html(report_data, dated_path, latest_path)
+            _dashboard_ok = bool(generate_dashboard_html(report_data, dated_path, latest_path))
             if ENABLE_GITHUB_PAGES_LINK:
                 dashboard_links = build_dashboard_links(report_date, snapshot_time, GITHUB_PAGES_BASE_URL, latest_name)
         except Exception as e:
             logger.warning(f"대시보드 생성 중 오류 (무시): {e}")
+            _dashboard_ok = False
+    if not _dashboard_ok:
+        logger.error("대시보드가 생성되지 않았다 — 알림에 표시한다")
 
     # 거시 지표 (환율·WTI) — 알림 [거시] 줄용. 실패해도 무시.
     macro_data: dict = {}
@@ -1610,6 +1617,7 @@ def run(preview: bool = False):
         "largecap_count":        len(largecap_candidates or []),
         "twotop_count":          len(twotop_oversold or []),
         "largecap_deferred":     _defer_largecap,
+        "dashboard_ok":          _dashboard_ok,
         "largecap_ran":          _largecap_ran_now,
     }
     if run_type == "1차":
