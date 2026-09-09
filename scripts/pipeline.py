@@ -899,6 +899,17 @@ def run(preview: bool = False):
 
     key_candidates = []
     rejected_list  = []
+
+    def _reject_price(_enr: dict, _row) -> float:
+        """탈락 종목의 진입 기준가 — 선택된 후보와 같은 기준(정규장 종가 우선)으로 잡는다.
+
+        기준이 다르면 나중에 '고른 것 vs 버린 것' 비교가 성립하지 않는다.
+        """
+        try:
+            return float(_enr.get("regular_close_price") or _row.get("현재가", 0) or 0)
+        except (TypeError, ValueError):
+            return 0.0
+
     freshness_map  = _build_freshness_map()
     MIN_TV_WON            = MIN_TRADING_VALUE_EOK * 100_000_000
     inter_codes           = set(intersection["종목코드"].dropna() if not intersection.empty else [])
@@ -916,11 +927,11 @@ def run(preview: bool = False):
         name = row.iloc[0].get("종목명", "") if not row.empty else ""
         if chg >= 29.5:
             rejected_list.append({"code": code, "name": name,
-                                   "reason": "상한가 (진입 불가)",
+                                   "reason": "상한가 (진입 불가)", "stage": "선별전",
                                    "trading_value": tv, "change_pct": chg})
         elif tv < MIN_TV_WON:
             rejected_list.append({"code": code, "name": name,
-                                   "reason": f"거래대금 부족 ({tv/1e8:.0f}억)",
+                                   "reason": f"거래대금 부족 ({tv/1e8:.0f}억)", "stage": "선별전",
                                    "trading_value": tv, "change_pct": chg})
         else:
             crawl_codes.append(code)
@@ -978,6 +989,7 @@ def run(preview: bool = False):
                             f"(등락 {_chg_today:+.1f}%, 기준봉고가 대비 {_bh_gap:+.1f}%, 양매수)")
             else:
                 rejected_list.append({"code": code, "name": name, "reason": "구조 붕괴",
+                                       "stage": "선별후", "entry_price": _reject_price(enr, row),
                                        "trading_value": tv, "change_pct": _chg_today})
                 continue
 
@@ -989,12 +1001,14 @@ def run(preview: bool = False):
         if tv_ratio is not None and tv_ratio < _tv_min:
             rejected_list.append({"code": code, "name": name,
                                    "reason": f"거래대금 급감 (ratio {tv_ratio:.2f})",
+                                   "stage": "선별후", "entry_price": _reject_price(enr, row),
                                    "trading_value": tv, "change_pct": float(row.get("등락률", 0))})
             continue
 
         # 교집합 또는 패턴 조건
         if not in_inter and not has_pattern:
             rejected_list.append({"code": code, "name": name, "reason": "패턴 없음 + 교집합 아님",
+                                   "stage": "선별후", "entry_price": _reject_price(enr, row),
                                    "trading_value": tv, "change_pct": float(row.get("등락률", 0))})
             continue
 
@@ -1006,6 +1020,7 @@ def run(preview: bool = False):
             if _intraday_gap < INTRADAY_CLOSE_FROM_HIGH_MIN_PCT:
                 rejected_list.append({"code": code, "name": name,
                                        "reason": f"당일 고가 대비 {_intraday_gap:.1f}% 이격",
+                                       "stage": "선별후", "entry_price": _reject_price(enr, row),
                                        "trading_value": tv, "change_pct": float(row.get("등락률", 0))})
                 continue
 
@@ -1547,6 +1562,16 @@ def run(preview: bool = False):
             {k: _tt.get(k) for k in ("code", "name", "close", "change_pct",
                                      "cum2_pct", "grade")}
             for _tt in (twotop_oversold or [])
+        ],
+        # ★ 봇이 "버린" 종목 — 선별력 검증의 유일한 경로(2026-09-09 신설).
+        # 지금까지 성과는 봇이 고른 것만 쟀다. 그래서 "고른 것 중 승률"은 알아도
+        # "고를 수 있었던 것 대비 우위"는 원리적으로 알 수 없었다.
+        # 차트까지 받아본 뒤 선별 로직이 떨어뜨린 것(stage=선별후)만 남긴다 —
+        # 거래대금 미달로 크롤링 전에 걸러진 것은 비교 대상이 아니다.
+        "rejected_candidates": [
+            {k: _r.get(k) for k in ("code", "name", "reason", "entry_price",
+                                    "trading_value", "change_pct")}
+            for _r in rejected_list if _r.get("stage") == "선별후"
         ],
     }
     try:

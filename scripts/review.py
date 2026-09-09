@@ -9,6 +9,7 @@ from pathlib import Path
 
 import pandas as pd
 
+from config.settings import PAIN_STOP_KRW, POSITION_KRW_NORMAL
 from scripts.fetch_stock_data import fetch_daily_history
 from scripts.pattern_detector import detect_patterns
 
@@ -74,8 +75,33 @@ def is_win(d1_open_pct: float) -> bool:
     교차검증에서 발견됐다 — 우리 쪽 검증으로는 못 잡았다.
 
     복사본이 늘면 한 곳을 고쳐도 나머지가 남는다. 판정이 필요하면 이 함수를 부를 것.
+
+    ⚠ **이 판정은 매매가 아니라 갭을 잰다.** -20%와 -0.1%가 똑같이 실패 1건이다.
+    금액·손절 기준이 필요하면 아래 `krw_pnl` / `hit_pain_stop`을 함께 쓸 것.
     """
     return d1_open_pct > 0
+
+
+def krw_pnl(pct: float | None, position_krw: int = POSITION_KRW_NORMAL) -> int | None:
+    """등락률을 실제 손익 금액(원)으로 환산.
+
+    사용자의 운용 규칙이 비율이 아니라 금액이라서 필요하다
+    (감당 손절 50만/1회 · 일일 중단 -50만 · 운용 중단 -200만).
+    비율만 보면 "실패 1건"이 5만원인지 30만원인지 구분되지 않는다.
+    """
+    if pct is None:
+        return None
+    return int(round(position_krw * pct / 100))
+
+
+def hit_pain_stop(pct: float | None, position_krw: int = POSITION_KRW_NORMAL) -> bool | None:
+    """1회 감당 손절(기본 50만원)을 넘는 손실인가.
+
+    넘으면 사용자가 "심리적 타격이 없을 수 없는" 구간이라고 명시한 선이다.
+    승패보다 이 선을 넘는 빈도가 매매를 계속할 수 있는지를 가른다.
+    """
+    pnl = krw_pnl(pct, position_krw)
+    return None if pnl is None else pnl <= -PAIN_STOP_KRW
 
 
 def _classify_fail_reason(gap_pct: float, kospi_chg: float | None) -> str | None:
@@ -147,6 +173,13 @@ def _calc_multiday_returns(hist: pd.DataFrame, entry_price: float, signal_date_s
     d["d1_high_pct"]  = _pct(_f(r1, "high"),  entry_price)
     d["d1_close_pct"] = _pct(_f(r1, "close"), entry_price)
     d["d1_low_pct"]   = _pct(_f(r1, "low"),   entry_price)
+
+    # ★ 금액 기준 (2026-09-09 신설) — 비율만으로는 매매를 못 잰다.
+    # 사용자 규칙이 금액이라(감당 손절 50만/1회) 같은 "실패 1건"이라도
+    # 5만원짜리와 30만원짜리를 구분해야 계속할 수 있는지가 나온다.
+    d["d1_open_krw"]   = krw_pnl(d["d1_open_pct"])
+    d["d1_pain_hit"]   = hit_pain_stop(d["d1_open_pct"])     # 시가 청산 기준
+    d["d1_low_pain_hit"] = hit_pain_stop(d["d1_low_pct"])    # 장중 저가로 스쳤는가
     # 절대가 (alive/failed 조건 판별용, JSON 저장 안 함)
     d["_d1_open"]     = _f(r1, "open")
     d["_d1_close"]    = _f(r1, "close")

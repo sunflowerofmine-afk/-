@@ -225,8 +225,22 @@ def _check_definitions() -> list[str]:
     283건 중 12건의 보합이 성공으로 집계돼 5개월간 승률이 48.1%가 아니라
     52.3%로 나가 있었다. 정의를 `review.is_win` 한 곳으로 모으고 여기서 고정한다.
     """
-    from scripts.review import is_win
+    from scripts.review import hit_pain_stop, is_win, krw_pnl
     fails = []
+    # 금액 기준 판정 고정 — 사용자의 실제 규칙(감당 손절 50만/1회)이 여기 걸려 있다.
+    # 1,000만원 포지션에서 -5%가 정확히 -50만원이다.
+    for pct, want_krw, want_pain, why in [
+        (-5.0,  -500_000, True,  "★ -5%가 감당 손절선(50만원)에 정확히 닿는다"),
+        (-4.9,  -490_000, False, "그 안쪽은 감당 범위"),
+        (-20.0, -2_000_000, True, "큰 갭하락은 당연히 초과"),
+        (+3.0,   300_000, False, "이익이면 손절 판정 없음"),
+    ]:
+        if krw_pnl(pct) != want_krw:
+            fails.append(f"[금액] krw_pnl({pct}) -> {krw_pnl(pct)}, 기대 {want_krw} ({why})")
+        if hit_pain_stop(pct) is not want_pain:
+            fails.append(f"[금액] hit_pain_stop({pct}) -> {hit_pain_stop(pct)}, 기대 {want_pain} ({why})")
+    if krw_pnl(None) is not None or hit_pain_stop(None) is not None:
+        fails.append("[금액] 결측(None)은 None이어야 한다")
     for pct, want, why in [
         (0.01, True, "미세 상승은 성공"),
         (0.0, False, "★ 보합은 실패다 — 5개월짜리 버그의 지점"),
