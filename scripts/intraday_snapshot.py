@@ -55,20 +55,17 @@ def run() -> None:
     path = _OUT_DIR / f"{date_str}_{hhmm}.csv"
     df.to_csv(path, index=False, encoding="utf-8-sig")
 
-    # 지수는 하루 한 파일에 시각별로 누적 (종목 스냅샷과 짝을 맞춰 비교하기 위함)
-    idx_path = _OUT_DIR / f"{date_str}_index.json"
-    idx_all = {}
-    if idx_path.exists():
-        try:
-            idx_all = json.loads(idx_path.read_text(encoding="utf-8"))
-        except Exception as e:
-            logger.warning(f"기존 지수 파일 파싱 실패, 새로 씀: {e}")
-    idx_all[hhmm] = fmd.fetch_index_levels()
+    # 지수도 종목 CSV와 같은 시각별 파일로 남긴다.
+    # 예전엔 하루 한 파일에 누적하려 했는데, Actions는 매 실행이 빈 data/intraday
+    # 에서 시작하고(봇 레포에 이 디렉터리를 커밋하지 않는다) 백업 단계가 cp로
+    # 덮어써서 나중 실행이 앞 실행을 지웠다. 실제로 9/7~9/9 사흘 모두 늦은 컷
+    # 하나만 남았다(2026-09-09 발견). 시각별 파일이면 덮어쓸 것이 없다.
+    lv = fmd.fetch_index_levels()
+    idx_path = _OUT_DIR / f"{date_str}_{hhmm}_index.json"
     idx_path.write_text(
-        json.dumps(idx_all, ensure_ascii=False, indent=2), encoding="utf-8"
+        json.dumps(lv, ensure_ascii=False, indent=2), encoding="utf-8"
     )
 
-    lv = idx_all[hhmm]
     logger.info(
         f"장중 스냅샷 저장: {path} ({len(df)}종목) | "
         f"코스피 {lv.get('kospi_level')} ({lv.get('kospi_chg')}%) "

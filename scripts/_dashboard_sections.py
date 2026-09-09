@@ -505,18 +505,16 @@ def compute_largecap_gate(largecap_n: int, twotop_n: int, largecap_ran: bool = T
     if twotop_n > 0:
         return ("과매도 반등 관찰", "#0891b2",
                 f"투탑 과매도 {twotop_n}건 — 급락 반등 자리(손절 필수)")
-    if largecap_ran and largecap_n > 0:
+    if largecap_ran and not deferred and largecap_n > 0:
         return ("추세 관찰", "#0891b2", f"대형주 추세 후보 {largecap_n}건")
-    if deferred:
-        # 15:35 실행은 대형주 관찰을 알림 뒤로 미룬다(시총상위 47종목 점검에 16분).
-        # "자리 없음"이 아니라 "아직 안 봤다"를 명확히 해야 오독이 없다.
+    if deferred or not largecap_ran:
+        # 대형주 관찰은 시총상위 47종목 점검에 18분쯤 걸려 **1차와 15:35 모두**
+        # 본 알림 뒤로 미룬다. 그래서 이 시점은 "자리가 없다"가 아니라 "아직 안 봤다"다.
+        # 예전엔 여기서 "추세는 2차 집계 / 17:50에 집계"라고 썼는데, 1차의 후속은
+        # 20분 뒤에 오지 17:50이 아니다. 안 본 것을 없다고 말하지 않는다
+        # (NXT의 nxt_fetch_ran 가드와 같은 이유).
         return ("집계 중", "#64748b",
                 "투탑 과매도 0건 · 대형주 추세는 잠시 뒤 별도 발송")
-    if not largecap_ran:
-        # 추세 트랙(observe)은 2차·수동에서만 돈다. 1차에 "자리 없음"이라 쓰면
-        # 안 본 것을 없다고 말하는 셈이라 오독을 부른다(NXT의 nxt_fetch_ran 가드와 같은 이유).
-        return ("과매도 없음 · 추세는 2차 집계", "#64748b",
-                "투탑 과매도 0건 · 대형주 추세 트랙은 17:50에 집계")
     return ("자리 없음", "#64748b", "대형주 트랙 후보 없음")
 
 
@@ -545,7 +543,14 @@ def _daily_gate(data: dict) -> str:
     # 대형주 트랙은 개별주와 독립 판정 — 개별주가 금지여도 대형주 자리는 살아 있을 수 있다.
     lc_n = len(data.get("largecap_candidates") or [])
     tt_n = len(data.get("twotop_oversold") or [])
-    lc_ran = (data.get("market_summary", {}) or {}).get("run_type") in ("2차", "수동")
+    # ⚠ 2026-09-03~09-09: 여기서 market_summary["run_type"]을 읽었는데 run_type은
+    #    report_data["metadata"]에만 있다. 늘 None이라 실행 종류·후보 건수와 무관하게
+    #    모든 대시보드가 같은 문구로 나갔다(9/9 17:50은 대형주 4건을 찾고도 미집계 표시).
+    #    파이프라인이 정한 사실을 그대로 받는다 — 화면이 다시 추론하지 않는다.
+    if "largecap_ran" in data:
+        lc_ran = bool(data["largecap_ran"])
+    else:                                   # 옛 리포트 재생성 호환
+        lc_ran = (data.get("metadata") or {}).get("run_type") in ("2차", "수동")
     lc_grade, lc_col, lc_why = compute_largecap_gate(lc_n, tt_n, lc_ran)
 
     return (

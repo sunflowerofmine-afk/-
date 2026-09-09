@@ -122,11 +122,62 @@ def _check_dashboard_sections(verbose: bool) -> list[str]:
     try:
         for args in ((0, None, None, None, None, None), (3, "강세", 0.6, 38.0, "우호", 2)):
             assert compute_daily_gate(*args)[0]
-        for kw in ({}, {"deferred": True}, {"largecap_ran": False}):
-            assert compute_largecap_gate(0, 0, **kw)[0]
-        assert compute_largecap_gate(3, 0)[0] and compute_largecap_gate(0, 2)[0]
+        assert compute_largecap_gate(3, 0)[0] == "추세 관찰"
+        assert compute_largecap_gate(0, 2)[0] == "과매도 반등 관찰"
+        assert compute_largecap_gate(0, 0)[0] == "자리 없음"
+        # 안 돌린 것과 미룬 것은 화면에서 같은 말이어야 한다 — 둘 다 "아직 안 봤다".
+        for kw in ({"deferred": True}, {"largecap_ran": False}):
+            assert compute_largecap_gate(0, 0, **kw)[0] == "집계 중", kw
+        # 미룬 실행에서는 후보가 있어도 아직 못 본 상태다(집계 전 값이 새어나오면 안 됨).
+        assert compute_largecap_gate(4, 0, deferred=True)[0] == "집계 중"
     except Exception as e:
         fails.append(f"[게이트] {e}")
+
+    fails += _check_gate_banner(verbose)
+    return fails
+
+
+def _check_gate_banner(verbose: bool) -> list[str]:
+    """게이트 배너 **배선** — 함수가 맞아도 넘기는 값이 틀리면 화면은 틀린다.
+
+    2026-09-03~09-09: `_daily_gate`가 run_type을 `market_summary`에서 읽었는데
+    실제로는 `metadata`에만 있었다. 늘 None이라 모든 대시보드가 실행 종류·후보
+    건수와 무관하게 "추세는 2차 집계"로 나갔다. 9/9 17:50은 대형주 4건을 찾고도
+    미집계로 표시됐다. 순수 함수 테스트로는 절대 안 잡힌다 — 함수는 옳았다.
+    그래서 report_data 모양 그대로 넣고 **배너 문자열**을 본다.
+    """
+    from scripts._dashboard_sections import _daily_gate
+    lc = [{"종목명": "SK하이닉스", "종목코드": "000660"}] * 4
+    base = {"metadata": {"run_type": "2차", "date": "2026-09-09"},
+            "market_summary": {"market_regime": "강세", "market_adl": 0.6,
+                               "index_regime": {"kosdaq_regime": "강세"},
+                               "risk_appetite": "우호"},
+            "core_candidates": [], "twotop_oversold": []}
+    cases = [
+        ("관찰 완료 · 후보 4건", dict(base, largecap_ran=True, largecap_candidates=lc),
+         ["추세 관찰", "4건"], ["집계 중", "자리 없음"]),
+        ("관찰 완료 · 후보 0건", dict(base, largecap_ran=True, largecap_candidates=[]),
+         ["자리 없음"], ["추세 관찰", "집계 중"]),
+        ("알림 뒤로 미룸(1차·15:35)", dict(base, largecap_ran=False, largecap_candidates=[]),
+         ["집계 중", "잠시 뒤"], ["자리 없음", "2차 집계", "17:50에 집계"]),
+    ]
+    fails = []
+    for name, data, must, never in cases:
+        try:
+            full = _daily_gate(data)
+            # 개별주 줄에도 "자리 없음"이 나온다. 대형주 구간만 잘라서 본다.
+            seg = full.split("대형주 트랙:")[1].split("※")[0]
+            for w in must:
+                assert w in seg, f"'{w}'가 대형주 줄에 없다"
+            for w in never:
+                assert w not in seg, f"'{w}'가 대형주 줄에 있으면 안 된다"
+            html = full
+            if verbose:
+                import re
+                print(f"[배너] {name}: "
+                      + re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", html)).strip()[:120])
+        except Exception as e:
+            fails.append(f"[배너] {name}: {e}")
     return fails
 
 

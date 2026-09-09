@@ -17,6 +17,8 @@ import yfinance as yf
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from config.settings import (
+    SIGNALS_DIR,
+    BASE_TV_EXPLOSION_MULT,
     HIGH_RANGE_HOLD_MAX_GAP_FROM_BASE_HIGH_PCT,
     OVERHEATED_GAP_FROM_BASE_HIGH_PCT,
     STRUCTURE_BREAK_MAX_GAP_PCT,

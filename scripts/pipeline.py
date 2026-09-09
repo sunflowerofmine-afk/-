@@ -1447,6 +1447,13 @@ def run(preview: bool = False):
         except Exception as e:
             logger.warning(f"대형주 관찰 실패 (무시): {e}")
     report_data["largecap_candidates"] = largecap_candidates
+    # 대시보드가 만들어지는 시점에 대형주 관찰이 이미 돌았는가 — 사실은 여기서만 정한다.
+    # 1차와 15:35은 관찰을 본 알림 뒤로 미루므로 이 시점엔 아직 안 돌았다.
+    # 화면 쪽에서 run_type으로 되짚다가 6일간 오표기가 났다(2026-09-09 수정).
+    _largecap_ran_now = bool(
+        run_type in ("2차", "수동") and ENABLE_LARGECAP_OBSERVER and not _defer_largecap
+    )
+    report_data["largecap_ran"] = _largecap_ran_now
     # 투탑 과매도 반등 관찰 — 급락일에 신고가 트랙이 못 잡는 자리 보완 (1차/2차 공통)
     twotop_oversold = []
     if ENABLE_TWOTOP_OVERSOLD:
@@ -1603,6 +1610,7 @@ def run(preview: bool = False):
         "largecap_count":        len(largecap_candidates or []),
         "twotop_count":          len(twotop_oversold or []),
         "largecap_deferred":     _defer_largecap,
+        "largecap_ran":          _largecap_ran_now,
     }
     if run_type == "1차":
         msg = ntf.build_first_alert(

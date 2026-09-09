@@ -322,7 +322,10 @@ def format_market_summary(market_totals: dict, run_time: str, run_type: str,
     from scripts._dashboard_sections import compute_largecap_gate
     _lc_grade, _, _lc_why = compute_largecap_gate(
         ex.get("largecap_count", 0), ex.get("twotop_count", 0),
-        run_type in ("2차", "수동"), deferred=bool(ex.get("largecap_deferred")),
+        # 파이프라인이 정한 사실을 받는다. 없으면 옛 방식으로 되짚되, 1차는 본 알림
+        # 뒤에 관찰이 도니 이 시점엔 안 돌았다는 판정이 맞다.
+        bool(ex.get("largecap_ran", run_type in ("2차", "수동"))),
+        deferred=bool(ex.get("largecap_deferred")),
     )
     # 실제로 볼 것이 있을 때만 파란불. 미집계·자리없음은 무채색.
     _lc_emoji = "🔵" if _lc_grade in ("과매도 반등 관찰", "추세 관찰") else "⚫"
