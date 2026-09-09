@@ -50,6 +50,12 @@ jobs:
       - name: 운반 딕셔너리 키 대조
         run: python -m scripts.audit_carriers -v
 
+      # ④ 선별력·손절·게이트 집계가 깨지지 않는지. 데이터는 Actions에 없으므로
+      #    임포트와 인자 파싱만 확인한다(실집계는 로컬에서 백업 레포를 보고 돈다).
+      - name: 감사 스크립트 임포트 확인
+        run: |
+          python -c "import scripts.audit_selection, scripts.audit_memory; print('감사 스크립트 로드 OK')"
+
       # 참고용. 실패시키지 않는다 — 미사용 import 같은 건 급하지 않다.
       - name: 그 밖의 린트 (참고)
         continue-on-error: true
