@@ -1,0 +1,62 @@
+{
+  "date": "2026-09-10",
+  "generated": "2026-09-11",
+  "stocks": {
+    "131290": {
+      "name": "티에스이",
+      "signal_price": 306500,
+      "is_nxt": true,
+      "nxt_dominant": false,
+      "change_pct": 14.15,
+      "sector": "LED장비",
+      "total_score": 12,
+      "52w_high": 318500,
+      "52w_low": 36150,
+      "pct_from_52w_high": -3.77,
+      "is_near_52w_high": true,
+      "days_since_52w_high": 0
+    },
+    "083650": {
+      "name": "비에이치아이",
+      "signal_price": 66900,
+      "is_nxt": true,
+      "nxt_dominant": false,
+      "change_pct": 0.3,
+      "sector": "에너지장비및서비스",
+      "total_score": 5,
+      "52w_high": 114200,
+      "52w_low": 33150,
+      "pct_from_52w_high": -41.42,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 126
+    },
+    "032820": {
+      "name": "우리기술",
+      "signal_price": 14600,
+      "is_nxt": false,
+      "nxt_dominant": false,
+      "change_pct": 1.96,
+      "sector": "우주항공과국방",
+      "total_score": 6,
+      "52w_high": 30200,
+      "52w_low": 3540,
+      "pct_from_52w_high": -51.66,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 119
+    },
+    "052690": {
+      "name": "한전기술",
+      "signal_price": 145000,
+      "is_nxt": true,
+      "nxt_dominant": false,
+      "change_pct": 1.33,
+      "sector": "전기유틸리티",
+      "total_score": 3,
+      "52w_high": 198000,
+      "52w_low": 77100,
+      "pct_from_52w_high": -26.77,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 99
+    }
+  }
+}
