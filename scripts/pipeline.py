@@ -15,7 +15,7 @@ from config.settings import (
     LOG_DIR, SIGNALS_DIR, MIN_TRADING_VALUE_EOK,
     ENABLE_NEWS_FETCH, ENABLE_SUPPLY_FETCH, USE_LLM_NEWS,
     REQUEST_DELAY,
-    REPORTS_DIR, ENABLE_DASHBOARD, ENABLE_GITHUB_PAGES_LINK, GITHUB_PAGES_BASE_URL,
+    REPORTS_DIR, ENABLE_DASHBOARD, GITHUB_PAGES_BASE_URL,
     TV_RATIO_WATCH_MIN, TV_RATIO_P2P3_MIN,
     ENABLE_SECTOR_FETCH, SECTOR_TOP_N,
     ENABLE_NXT_FETCH,
@@ -48,7 +48,7 @@ from scripts.ranking import filter_excluded_stocks
 from scripts.models import ProcessedData, SupplyData, NewsData
 from scripts.scoring import calc_score, build_checklist
 from scripts import notifier as ntf
-from scripts.dashboard import generate_dashboard_html, build_dashboard_links, generate_index_html
+from scripts.dashboard import generate_dashboard_html, generate_index_html
 
 def _build_recent_base_pool(
     signals_dir: Path,
@@ -684,6 +684,16 @@ def run(preview: bool = False):
         f"거래대금Top{len(top_tv)} / 교집합{len(intersection)}"
     )
 
+    # ── 시황 알림 — 봇의 유일한 알림 (2026-09-11) ──────────────────────────
+    # 후보·게이트·패턴은 아래에서 계속 계산해 저장하지만 알림에는 싣지 않는다.
+    # 종목 크롤링(약 20분) 전에 보내므로 14:20 실행이면 14:22 전후에 도착한다.
+    try:
+        from scripts import market_brief as _mb
+        _mb.send(_mb.collect(now, run_type, raw_data=raw_data, merged_df=all_df,
+                             index_levels=index_levels))
+    except Exception as e:
+        logger.error(f"시황 알림 실패: {e}")
+
     # ── 4. 섹터 데이터 수집 ──────────────────────────────────────
     sector_result: dict = {"overview": pd.DataFrame(), "top_sectors": [], "code_to_sector": {}}
     if ENABLE_SECTOR_FETCH:
@@ -785,7 +795,6 @@ def run(preview: bool = False):
         if not _limit_up_top.empty else []
     )
     limit_up_list  = _add_sector(limit_up_list)
-    limit_up_names = [r["종목명"] for r in limit_up_list[:5]]
     followup_data  = _build_limit_up_followup(limit_up_list, code_to_sector, leading_sectors)
 
     market_regime, _market_adl = _calc_market_regime(all_df, tv_1500_count)
@@ -1587,10 +1596,7 @@ def run(preview: bool = False):
     except Exception as e:
         logger.warning(f"daily_summary.json 저장 실패: {e}")
 
-    dashboard_links = {}
-    # 대시보드 실패는 지금까지 로그에만 남고 워크플로는 success로 끝났다. 그래서
-    # 9/3 17:50과 9/8 15:35 두 번이 죽은 걸 닷새 뒤에야 알았다(둘 다 _OBS_TAG_COLOR).
-    # 실패하면 알림에 한 줄로 띄운다 — 대시보드 없이 알림만 보고 판단해야 하는 날이다.
+    # 대시보드는 보관용으로만 만든다 — 알림에 링크를 싣지 않는다(2026-09-11). 실패는 로그로만.
     _dashboard_ok = True
     if ENABLE_DASHBOARD:
         try:
@@ -1598,123 +1604,15 @@ def run(preview: bool = False):
             dated_path  = REPORTS_DIR / f"{report_date}_{snapshot_time}.html"
             latest_path = REPORTS_DIR / latest_name
             _dashboard_ok = bool(generate_dashboard_html(report_data, dated_path, latest_path))
-            if ENABLE_GITHUB_PAGES_LINK:
-                dashboard_links = build_dashboard_links(report_date, snapshot_time, GITHUB_PAGES_BASE_URL, latest_name)
         except Exception as e:
             logger.warning(f"대시보드 생성 중 오류 (무시): {e}")
             _dashboard_ok = False
     if not _dashboard_ok:
-        logger.error("대시보드가 생성되지 않았다 — 알림에 표시한다")
+        logger.error("대시보드가 생성되지 않았다")
 
-    # 거시 지표 (환율·WTI) — 알림 [거시] 줄용. 실패해도 무시.
-    macro_data: dict = {}
-    try:
-        from scripts.fetch_macro import fetch_macro
-        macro_data = fetch_macro()
-    except Exception as e:
-        logger.warning(f"거시 지표 수집 실패 (무시): {e}")
-
-    # 알림 전송
-    _ms_extra = {
-        "macro":                 macro_data,
-        "tv_1500_count":         tv_1500_count,
-        "gainers_tv_1500_count": gainers_tv_1500_count,
-        "intersection_count":    len(intersection) if not intersection.empty else 0,
-        "core_count":            len(core_candidates),
-        "buy_review_count":      _buy_review_count,
-        "market_regime":         market_regime,
-        "market_subtype":        market_subtype,
-        "market_type":           market_type,
-        "market_adl":            _market_adl,
-        "kospi_level":           index_levels.get("kospi_level"),
-        "kosdaq_level":          index_levels.get("kosdaq_level"),
-        "kospi_chg":             index_levels.get("kospi_chg"),
-        "kosdaq_chg":            index_levels.get("kosdaq_chg"),
-        "market_direction":      market_direction,
-        "limit_up_count":        limit_up_count,
-        "limit_up_names":        limit_up_names,
-        "limit_up_list":         limit_up_list,
-        "code_to_sector":        code_to_sector,
-        "inter_codes":           inter_codes,
-        "index_regime":          index_regime,
-        "top5_concentration_pct": _top5_concentration_pct,
-        "risk_appetite":         futures_data.get("risk_appetite"),
-        "largecap_count":        len(largecap_candidates or []),
-        "twotop_count":          len(twotop_oversold or []),
-        "largecap_deferred":     _defer_largecap,
-        "dashboard_ok":          _dashboard_ok,
-        "largecap_ran":          _largecap_ran_now,
-    }
-    if run_type == "1차":
-        msg = ntf.build_first_alert(
-            market_totals, gainers, top_tv, intersection,
-            core_candidates, run_time, enriched,
-            dashboard_links=dashboard_links,
-            market_summary_extra=_ms_extra,
-            leading_sectors=leading_sectors,
-            watch_candidates=watch_candidates,
-            followup_data=followup_data,
-        )
-        ntf.send_message(msg)
-        logger.info(f"1차 알림 전송 완료 (핵심 {len(core_candidates)}개 / 관심 {len(watch_candidates)}개)")
-
-        # 대형주 주도주 후속 알림 — 본 알림 발송 뒤 실행해 1차 타이밍 보호.
-        # KRX 15시 전후 진입(돌팬티: KRX 일부 + NXT 막판) 판단용 정보.
-        if ENABLE_LARGECAP_OBSERVER:
-            try:
-                from scripts.largecap_observer import observe as _observe_largecap_1st
-                _lc1 = _observe_largecap_1st()
-                if _lc1:
-                    ntf.send_message(ntf.build_largecap_message(_lc1, run_time, run_type))
-                    logger.info(f"대형주 후속 알림(1차): {len(_lc1)}개")
-            except Exception as e:
-                logger.warning(f"대형주 1차 관찰 실패 (무시): {e}")
-    else:
-        msg = ntf.build_second_alert(
-            market_totals, gainers, top_tv, intersection,
-            core_candidates, run_time, enriched,
-            dashboard_links=dashboard_links,
-            market_summary_extra=_ms_extra,
-            leading_sectors=leading_sectors,
-            watch_candidates=watch_candidates,
-            run_type=run_type,
-            followup_data=followup_data,
-        )
-        # 대형주 상세는 본 알림에 이어붙여 한 번에 보낸다 (2026-09-07).
-        # 본 알림에 이미 "대형주 트랙" 게이트 2줄이 있어 별도 메시지는 같은 내용을
-        # 두 번 읽게 만들었다. 긴 메시지는 send_message가 알아서 분할한다.
-        if largecap_candidates:
-            try:
-                _lc_msg = ntf.build_largecap_message(largecap_candidates, run_time, run_type)
-                if _lc_msg:
-                    msg += "\n" + _lc_msg
-            except Exception as e:
-                logger.warning(f"대형주 상세 결합 실패 (무시): {e}")
-        ntf.send_message(msg)
-        logger.info(f"2차 알림 전송 완료 (핵심 {len(core_candidates)}개 / 관심 {len(watch_candidates)}개)")
-
-        # 15:35 실행은 대형주 관찰을 여기서 돈다 — 본 알림 발송 뒤라 타이밍을 잡아먹지
-        # 않는다(1차와 같은 처리). 47종목 점검에 16분이 걸려 앞에 두면 알림이 16시를
-        # 넘긴다. 저녁 실행은 위에서 이미 돌았으므로 여기 들어오지 않는다.
-        if _defer_largecap and ENABLE_LARGECAP_OBSERVER:
-            try:
-                from scripts.largecap_observer import observe as _observe_largecap_late
-                _lc_late = _observe_largecap_late()
-                if _lc_late:
-                    _lc_msg = ntf.build_largecap_message(_lc_late, run_time, run_type)
-                    if _lc_msg:
-                        ntf.send_message(_lc_msg)
-                        logger.info(f"대형주 후속 알림(15:35): {len(_lc_late)}개")
-                else:
-                    logger.info("대형주 후속: 후보 0개 — 발송 생략")
-            except Exception as e:
-                logger.warning(f"대형주 관찰(지연 실행) 실패 (무시): {e}")
-
-        # 시장 흐름 LLM 요약은 2026-09-07 발송 중단.
-        # 17:50 알림은 사용자가 NXT 진입을 판단하는 시점에 도착한다. 여기에 AI가 쓴
-        # 해석을 함께 보내면 본인 판단을 세우기 전에 남의 결론을 먼저 읽게 된다 —
-        # daily_view_log에 세운 "내 사전 판단을 먼저 쓴다"는 원칙과 정면으로 충돌한다.
-        # summarize_market_flow 함수는 보존(백테스트·사후 분석용).
+    # 종목 알림(1차·2차·대형주 후속)은 2026-09-11에 중단했다. 시황 알림은 랭킹 직후에 나갔다.
+    # 계산 결과는 signals CSV·daily_summary·대시보드에 그대로 남는다(백테스트·사후 검증용).
+    # 15:35의 대형주 지연 관찰도 알림 전용이었으므로 함께 사라졌다 — 값은 17:50 실행이 남긴다.
 
     # ── 기준봉 후 추적 알림 (1차/2차 공통) ── 비활성화: 강한 종목 종베 집중 기간
     # try:

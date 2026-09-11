@@ -77,6 +77,33 @@ def send_message(text: str) -> bool:
     return success
 
 
+def send_photo(path, caption: str = "") -> bool:
+    """이미지 한 장 전송 (테마 맵). preview 모드는 send_message와 같은 대상 규칙."""
+    if not TELEGRAM_BOT_TOKEN:
+        logger.error("TELEGRAM_BOT_TOKEN 미설정")
+        return False
+    chat_id = TELEGRAM_CHAT_ID_DEV if _preview_mode else TELEGRAM_CHAT_ID
+    if not chat_id:
+        logger.error("전송 대상 CHAT_ID 미설정")
+        return False
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendPhoto"
+    try:
+        with open(path, "rb") as f:
+            resp = requests.post(
+                url,
+                data={"chat_id": chat_id, "caption": caption[:1024], "parse_mode": "HTML"},
+                files={"photo": (Path(str(path)).name, f, "image/png")},
+                timeout=30,
+            )
+        if resp.status_code != 200:
+            logger.error(f"텔레그램 사진 전송 실패: {resp.status_code} {resp.text[:200]}")
+            return False
+        return True
+    except Exception as e:
+        logger.error(f"텔레그램 사진 전송 예외: {e}")
+        return False
+
+
 def send_private(text: str) -> bool:
     """TELEGRAM_CHAT_ID 단독 발송 — 공유 그룹 제외."""
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:

@@ -1,33 +1,29 @@
-name: Morning Briefing
+name: Harvest Trade Inputs
 
+# 텔레그램 답장(매매 근거) 수거 전용. 텔레그램은 미수거 메시지를 24시간만 보관하는데
+# cron-job.org는 주말·휴일에 봇을 깨우지 않는다 — 금요일 저녁 입력이 월요일 아침이면 사라진다.
+# 그래서 GitHub schedule로 하루 두 번 따로 돈다(GitHub cron은 몇 시간 늦을 수 있어 두 번).
 on:
-  workflow_dispatch:           # cron-job.org 07:40 KST 트리거 (schedule 제거 — 중복 발송 방지)
-  # 2026-09-08: 08:50 → 07:40으로 앞당겼다. 돌팬티 3강 00:09:28 "프리장에서
-  # 8시에서 8시 50분까지 종가베팅 대응 필수" — 08:50은 대응 창이 닫힐 때 도착했다.
-  # 개장(08:00) 전이므로 시가가 없다. morning_briefing이 _is_pre_open()으로
-  # 갭 대신 청산 계획 문구를 낸다.
+  schedule:
+    - cron: "0 3 * * *"    # 12:00 KST
+    - cron: "0 14 * * *"   # 23:00 KST
+  workflow_dispatch:
 
 jobs:
-  briefing:
+  harvest:
     runs-on: ubuntu-latest
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
           cache: "pip"
-
       - name: Install dependencies
         run: pip install -r requirements.txt
 
       - name: Harvest trade inputs (텔레그램 답장 → 비공개 백업 레포)
-        # 사용자가 봇 채팅에 남긴 매매 근거를 수거한다. 공개 레포엔 남기지 않는다.
-        # 텔레그램은 미수거 메시지를 24시간만 보관하므로 매 실행마다 먼저 돈다.
-        if: always()
         env:
           BACKUP_KEY:         ${{ secrets.DATA_BACKUP_SSH_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -48,12 +44,5 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add data/trades
-          git diff --cached --quiet && echo "새 입력 없음" ||             (git commit -m "trades: $(date +%Y-%m-%d_%H%M) 텔레그램 입력 수거" && git push)
-
-      - name: Run morning briefing
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
-          TRADES_DIR: /tmp/trades_repo/data/trades
-          TZ: Asia/Seoul
-        run: python -m scripts.morning_briefing
+          git diff --cached --quiet && echo "새 입력 없음" || \
+            (git commit -m "trades: $(date +%Y-%m-%d_%H%M) 텔레그램 입력 수거" && git push)

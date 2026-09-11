@@ -7,3 +7,5 @@ schedule==1.2.1
 google-genai>=1.0.0
 yfinance>=0.2.40
 pykrx>=1.0.47
+matplotlib>=3.8
+squarify>=0.4.3

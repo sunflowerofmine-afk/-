@@ -253,24 +253,35 @@ def _check_definitions() -> list[str]:
 
 
 def _check_morning(verbose: bool) -> list[str]:
-    """아침 브리핑 개장 전 분기 — 네트워크를 타지 않는 쪽만."""
+    """아침 브리핑 — 보유 종목 입력이 있는 경우와 없는 경우. 네트워크는 타지 않는다."""
     fails = []
     try:
-        import pandas as pd
+        import tempfile
+        from pathlib import Path
         from scripts import morning_briefing as mb
-        df = pd.DataFrame([{"종목코드": "042660", "종목명": "한화오션",
-                            "signal_price": 95000, "sector": "조선",
-                            "pattern_type_label": "당일돌파형", "in_inter": True}])
-        orig = mb._is_pre_open
+        from scripts import trades_store as ts
+        store = Path(tempfile.mkdtemp())
+        ts.record(1, 10, 1789000000, "매수 한화오션 95000 10주" + chr(10)
+                  + "판 개별주 / 깨는가 92000 / 비중 900만", store=store)
+        orig_pre, orig_us, orig_pos = mb._is_pre_open, mb._us_section, ts.open_positions
         mb._is_pre_open = lambda: True          # 08:00 이전 분기 강제
+        mb._us_section = lambda: ""             # yfinance 생략
         try:
-            msg = mb.build_message(df, "2026-09-08")
+            mb.ts.open_positions = lambda days=15, store=None, _s=store: orig_pos(400, _s)
+            msg = mb.build_message()
             assert "08:00" in msg, "개장 전 문구가 없다"
-            assert "시가" not in msg.split("📊")[0], "개장 전인데 시가를 표시한다"
+            assert "한화오션" in msg and "92,000" in msg, "보유 종목·깨는가가 안 보인다"
+            mb.ts.open_positions = lambda days=15, store=None: []
+            msg2 = mb.build_message()
+            assert "입력 없음" in msg2, "보유 없음 문구가 없다"
             if verbose:
-                print(f"\n----- 아침 브리핑(개장 전) -----\n{msg}")
+                print("----- 아침 브리핑(보유 있음) -----")
+                print(msg)
+                print("----- (보유 없음) -----")
+                print(msg2)
         finally:
-            mb._is_pre_open = orig
+            mb._is_pre_open, mb._us_section = orig_pre, orig_us
+            mb.ts.open_positions = orig_pos
     except Exception as e:
         fails.append(f"[아침] {e}")
         if verbose:
