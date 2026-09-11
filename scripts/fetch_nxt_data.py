@@ -2,75 +2,45 @@
 """NXT 거래상위 데이터 수집 — 2차/수동 실행 시 KRX 데이터에 합산"""
 
 import sys
-import time
 import logging
-import re
 from pathlib import Path
 
-import requests
 import pandas as pd
-from bs4 import BeautifulSoup
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from config.settings import HEADERS, REQUEST_TIMEOUT, REQUEST_DELAY
 
 logger = logging.getLogger(__name__)
 
-NXT_QUANT_URL = "https://finance.naver.com/sise/nxt_sise_quant.naver"
-_MARKETS = {"KOSPI": 0, "KOSDAQ": 1}
+# 2026-09-11까지 finance.naver.com/sise/nxt_sise_quant.naver(거래량 상위, 시장별 100행)를 긁었다.
+# 네이버가 그 페이지를 없애면서 stock.naver.com JSON API로 전환. 구 페이지와 같은 행 구성을
+# 유지하기 위해 NXT 거래량 상위 100종목/시장으로 자른다 (is_nxt·NXT대장 의미 보존).
+from scripts.naver_api import fetch_stock_default, to_float
+
+_MARKETS = {"KOSPI": "0", "KOSDAQ": "1"}
+_TOP_N_PER_MARKET = 100
 
 
-def _parse_number(text: str) -> str:
-    return text.strip().replace(",", "").replace("+", "").replace("%", "").replace("−", "-")
-
-
-def _fetch_page(market_code: int) -> pd.DataFrame:
-    url = f"{NXT_QUANT_URL}?sosok={market_code}"
+def _fetch_all_nxt() -> pd.DataFrame:
+    """NXT 거래 종목 전체 → DataFrame(종목코드, sosok, nxt_price, nxt_volume, nxt_tv)."""
     try:
-        resp = requests.get(url, headers=HEADERS, timeout=REQUEST_TIMEOUT)
-        resp.encoding = "euc-kr"
+        items = fetch_stock_default(trade_type="NXT", market_type="ALL", order_type="quantTop")
     except Exception as e:
-        logger.warning(f"[NXT sosok={market_code}] 요청 실패: {e}")
-        return pd.DataFrame()
-
-    soup = BeautifulSoup(resp.text, "lxml")
-    table = soup.select_one("table.type_2")
-    if table is None:
-        logger.warning(f"[NXT sosok={market_code}] 테이블(type_2) 없음")
+        logger.warning(f"[NXT] 요청 실패: {e}")
         return pd.DataFrame()
 
     rows = []
-    for tr in table.select("tr"):
-        cols = tr.select("td")
-        if len(cols) < 6:
-            continue
-        name_tag = cols[1].select_one("a")
-        if name_tag is None:
-            continue
-
-        href = name_tag.get("href", "")
-        code_match = re.search(r"code=(\w+)", href)
-        code = code_match.group(1) if code_match else ""
+    for it in items:
+        code = str(it.get("itemcode") or "").strip()
         if not code:
             continue
-
-        try:
-            price  = float(_parse_number(cols[2].text) or "0")
-            volume = float(_parse_number(cols[5].text) or "0")
-            # 거래대금: NXT 거래상위 페이지는 거래대금 직접 제공 (백만원 단위)
-            tv_raw = float(_parse_number(cols[6].text) or "0") if len(cols) > 6 else 0.0
-            tv_won = tv_raw * 1_000_000  # 백만원 → 원
-        except (ValueError, IndexError):
-            price, volume, tv_won = 0.0, 0.0, 0.0
-
         rows.append({
-            "종목코드": code,
-            "nxt_price":  price,
-            "nxt_volume": volume,
-            "nxt_tv":     tv_won,
+            "종목코드":   code,
+            "sosok":      str(it.get("sosok") or ""),
+            "nxt_price":  to_float(it.get("nowPrice"), 0.0),
+            "nxt_volume": to_float(it.get("tradeVolume"), 0.0),
+            "nxt_tv":     to_float(it.get("tradeAmount"), 0.0),   # 원 단위
         })
-
-    logger.debug(f"[NXT sosok={market_code}] {len(rows)}행 파싱")
+    logger.debug(f"[NXT] {len(rows)}행 파싱")
     return pd.DataFrame(rows)
 
 
@@ -81,12 +51,13 @@ def fetch_nxt_quant() -> dict:
     NXT에 없는 종목은 포함되지 않음 → 합산 시 해당 종목은 KRX 값만 사용.
     """
     result: dict = {}
+    all_df = _fetch_all_nxt()
     for market_name, market_code in _MARKETS.items():
-        df = _fetch_page(market_code)
-        time.sleep(REQUEST_DELAY)
+        df = all_df[all_df["sosok"] == market_code] if not all_df.empty else all_df
         if df.empty:
             logger.warning(f"[NXT {market_name}] 수집 데이터 없음")
             continue
+        df = df.sort_values("nxt_volume", ascending=False).head(_TOP_N_PER_MARKET)
         for _, row in df.iterrows():
             result[str(row["종목코드"])] = {
                 "nxt_price":  float(row["nxt_price"]),

@@ -10,49 +10,48 @@
 급등 필터를 거치지 않으므로 기존 종베 후보풀의 사각지대(안 오른 추세 대형주)를 메운다.
 주의: 약세장 분리검증 미완 → 신고가근접 필터가 약세장 잡주를 자동 배제하나 과최적화 경계.
 """
-import re
 import time
 import logging
 from statistics import mean
 
-import requests
-from bs4 import BeautifulSoup
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from config.settings import (
-    HEADERS, REQUEST_TIMEOUT, REQUEST_DELAY, LARGECAP_TOP_N,
+    REQUEST_DELAY, LARGECAP_TOP_N,
     LARGECAP_NEAR_HIGH_PCT, LARGECAP_MIN_TV_EOK,
 )
 from scripts.fetch_stock_data import fetch_chart_data
 from scripts.fetch_supply_data import fetch_supply
 
 logger = logging.getLogger(__name__)
-_MKT_SUM_URL = "https://finance.naver.com/sise/sise_market_sum.naver"
+# 2026-09-11까지 finance.naver.com/sise/sise_market_sum.naver HTML을 긁었다 (네이버가 페이지 폐지).
+# 같은 행 구성(ETF·ETN 섞인 시총순)을 주는 marketValue JSON API로 전환 — 이후 ETF 제외 로직은 그대로.
+from scripts.naver_api import MARKET_LIST_PAGE_SIZE, MARKET_LIST_URL, get_json
 
 
 def fetch_kospi_top(n: int = LARGECAP_TOP_N) -> list[tuple[str, str]]:
-    """네이버 시총순 코스피 상위 n = [(code, name)]. 1페이지=50종목."""
+    """네이버 시총순 코스피 상위 n = [(code, name)]. ETF·ETN이 섞인 순위 그대로(구 페이지와 동일)."""
     out = []
-    pages = (n // 50) + 1
-    for p in range(1, pages + 1):
+    page = 1
+    while len(out) < n:
         try:
-            r = requests.get(f"{_MKT_SUM_URL}?sosok=0&page={p}", headers=HEADERS, timeout=REQUEST_TIMEOUT)
-            r.encoding = "euc-kr"
-            s = BeautifulSoup(r.text, "lxml")
-            for tr in s.select("table.type_2 tr"):
-                c = tr.select("td")
-                if len(c) < 10:
-                    continue
-                a = c[1].select_one("a")
-                if not a:
-                    continue
-                m = re.search(r"code=(\w+)", a.get("href", ""))
-                if m:
-                    out.append((m.group(1), a.text.strip()))
+            data = get_json(MARKET_LIST_URL.format(market="KOSPI"),
+                            {"page": page, "pageSize": MARKET_LIST_PAGE_SIZE})
         except Exception as e:
-            logger.warning(f"코스피 시총상위 수집 실패 p{p}: {e}")
+            logger.warning(f"코스피 시총상위 수집 실패 p{page}: {e}")
+            break
+        stocks = data.get("stocks") or []
+        for st in stocks:
+            code = str(st.get("itemCode") or "").strip()
+            name = str(st.get("stockName") or "").strip()
+            if code and name:
+                out.append((code, name))
+        if len(stocks) < MARKET_LIST_PAGE_SIZE:
+            break
+        page += 1
+        time.sleep(REQUEST_DELAY)
     return out[:n]
 
 

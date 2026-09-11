@@ -6,28 +6,15 @@ import logging
 import re
 from pathlib import Path
 
-import requests
-from bs4 import BeautifulSoup
-
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from config.settings import HEADERS, REQUEST_TIMEOUT
 from scripts.models import SupplyData
 
 logger = logging.getLogger(__name__)
 
-FRGN_URL     = "https://finance.naver.com/item/frgn.naver"
-INVESTOR_URL = "https://finance.naver.com/item/sise_investor.naver"
-
-
-def _parse_shares(text: str) -> float | None:
-    """콤마/부호 처리 후 주(株) 단위 숫자 반환"""
-    cleaned = text.strip().replace(",", "").replace("+", "").replace("−", "-").replace(" ", "")
-    if cleaned in ("", "-", "N/A", "n/a"):
-        return None
-    try:
-        return float(cleaned)
-    except ValueError:
-        return None
+# 2026-09-11까지 finance.naver.com/item/frgn.naver의 일별 표(기관·외국인 순매매량)를 긁었다.
+# 네이버가 그 페이지를 stock.naver.com으로 리다이렉트하면서 JSON API로 전환.
+# 행 의미 동일: 최신 거래일부터 내림차순, 당일 확정치는 저녁에야 올라온다(장중엔 전일이 첫 행).
+from scripts.naver_api import STOCK_TREND_URL, get_json, to_float
 
 
 _SUPPLY_LOOKBACK = 5  # 누적 집계 거래일 수
@@ -65,13 +52,9 @@ def fetch_supply(code: str) -> SupplyData:
     result = SupplyData(code=code)
 
     try:
-        resp = requests.get(f"{FRGN_URL}?code={code}", headers=HEADERS, timeout=REQUEST_TIMEOUT)
-        resp.encoding = "euc-kr"
-        soup = BeautifulSoup(resp.text, "lxml")
-
-        tables = soup.select("table.type2")
-        if len(tables) < 2:
-            logger.debug(f"[{code}] 수급 테이블 없음 (tables={len(tables)})")
+        rows = get_json(STOCK_TREND_URL.format(code=code), {"pageSize": _SUPPLY_LOOKBACK})
+        if not isinstance(rows, list) or not rows:
+            logger.debug(f"[{code}] 수급 데이터 없음")
             return result
 
         inst_acc  = 0.0
@@ -80,20 +63,18 @@ def fetch_supply(code: str) -> SupplyData:
         inst_rows: list[float] = []
         frgn_rows: list[float] = []
 
-        for tr in tables[1].select("tr"):
-            cols = tr.select("td")
-            if len(cols) < 7:
-                continue
-            if not re.match(r"\d{4}\.\d{2}\.\d{2}", cols[0].text.strip()):
+        for r in rows:
+            bizdate = str(r.get("bizdate") or "")
+            if not re.match(r"\d{8}$", bizdate):
                 continue
 
-            inst = _parse_shares(cols[5].text)
-            frgn = _parse_shares(cols[6].text)
+            inst = to_float(r.get("organPureBuyQuant"))
+            frgn = to_float(r.get("foreignerPureBuyQuant"))
 
             if rows_ok == 0:
                 result.institution_net = inst
                 result.foreign_net     = frgn
-                result.supply_date     = cols[0].text.strip()
+                result.supply_date     = f"{bizdate[:4]}.{bizdate[4:6]}.{bizdate[6:]}"
                 result.status          = "ok"
 
             inst_acc += (inst or 0.0)

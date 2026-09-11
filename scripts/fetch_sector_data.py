@@ -6,44 +6,20 @@ import sys
 import time
 import logging
 from pathlib import Path
-from typing import Optional
 
-import requests
 import pandas as pd
-from bs4 import BeautifulSoup
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from config.settings import HEADERS, REQUEST_TIMEOUT, REQUEST_DELAY
+from config.settings import REQUEST_DELAY
 
 logger = logging.getLogger(__name__)
 
-_BASE = "https://finance.naver.com/sise"
+# 2026-09-11까지 finance.naver.com/sise/sise_group.naver(업종·테마 현황)과
+# sise_group_detail.naver(구성 종목)를 긁었다. 네이버가 두 페이지를 stock.naver.com으로
+# 리다이렉트하면서 JSON API로 전환. 반환 구조(sector_name/sector_no/change_pct, 종목코드 목록)는 동일.
+from scripts.naver_api import fetch_group_list, fetch_group_stocks, to_float
 
-
-def _get(url: str) -> Optional[BeautifulSoup]:
-    try:
-        resp = requests.get(url, headers=HEADERS, timeout=REQUEST_TIMEOUT)
-        resp.encoding = "euc-kr"
-        return BeautifulSoup(resp.text, "lxml")
-    except Exception as e:
-        logger.warning(f"섹터 페이지 요청 실패 {url}: {e}")
-        return None
-
-
-def _parse_float(text: str) -> float:
-    cleaned = (
-        text.strip()
-        .replace(",", "")
-        .replace("+", "")
-        .replace("%", "")
-        .replace("▲", "")
-        .replace("▼", "-")
-        .replace("−", "-")
-    )
-    try:
-        return float(cleaned)
-    except ValueError:
-        return 0.0
+_GROUP = {"upjong": "upjong", "theme": "theme"}
 
 
 def fetch_sector_overview(group_type: str = "upjong") -> pd.DataFrame:
@@ -51,57 +27,41 @@ def fetch_sector_overview(group_type: str = "upjong") -> pd.DataFrame:
     네이버 업종/테마 현황 → 섹터명, sector_no, 등락률 DataFrame 반환.
     group_type: "upjong" (업종) 또는 "theme" (테마)
     """
-    soup = _get(f"{_BASE}/sise_group.naver?type={group_type}")
-    if not soup:
+    try:
+        items = fetch_group_list(_GROUP.get(group_type, group_type))
+    except Exception as e:
+        logger.warning(f"섹터 목록 요청 실패 ({group_type}): {e}")
         return pd.DataFrame()
 
     rows = []
-    for tr in soup.select("table.type_1 tr"):
-        tds = tr.select("td")
-        a_tag = None
-        for td in tds:
-            a = td.select_one("a[href]")
-            if a and re.search(r"no=\d+", a.get("href", "")):
-                a_tag = a
-                break
-        if a_tag is None:
+    for it in items:
+        no = to_float(it.get("no"))
+        name = str(it.get("name") or "").strip()
+        if no is None or not name:
             continue
-
-        m = re.search(r"no=(\d+)", a_tag.get("href", ""))
-        if not m:
-            continue
-
-        try:
-            change_pct = _parse_float(tds[1].text)
-        except IndexError:
-            continue
-
         rows.append({
-            "sector_name": a_tag.text.strip(),
-            "sector_no":   int(m.group(1)),
-            "change_pct":  change_pct,
+            "sector_name": name,
+            "sector_no":   int(no),
+            "change_pct":  to_float(it.get("changeRate"), 0.0),
         })
 
     if not rows:
-        logger.warning("업종 overview 파싱 결과 없음 (HTML 구조 변경 가능성)")
+        logger.warning(f"{group_type} overview 파싱 결과 없음 (API 응답 구조 변경 가능성)")
         return pd.DataFrame()
 
     df = pd.DataFrame(rows)
-    logger.info(f"업종 overview 수집: {len(df)}개 섹터")
+    logger.info(f"{'업종' if group_type == 'upjong' else '테마'} overview 수집: {len(df)}개 섹터")
     return df
 
 
 def fetch_sector_stock_codes(sector_no: int, group_type: str = "upjong") -> list:
-    """업종/테마 상세 페이지에서 구성 종목 코드 목록 추출"""
-    url = f"{_BASE}/sise_group_detail.naver?type={group_type}&no={sector_no}"
-    soup = _get(url)
-    if not soup:
-        return []
+    """업종/테마 구성 종목 코드 목록 추출"""
+    items = fetch_group_stocks(_GROUP.get(group_type, group_type), sector_no)
     codes = []
-    for a in soup.find_all("a", href=re.compile(r"code=\d{6}")):
-        m = re.search(r"code=(\d{6})", a["href"])
-        if m:
-            codes.append(m.group(1))
+    for it in items:
+        code = str(it.get("itemcode") or "").strip()
+        if re.fullmatch(r"\d{6}", code):
+            codes.append(code)
     return list(dict.fromkeys(codes))  # deduplicate, preserve order
 
 

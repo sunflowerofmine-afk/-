@@ -2,119 +2,67 @@
 """네이버 증권 코스피/코스닥 전 종목 데이터 수집"""
 
 import sys
-import time
 import logging
 import re
 from pathlib import Path
 
 import requests
 import pandas as pd
-from bs4 import BeautifulSoup
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from config.settings import HEADERS, MARKETS, REQUEST_TIMEOUT, REQUEST_DELAY
+from config.settings import HEADERS, MARKETS, REQUEST_TIMEOUT
 
 logger = logging.getLogger(__name__)
 
-BASE_URL = "https://finance.naver.com/sise/sise_market_sum.naver"
+# 2026-09-11까지 finance.naver.com/sise/sise_market_sum.naver HTML을 긁었다.
+# 네이버가 그 페이지를 stock.naver.com으로 리다이렉트하면서 표가 사라져 JSON API로 전환.
+# 행 구성(ETF·ETN 포함)과 컬럼 의미는 구 페이지와 동일하게 맞춘다 — 총 거래대금·집중도 연속성.
+from scripts.naver_api import fetch_market_list, to_float
 
 
-def _get_last_page(market_code: int) -> int:
-    url = f"{BASE_URL}?sosok={market_code}&page=1"
-    resp = requests.get(url, headers=HEADERS, timeout=REQUEST_TIMEOUT)
-    resp.encoding = "euc-kr"
-    soup = BeautifulSoup(resp.text, "lxml")
-    pager = soup.select_one("td.pgRR > a")
-    if pager is None:
-        return 1
-    href = pager.get("href", "")
-    match = re.search(r"page=(\d+)", href)
-    return int(match.group(1)) if match else 1
-
-
-def _parse_number(text: str) -> str:
-    return text.strip().replace(",", "").replace("+", "").replace("%", "").replace("−", "-")
-
-
-def _fetch_page(market_code: int, page: int) -> pd.DataFrame:
-    url = f"{BASE_URL}?sosok={market_code}&page={page}"
-    resp = requests.get(url, headers=HEADERS, timeout=REQUEST_TIMEOUT)
-    resp.encoding = "euc-kr"
-    soup = BeautifulSoup(resp.text, "lxml")
-    table = soup.select_one("table.type_2")
-    if table is None:
-        return pd.DataFrame()
-
+def _rows_to_df(stocks: list[dict]) -> pd.DataFrame:
     rows = []
-    for tr in table.select("tr"):
-        cols = tr.select("td")
-        # 현재 페이지 구조(13컬럼): N/종목명/현재가/전일비/등락률/액면가/시가총액/상장주식수/외국인비율/거래량/PER/ROE/게시판
-        if len(cols) < 10:
+    for s in stocks:
+        code = str(s.get("itemCode") or "").strip()
+        name = str(s.get("stockName") or "").strip()
+        if not code or not name:
             continue
-        name_tag = cols[1].select_one("a")
-        if name_tag is None:
-            continue
-
-        href = name_tag.get("href", "")
-        code_match = re.search(r"code=(\w+)", href)
-        code = code_match.group(1) if code_match else ""
-
-        # 거래량(col[9]) × 현재가(col[2])로 거래대금 계산 (sise_market_sum에 거래대금 컬럼 없음)
-        try:
-            price  = float(_parse_number(cols[2].text) or "0")
-            volume = float(_parse_number(cols[9].text) or "0")
-            tv_won = price * volume  # 원 단위
-        except ValueError:
-            tv_won = 0.0
-
-        # 상장주식수(col[7]) — 수급 비율 계산용 (천주 단위 표시 → 주 단위 환산)
-        try:
-            _shares = float(_parse_number(cols[7].text) or "0") * 1000  # 네이버는 천주 단위
-        except (ValueError, IndexError):
-            _shares = 0.0
+        price  = to_float(s.get("closePriceRaw"), 0.0)
+        volume = to_float(s.get("accumulatedTradingVolumeRaw"), 0.0)
+        # 거래대금: API가 실제 누적 거래대금(원)을 준다. 없으면 구 방식(현재가×거래량)으로 대체.
+        tv_won = to_float(s.get("accumulatedTradingValueRaw"))
+        if tv_won is None:
+            tv_won = price * volume
+        # 상장주식수: 시가총액(원) ÷ 현재가. 네이버 시총 정의가 상장주식수×현재가라 정확히 복원된다.
+        mcap = to_float(s.get("marketValueRaw"), 0.0)
+        shares = round(mcap / price) if price and mcap else 0.0
 
         rows.append({
-            "종목명":   name_tag.text.strip(),
+            "종목명":   name,
             "종목코드": code,
-            "현재가":   _parse_number(cols[2].text),
-            "전일비":   _parse_number(cols[3].text),
-            "등락률":   _parse_number(cols[4].text),
-            "거래량":   _parse_number(cols[9].text),
-            "거래대금": tv_won,   # 원 단위
-            "상장주식수": _shares,  # 주 단위
+            "현재가":   price,
+            "전일비":   to_float(s.get("compareToPreviousClosePriceRaw"), 0.0),
+            "등락률":   to_float(s.get("fluctuationsRatio"), 0.0),
+            "거래량":   volume,
+            "거래대금": float(tv_won),   # 원 단위
+            "상장주식수": float(shares),  # 주 단위
         })
-
     return pd.DataFrame(rows)
 
 
 def fetch_all_stocks(market_name: str, market_code: int) -> pd.DataFrame:
     """시장 전체 종목 수집 → DataFrame 반환 (raw 원본, 제외 필터 미적용)"""
-    logger.info(f"[{market_name}] 마지막 페이지 확인 중...")
+    logger.info(f"[{market_name}] 전 종목 수집 시작 (JSON API)")
     try:
-        last_page = _get_last_page(market_code)
+        stocks = fetch_market_list(market_name)
     except Exception as e:
-        logger.error(f"[{market_name}] 페이지 수 확인 실패: {e}")
+        logger.error(f"[{market_name}] 수집 실패: {e}")
         return pd.DataFrame()
 
-    logger.info(f"[{market_name}] 총 {last_page}페이지 수집 시작")
-    frames = []
-    for page in range(1, last_page + 1):
-        try:
-            df = _fetch_page(market_code, page)
-            if not df.empty:
-                frames.append(df)
-            if page % 10 == 0:
-                logger.info(f"[{market_name}] {page}/{last_page} 완료")
-            time.sleep(REQUEST_DELAY)
-        except Exception as e:
-            logger.warning(f"[{market_name}] {page}페이지 실패: {e}")
-            time.sleep(1)
-
-    if not frames:
+    result = _rows_to_df(stocks)
+    if result.empty:
         logger.error(f"[{market_name}] 수집 데이터 없음")
         return pd.DataFrame()
-
-    result = pd.concat(frames, ignore_index=True)
 
     for col in ["현재가", "전일비", "등락률", "거래량"]:
         result[col] = pd.to_numeric(result[col], errors="coerce")
