@@ -61,6 +61,7 @@ def harvest(store: Path, ack: bool = True) -> list[dict]:
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
         logger.error("TELEGRAM_BOT_TOKEN 또는 TELEGRAM_CHAT_ID 미설정 — 수거 생략")
         return []
+    store.mkdir(parents=True, exist_ok=True)   # 0건이어도 폴더는 남긴다 — 워크플로 git add가 여기를 본다
     last = _load_offset(store)
     updates = fetch_updates(last)
     saved: list[dict] = []

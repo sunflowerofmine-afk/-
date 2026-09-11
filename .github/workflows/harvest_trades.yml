@@ -24,6 +24,8 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Harvest trade inputs (텔레그램 답장 → 비공개 백업 레포)
+        # 수거가 실패해도 알림은 나가야 한다 — 2026-09-11 19:30 실행이 여기서 죽어 시황이 안 갔다.
+        continue-on-error: true
         env:
           BACKUP_KEY:         ${{ secrets.DATA_BACKUP_SSH_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -43,6 +45,7 @@ jobs:
           cd /tmp/trades_repo
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          mkdir -p data/trades
           git add data/trades
           git diff --cached --quiet && echo "새 입력 없음" || \
             (git commit -m "trades: $(date +%Y-%m-%d_%H%M) 텔레그램 입력 수거" && git push)
