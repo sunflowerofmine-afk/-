@@ -4362,8 +4362,8 @@
       },
       "d3_close": {
         "n": 32,
-        "mean": -6.16,
-        "median": -7.46,
+        "mean": -6.29,
+        "median": -7.86,
         "win_rate": 28.1,
         "sample_label": "관찰가능"
       },
@@ -4393,13 +4393,13 @@
       "d1_close": {
         "n": 105,
         "mean": -2.19,
-        "median": -2.75,
+        "median": -2.88,
         "win_rate": 32.4,
         "sample_label": "관찰가능"
       },
       "d3_close": {
         "n": 87,
-        "mean": -3.58,
+        "mean": -3.59,
         "median": -3.93,
         "win_rate": 31.0,
         "sample_label": "관찰가능"
@@ -4413,7 +4413,7 @@
       },
       "mae": {
         "n": 105,
-        "mean": -11.75,
+        "mean": -11.76,
         "median": -10.07,
         "win_rate": 2.9,
         "sample_label": "관찰가능"
@@ -4434,7 +4434,7 @@
       },
       "d3_close": {
         "n": 48,
-        "mean": -3.5,
+        "mean": -3.53,
         "median": -2.88,
         "win_rate": 31.2,
         "sample_label": "관찰가능"
@@ -4448,7 +4448,7 @@
       },
       "mae": {
         "n": 52,
-        "mean": -11.86,
+        "mean": -11.88,
         "median": -10.97,
         "win_rate": 1.9,
         "sample_label": "관찰가능"
@@ -4467,7 +4467,7 @@
       },
       "d3_close": {
         "n": 21,
-        "mean": -8.15,
+        "mean": -8.26,
         "median": -11.76,
         "win_rate": 28.6,
         "sample_label": "관찰가능"
@@ -4500,8 +4500,8 @@
       },
       "d3_close": {
         "n": 26,
-        "mean": -0.32,
-        "median": -4.09,
+        "mean": -0.39,
+        "median": -4.71,
         "win_rate": 42.3,
         "sample_label": "관찰가능"
       },
