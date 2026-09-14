@@ -33,7 +33,16 @@ def run() -> None:
     df = df.sort_values("nxt_tv", ascending=False)
 
     _OUT_DIR.mkdir(parents=True, exist_ok=True)
-    date_str = datetime.now().strftime("%Y-%m-%d")  # 워크플로우에서 TZ=Asia/Seoul
+    # 파일 날짜 = 이 데이터가 속한 거래일. GitHub schedule이 늦어 자정을 넘겨 돌면(2026-09-14분이
+    # 09-15 01:56에 돌아 "2026-09-15_nxt.csv"로 저장됐다) 오늘 날짜가 틀린다. 08:00(NXT 프리장) 전이면
+    # 아직 전 거래일의 NXT 데이터이므로 직전 거래일로 적는다.
+    from scripts.market_calendar import get_prev_trading_day
+    now = datetime.now()  # 워크플로우에서 TZ=Asia/Seoul
+    if now.hour < 8:
+        prev = get_prev_trading_day(now.strftime("%Y%m%d"))
+        date_str = f"{prev[:4]}-{prev[4:6]}-{prev[6:]}" if prev else now.strftime("%Y-%m-%d")
+    else:
+        date_str = now.strftime("%Y-%m-%d")
     path = _OUT_DIR / f"{date_str}_nxt.csv"
     df.to_csv(path, encoding="utf-8-sig")
 

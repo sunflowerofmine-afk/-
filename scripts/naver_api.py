@@ -130,3 +130,30 @@ def fetch_market_index(category: str, reuters_code: str) -> dict:
     if not data.get("isSuccess"):
         raise ValueError(f"marketIndex 실패 {category}/{reuters_code}: {data.get('message')}")
     return data.get("result") or {}
+
+
+INDEX_DAY_URL = "https://finance.naver.com/sise/sise_index_day.naver"
+
+
+def fetch_index_turnover(code: str, pages: int = 3) -> dict[str, float]:
+    """지수 일별 거래대금(억원). {YYYY-MM-DD: 억}. 페이지당 6거래일, 최신순.
+
+    이 값이 HTS·네이버 지수 화면의 "코스피 거래대금"이다 — 주식만이고 시간외 거래를 포함한다.
+    marketValue 전 종목 합(ETF·ETN 포함, 코스피의 46%)과는 거의 두 배 차이가 난다. 사용자가 보는
+    숫자와 같아야 하므로 시황 알림의 거래대금은 이 값을 쓴다(2026-09-15). 장중엔 오늘 행이
+    부분 누적으로 실린다. 아직 HTML 페이지다 — 폐지되면 marketValue 주식만 합으로 대체.
+    """
+    import re as _re
+    from bs4 import BeautifulSoup as _BS
+    out: dict[str, float] = {}
+    for p in range(1, pages + 1):
+        r = requests.get(INDEX_DAY_URL, params={"code": code, "page": p}, headers=HEADERS, timeout=REQUEST_TIMEOUT)
+        r.encoding = "euc-kr"
+        soup = _BS(r.text, "lxml")
+        for tr in soup.select("table.type_1 tr"):
+            td = [x.get_text(strip=True) for x in tr.select("td")]
+            if len(td) >= 6 and _re.match(r"\d{4}\.\d{2}\.\d{2}", td[0]):
+                v = to_float(td[5])
+                if v is not None:
+                    out[td[0].replace(".", "-")] = v / 100.0   # 백만원 → 억원
+    return out

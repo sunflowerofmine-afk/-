@@ -46,6 +46,7 @@ def _rows_to_df(stocks: list[dict]) -> pd.DataFrame:
             "거래량":   volume,
             "거래대금": float(tv_won),   # 원 단위
             "상장주식수": float(shares),  # 주 단위
+            "유형":     str(s.get("stockEndType") or ""),   # stock / etf / etn — 주식만 합계용
         })
     return pd.DataFrame(rows)
 

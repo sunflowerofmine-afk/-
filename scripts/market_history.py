@@ -28,7 +28,12 @@ logger = logging.getLogger(__name__)
 
 HISTORY_PATH = DATA_DIR / "market_history.csv"
 FIELDS = ["date", "slot", "time", "kospi_tv_eok", "kosdaq_tv_eok", "nxt_tv_eok",
-          "adl_pct", "limit_up", "top5_pct", "kospi_chg", "kosdaq_chg"]
+          "adl_pct", "limit_up", "top5_pct", "kospi_chg", "kosdaq_chg",
+          "kospi_idx_tv_eok", "kosdaq_idx_tv_eok"]
+# kospi_tv_eok·kosdaq_tv_eok = marketValue 전 종목 합(ETF·ETN 포함) — 집중도 분모·과거 연속성용.
+# kospi_idx_tv_eok·kosdaq_idx_tv_eok = 지수 거래대금(주식만, 시간외 포함) — HTS·네이버 지수 화면과 같은 값.
+#   알림에 보이는 거래대금은 2026-09-15부터 후자다. 마감 후 슬롯은 네이버 지수 일별 페이지 값, 14:20은
+#   그 시각의 부분 누적(같은 페이지의 오늘 행, 없으면 marketValue 주식만 합).
 CLOSED_SLOTS = ("1535", "1750", "1930", "확정")   # 마감 후 = 확정 거래대금
 
 
@@ -49,6 +54,7 @@ def load() -> list[dict]:
 def append(row: dict) -> None:
     """같은 (date, slot) 행이 있으면 덮어쓴다(재실행 대비)."""
     rows = [r for r in load() if not (r.get("date") == row["date"] and r.get("slot") == row["slot"])]
+    rows = [{k: r.get(k, "") for k in FIELDS} for r in rows]   # 열이 늘어도 옛 행을 그대로 읽는다
     rows.append({k: ("" if row.get(k) is None else row.get(k)) for k in FIELDS})
     rows.sort(key=lambda r: (r["date"], r["time"] or ""))
     HISTORY_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -117,4 +123,31 @@ def compare(today: str, slot: str, kospi: float | None, kosdaq: float | None,
     same_nxt = [r for r in rows if r.get("slot") == slot and r.get("date", "") < today and _f(r.get("nxt_tv_eok"))]
     same_nxt.sort(key=lambda r: r["date"])
     out["nxt_vs_prev"] = _pct(nxt, _f(same_nxt[-1].get("nxt_tv_eok"))) if same_nxt else None
+    return out
+
+
+def compare_index(today: str, slot: str, kospi: float | None, kosdaq: float | None,
+                  series_kospi: dict[str, float], series_kosdaq: dict[str, float]) -> dict:
+    """지수 거래대금(주식만) 비교. series = {YYYY-MM-DD: 억} (네이버 지수 일별 페이지, 오늘 행 포함 가능).
+    마감 후: 전일 확정 · 20거래일 평균 대비. 14:20: 전일 같은 시각(기록 파일) · 전일 하루치 진행률."""
+    out: dict = {}
+    def _prev_and_avg(series: dict[str, float]):
+        days = sorted(d for d in series if d < today)
+        prev = series[days[-1]] if days else None
+        recent = [series[d] for d in days[-20:]]
+        return prev, (sum(recent) / len(recent) if recent else None), len(recent)
+    pk, ak, n = _prev_and_avg(series_kospi)
+    pd_, ad, _ = _prev_and_avg(series_kosdaq)
+    out["n_avg"] = n
+    if slot in CLOSED_SLOTS:
+        out["kospi_vs_prev"], out["kospi_vs_avg20"]   = _pct(kospi, pk),  _pct(kospi, ak)
+        out["kosdaq_vs_prev"], out["kosdaq_vs_avg20"] = _pct(kosdaq, pd_), _pct(kosdaq, ad)
+    else:
+        same = sorted((r for r in load() if r.get("slot") == slot and r.get("date", "") < today),
+                      key=lambda r: r["date"])
+        last = same[-1] if same else None
+        out["kospi_vs_prev"]  = _pct(kospi,  _f(last and last.get("kospi_idx_tv_eok")))
+        out["kosdaq_vs_prev"] = _pct(kosdaq, _f(last and last.get("kosdaq_idx_tv_eok")))
+        out["progress_kospi"]  = round(kospi / pk * 100)   if (kospi and pk)   else None
+        out["progress_kosdaq"] = round(kosdaq / pd_ * 100) if (kosdaq and pd_) else None
     return out

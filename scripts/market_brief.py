@@ -31,7 +31,10 @@ from scripts.naver_api import fetch_stock_default, to_float
 logger = logging.getLogger(__name__)
 
 _WD = ["월", "화", "수", "목", "금", "토", "일"]
-_SLOT_LABEL = {"1420": "마감 전 잠정", "1535": "종가 확정", "1750": "NXT 반영", "1930": "NXT 막판"}
+# 슬롯 라벨 — 사용자가 "NXT 막판"이 무슨 뜻인지 물었다(2026-09-15). 시각의 뜻을 그대로 쓴다.
+_SLOT_LABEL = {"1420": "KRX 마감 70분 전 · 잠정치", "1535": "KRX 마감 · 종가 확정",
+               "1750": "NXT 저녁장 중간", "1930": "NXT 마감 30분 전"}
+KRX_CLOSE_DIR = Path("data") / "krx_close"   # 정규장 종가 저장(15:35 실행이 씀, 저녁 실행이 읽음)
 _SESSION_KO = {"PRE_MARKET": "프리장", "REGULAR_MARKET": "메인", "AFTER_MARKET": "저녁장"}
 NXT_TOP_N = 10
 
@@ -107,11 +110,54 @@ def collect(now: datetime, run_type: str, raw_data: dict[str, pd.DataFrame] | No
     all_raw = pd.concat([x for x in (kospi_df, kosdaq_df) if not x.empty], ignore_index=True) \
         if (not kospi_df.empty or not kosdaq_df.empty) else pd.DataFrame()
     totals = calc_market_total(kospi_df, kosdaq_df)
-    d["kospi_tv_eok"]  = totals.get("kospi_total_tv_eok") or None
+    d["kospi_tv_eok"]  = totals.get("kospi_total_tv_eok") or None     # ETF·ETN 포함 (집중도 분모용)
     d["kosdaq_tv_eok"] = totals.get("kosdaq_total_tv_eok") or None
+
+    # 알림에 보이는 거래대금 = 지수 거래대금(주식만, HTS·네이버 지수 화면과 같은 값).
+    # 마감 후엔 네이버 지수 일별 페이지의 오늘 행, 장중(14:20)은 그 행이 있으면 그것, 없으면 주식만 합.
+    from scripts.naver_api import fetch_index_turnover
+    today_s = today.isoformat()
+    series_k: dict[str, float] = {}
+    series_d: dict[str, float] = {}
+    try:
+        series_k = fetch_index_turnover("KOSPI", 4)
+        series_d = fetch_index_turnover("KOSDAQ", 4)
+    except Exception as e:
+        logger.warning(f"지수 거래대금 페이지 실패: {e}")
+    def _stock_only(df: pd.DataFrame) -> float | None:
+        if df.empty or "유형" not in df.columns:
+            return None
+        v = float(df.loc[df["유형"] == "stock", "거래대금"].sum()) / 1e8
+        return v or None
+    d["kospi_idx_tv_eok"]  = series_k.get(today_s) or _stock_only(kospi_df)
+    d["kosdaq_idx_tv_eok"] = series_d.get(today_s) or _stock_only(kosdaq_df)
+    d["idx_src"] = "page" if today_s in series_k else "own"
+    d["cmp_idx"] = mh.compare_index(today_s, d["slot"], d["kospi_idx_tv_eok"], d["kosdaq_idx_tv_eok"], series_k, series_d)
+
+    # NXT 행의 기준 = 정규장 종가. 네이버 현재가는 16:00부터 18:00까지 시간외 단일가를 따라 움직이고
+    # 그 뒤엔 시간외 종가에 머문다(2026-09-14 실측: 하닉 정규장 1,697,000 → 17:50 1,682,000 → 일봉 1,683,000).
+    # 그래서 15:30부터 16:00 사이 실행이 정규장 종가를 파일로 남기고, 저녁 실행은 그 파일을 읽는다.
     d["krx_price"] = {}
+    d["krx_basis"] = ""
     if not all_raw.empty:
-        d["krx_price"] = dict(zip(all_raw["종목코드"].astype(str), all_raw["현재가"].astype(float)))
+        live = dict(zip(all_raw["종목코드"].astype(str), all_raw["현재가"].astype(float)))
+        hhmm = now.strftime("%H%M")
+        close_path = KRX_CLOSE_DIR / f"{today_s}.csv"
+        if "1530" <= hhmm < "1600":
+            try:
+                KRX_CLOSE_DIR.mkdir(parents=True, exist_ok=True)
+                all_raw[["종목코드", "현재가"]].to_csv(close_path, index=False, encoding="utf-8-sig")
+            except Exception as e:
+                logger.warning(f"정규장 종가 저장 실패: {e}")
+            d["krx_price"], d["krx_basis"] = live, "정규장 종가"
+        elif hhmm < "1530":
+            d["krx_price"], d["krx_basis"] = live, "KRX 현재가"
+        elif close_path.exists():
+            saved = pd.read_csv(close_path, dtype={"종목코드": str}, encoding="utf-8-sig")
+            d["krx_price"] = dict(zip(saved["종목코드"].astype(str), saved["현재가"].astype(float)))
+            d["krx_basis"] = "정규장 종가"
+        else:
+            d["krx_price"], d["krx_basis"] = live, "시간외 반영가"   # 15:35 파일이 없을 때만
 
     # NXT 전체 (거래대금 상위 10 + 총액). 실패하면 빈 값.
     nxt_rows: list[dict] = []
@@ -178,6 +224,7 @@ def collect(now: datetime, run_type: str, raw_data: dict[str, pd.DataFrame] | No
             "nxt_tv_eok": d["nxt_total_eok"], "adl_pct": d["adl_pct"], "limit_up": d["limit_up"],
             "top5_pct": d["top5_pct"], "kospi_chg": index_levels.get("kospi_chg"),
             "kosdaq_chg": index_levels.get("kosdaq_chg"),
+            "kospi_idx_tv_eok": d.get("kospi_idx_tv_eok"), "kosdaq_idx_tv_eok": d.get("kosdaq_idx_tv_eok"),
         })
     except Exception as e:
         logger.warning(f"시황 기록 저장 실패: {e}")
@@ -201,17 +248,26 @@ def build_text(d: dict) -> str:
     L.append(f"코스피 {_lv(ix.get('kospi_level'))} {_ch(ix.get('kospi_chg'))} · 코스닥 {_lv(ix.get('kosdaq_level'))} {_ch(ix.get('kosdaq_chg'))}")
 
     c = d.get("cmp") or {}
+    ci = d.get("cmp_idx") or {}
+    kt, dt = d.get("kospi_idx_tv_eok"), d.get("kosdaq_idx_tv_eok")
     if slot == "1420":
+        def _prog(v):  return f"{v}%" if v is not None else "-"
         L.append(
-            f"거래대금 코스피 {_tv_txt(d.get('kospi_tv_eok'))} (전일 같은 시각 {_pct_txt(c.get('kospi_vs_prev'))} · 전일 하루치의 "
-            f"{c.get('progress_kospi') if c.get('progress_kospi') is not None else '-'}%) · "
-            f"코스닥 {_tv_txt(d.get('kosdaq_tv_eok'))} ({_pct_txt(c.get('kosdaq_vs_prev'))} · "
-            f"{c.get('progress_kosdaq') if c.get('progress_kosdaq') is not None else '-'}%)"
+            f"거래대금(주식) 코스피 {_tv_txt(kt)} · 코스닥 {_tv_txt(dt)} — 지금까지 누적"
+        )
+        L.append(
+            f" ├ 전일 같은 시각 대비: 코스피 {_pct_txt(ci.get('kospi_vs_prev'))} · 코스닥 {_pct_txt(ci.get('kosdaq_vs_prev'))}"
+        )
+        L.append(
+            f" └ 전일 하루치 대비 진행률: 코스피 {_prog(ci.get('progress_kospi'))} · 코스닥 {_prog(ci.get('progress_kosdaq'))}"
         )
     else:
+        L.append(f"거래대금(주식) 코스피 {_tv_txt(kt)} · 코스닥 {_tv_txt(dt)}")
         L.append(
-            f"거래대금 코스피 {_tv_txt(d.get('kospi_tv_eok'))} (전일 {_pct_txt(c.get('kospi_vs_prev'))} · 20일 {_pct_txt(c.get('kospi_vs_avg20'))}) · "
-            f"코스닥 {_tv_txt(d.get('kosdaq_tv_eok'))} (전일 {_pct_txt(c.get('kosdaq_vs_prev'))} · 20일 {_pct_txt(c.get('kosdaq_vs_avg20'))})"
+            f" ├ 전일 대비: 코스피 {_pct_txt(ci.get('kospi_vs_prev'))} · 코스닥 {_pct_txt(ci.get('kosdaq_vs_prev'))}"
+        )
+        L.append(
+            f" └ 20거래일 평균 대비: 코스피 {_pct_txt(ci.get('kospi_vs_avg20'))} · 코스닥 {_pct_txt(ci.get('kosdaq_vs_avg20'))}"
         )
 
     adl = d.get("adl_pct"); lu = d.get("limit_up"); t5 = d.get("top5_pct")
@@ -236,15 +292,21 @@ def build_text(d: dict) -> str:
     # NXT
     if d.get("nxt_top"):
         sess = d.get("nxt_session") or "NXT"
-        state = "진행" if d.get("nxt_open") else "마감"
-        basis = "KRX 종가" if slot != "1420" else "KRX 현재가"
+        state = "진행 중" if d.get("nxt_open") else "마감"
+        basis = d.get("krx_basis") or "KRX 가격"
         L.append("")
-        L.append(f"<b>NXT {sess} {state} {now.strftime('%H:%M')}</b> · 총 {_tv_txt(d.get('nxt_total_eok'))} (전일 같은 시각 {_pct_txt(c.get('nxt_vs_prev'))}) · {basis} 대비")
+        L.append(f"<b>NXT {sess} {state} ({now.strftime('%H:%M')})</b>")
+        L.append(f"NXT 누적 거래대금 {_tv_txt(d.get('nxt_total_eok'))} — 08:00 프리장부터 지금까지 NXT 전체 · 전일 같은 시각 대비 {_pct_txt(c.get('nxt_vs_prev'))}")
+        L.append(f"거래대금 상위 10 — NXT 현재가 ({basis} 대비 %) · NXT 거래대금")
         for i, x in enumerate(d["nxt_top"], 1):
             krx = (d.get("krx_price") or {}).get(x["code"])
             px = x.get("price")
-            diff = f"{(px / krx - 1) * 100:+.2f}%" if (px and krx) else "-"
-            L.append(f" {i:>2} {x['name']} {px:,.0f} {diff} · {_tv_txt(x['tv_eok'])}" if px else f" {i:>2} {x['name']} - · {_tv_txt(x['tv_eok'])}")
+            if px and krx:
+                L.append(f" {i:>2} {x['name']} {px:,.0f} ({basis} {krx:,.0f} 대비 {(px / krx - 1) * 100:+.2f}%) · {_tv_txt(x['tv_eok'])}")
+            elif px:
+                L.append(f" {i:>2} {x['name']} {px:,.0f} (기준가 없음) · {_tv_txt(x['tv_eok'])}")
+            else:
+                L.append(f" {i:>2} {x['name']} - · {_tv_txt(x['tv_eok'])}")
 
     nd = d.get("next_day")
     if nd:
