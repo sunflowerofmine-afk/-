@@ -1,0 +1,48 @@
+{
+  "date": "2026-09-15",
+  "generated": "2026-09-16",
+  "stocks": {
+    "030530": {
+      "name": "원익홀딩스",
+      "signal_price": 25700,
+      "is_nxt": false,
+      "nxt_dominant": false,
+      "change_pct": 16.67,
+      "sector": "로봇(산업용/협동로봇 등)",
+      "total_score": 13,
+      "52w_high": 50600,
+      "52w_low": 0,
+      "pct_from_52w_high": -49.21,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 173
+    },
+    "014950": {
+      "name": "삼익제약",
+      "signal_price": 11460,
+      "is_nxt": false,
+      "nxt_dominant": false,
+      "change_pct": 22.98,
+      "sector": "제약",
+      "total_score": 7,
+      "52w_high": 25050,
+      "52w_low": 3705,
+      "pct_from_52w_high": -54.25,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 201
+    },
+    "058610": {
+      "name": "에스피지",
+      "signal_price": 103100,
+      "is_nxt": true,
+      "nxt_dominant": false,
+      "change_pct": 13.67,
+      "sector": "로봇(산업용/협동로봇 등)",
+      "total_score": 8,
+      "52w_high": 165700,
+      "52w_low": 26000,
+      "pct_from_52w_high": -37.78,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 153
+    }
+  }
+}
