@@ -1,10 +1,10 @@
 {
-  "total_measured": 139,
+  "total_measured": 142,
   "pattern": {
     "당일돌파형": {
-      "total": 113,
+      "total": 115,
       "success": 49,
-      "rate": 43.4,
+      "rate": 42.6,
       "stocks": [
         {
           "date": "2026-06-04",
@@ -796,6 +796,20 @@
           "code": "488280",
           "pct": 10.83,
           "result": "성공"
+        },
+        {
+          "date": "2026-09-15",
+          "name": "원익홀딩스",
+          "code": "030530",
+          "pct": -1.76,
+          "result": "실패"
+        },
+        {
+          "date": "2026-09-15",
+          "name": "에스피지",
+          "code": "058610",
+          "pct": -2.13,
+          "result": "실패"
         }
       ]
     },
@@ -968,9 +982,9 @@
       ]
     },
     "없음": {
-      "total": 3,
+      "total": 4,
       "success": 3,
-      "rate": 100.0,
+      "rate": 75.0,
       "stocks": [
         {
           "date": "2026-06-12",
@@ -992,6 +1006,13 @@
           "code": "058610",
           "pct": 10.8,
           "result": "성공"
+        },
+        {
+          "date": "2026-09-15",
+          "name": "삼익제약",
+          "code": "014950",
+          "pct": -0.96,
+          "result": "실패"
         }
       ]
     },
@@ -1166,9 +1187,9 @@
       ]
     },
     "6~9": {
-      "total": 78,
+      "total": 80,
       "success": 31,
-      "rate": 39.7,
+      "rate": 38.8,
       "stocks": [
         {
           "date": "2026-06-09",
@@ -1715,13 +1736,27 @@
           "code": "032820",
           "pct": -3.27,
           "result": "실패"
+        },
+        {
+          "date": "2026-09-15",
+          "name": "삼익제약",
+          "code": "014950",
+          "pct": -0.96,
+          "result": "실패"
+        },
+        {
+          "date": "2026-09-15",
+          "name": "에스피지",
+          "code": "058610",
+          "pct": -2.13,
+          "result": "실패"
         }
       ]
     },
     "10~13": {
-      "total": 37,
+      "total": 38,
       "success": 19,
-      "rate": 51.4,
+      "rate": 50.0,
       "stocks": [
         {
           "date": "2026-06-04",
@@ -1981,6 +2016,13 @@
           "code": "131290",
           "pct": -4.43,
           "result": "실패"
+        },
+        {
+          "date": "2026-09-15",
+          "name": "원익홀딩스",
+          "code": "030530",
+          "pct": -1.76,
+          "result": "실패"
         }
       ]
     },
@@ -2014,14 +2056,26 @@
     }
   },
   "multiday": {
-    "d1_count": 139,
-    "d3_count": 123,
-    "d5_count": 113,
+    "d1_count": 142,
+    "d3_count": 125,
+    "d5_count": 116,
     "d1_open_by_pattern": {
       "당일돌파형": {
-        "count": 113,
-        "mean": -0.2,
+        "count": 115,
+        "mean": -0.23,
         "stocks": [
+          {
+            "code": "030530",
+            "name": "원익홀딩스",
+            "date": "2026-09-15",
+            "pct": -1.76
+          },
+          {
+            "code": "058610",
+            "name": "에스피지",
+            "date": "2026-09-15",
+            "pct": -2.13
+          },
           {
             "code": "488280",
             "name": "에스투더블유",
@@ -2847,9 +2901,15 @@
         ]
       },
       "없음": {
-        "count": 3,
-        "mean": 5.8,
+        "count": 4,
+        "mean": 4.11,
         "stocks": [
+          {
+            "code": "014950",
+            "name": "삼익제약",
+            "date": "2026-09-15",
+            "pct": -0.96
+          },
           {
             "code": "058610",
             "name": "에스피지",
@@ -2885,9 +2945,15 @@
     },
     "d3_mfe_by_pattern": {
       "당일돌파형": {
-        "count": 100,
-        "mean": 0.86,
+        "count": 101,
+        "mean": 0.87,
         "stocks": [
+          {
+            "code": "488280",
+            "name": "에스투더블유",
+            "date": "2026-09-11",
+            "pct": 1.07
+          },
           {
             "code": "131290",
             "name": "티에스이",
@@ -3491,9 +3557,15 @@
         ]
       },
       "고가횡보형": {
-        "count": 11,
-        "mean": 0.88,
+        "count": 12,
+        "mean": 0.52,
         "stocks": [
+          {
+            "code": "032820",
+            "name": "우리기술",
+            "date": "2026-09-11",
+            "pct": -4.2
+          },
           {
             "code": "032820",
             "name": "우리기술",
@@ -3504,7 +3576,7 @@
             "code": "052690",
             "name": "한전기술",
             "date": "2026-09-10",
-            "pct": 1.31
+            "pct": 2.07
           },
           {
             "code": "000500",
@@ -3655,9 +3727,27 @@
     },
     "d5_mfe_by_pattern": {
       "당일돌파형": {
-        "count": 95,
-        "mean": 9.51,
+        "count": 98,
+        "mean": 9.35,
         "stocks": [
+          {
+            "code": "032820",
+            "name": "우리기술",
+            "date": "2026-09-09",
+            "pct": 5.24
+          },
+          {
+            "code": "000500",
+            "name": "가온전선",
+            "date": "2026-09-09",
+            "pct": -0.19
+          },
+          {
+            "code": "096770",
+            "name": "SK이노베이션",
+            "date": "2026-09-09",
+            "pct": 7.44
+          },
           {
             "code": "052690",
             "name": "한전기술",
@@ -4365,49 +4455,49 @@
     },
     "result_type_counts": {
       "즉시성공형": {
-        "count": 24,
-        "pct": 17.3
+        "count": 23,
+        "pct": 16.3
       },
       "눌림후재상승형": {
         "count": 18,
-        "pct": 12.9
+        "pct": 12.8
       },
       "스윙전환가능형": {
         "count": 1,
         "pct": 0.7
       },
       "과열소멸형": {
-        "count": 54,
-        "pct": 38.8
+        "count": 55,
+        "pct": 39.0
       },
       "실패형": {
-        "count": 42,
-        "pct": 30.2
+        "count": 44,
+        "pct": 31.2
       }
     },
     "inter_comparison": {
-      "inter_d1_mean": 0.94,
-      "inter_d1_count": 33,
+      "inter_d1_mean": 0.81,
+      "inter_d1_count": 35,
       "inter_d3_mean": -0.85,
       "inter_d3_count": 33,
-      "ninter_d1_mean": -0.44,
-      "ninter_d1_count": 106
+      "ninter_d1_mean": -0.45,
+      "ninter_d1_count": 107
     }
   },
   "inter_full_stats": {
     "inter": {
       "d1_open": {
-        "n": 33,
-        "mean": 0.94,
+        "n": 35,
+        "mean": 0.81,
         "median": 0.0,
-        "win_rate": 48.5,
+        "win_rate": 45.7,
         "sample_label": "관찰가능"
       },
       "d1_close": {
-        "n": 33,
-        "mean": -4.38,
+        "n": 35,
+        "mean": -4.47,
         "median": -5.48,
-        "win_rate": 21.2,
+        "win_rate": 20.0,
         "sample_label": "관찰가능"
       },
       "d3_close": {
@@ -4418,53 +4508,53 @@
         "sample_label": "관찰가능"
       },
       "mfe": {
-        "n": 33,
-        "mean": 9.31,
-        "median": 5.29,
-        "win_rate": 78.8,
+        "n": 35,
+        "mean": 8.8,
+        "median": 5.24,
+        "win_rate": 77.1,
         "sample_label": "관찰가능"
       },
       "mae": {
-        "n": 33,
-        "mean": -17.74,
-        "median": -18.0,
-        "win_rate": 3.0,
+        "n": 35,
+        "mean": -17.25,
+        "median": -15.27,
+        "win_rate": 2.9,
         "sample_label": "관찰가능"
       }
     },
     "ninter": {
       "d1_open": {
-        "n": 106,
-        "mean": -0.44,
+        "n": 107,
+        "mean": -0.45,
         "median": -0.78,
-        "win_rate": 35.8,
+        "win_rate": 35.5,
         "sample_label": "관찰가능"
       },
       "d1_close": {
-        "n": 106,
-        "mean": -2.18,
-        "median": -2.81,
-        "win_rate": 32.1,
+        "n": 107,
+        "mean": -2.19,
+        "median": -2.75,
+        "win_rate": 31.8,
         "sample_label": "관찰가능"
       },
       "d3_close": {
-        "n": 90,
+        "n": 92,
         "mean": -3.63,
-        "median": -3.86,
-        "win_rate": 30.0,
+        "median": -4.05,
+        "win_rate": 30.4,
         "sample_label": "관찰가능"
       },
       "mfe": {
-        "n": 106,
-        "mean": 8.19,
-        "median": 5.42,
-        "win_rate": 82.1,
+        "n": 107,
+        "mean": 8.09,
+        "median": 5.23,
+        "win_rate": 81.3,
         "sample_label": "관찰가능"
       },
       "mae": {
-        "n": 106,
-        "mean": -11.86,
-        "median": -10.09,
+        "n": 107,
+        "mean": -11.85,
+        "median": -10.07,
         "win_rate": 2.8,
         "sample_label": "관찰가능"
       }
@@ -4473,13 +4563,13 @@
   "change_band_stats": [
     {
       "label": "+10~15%",
-      "n": 52,
+      "n": 53,
       "sample_label": "관찰가능",
       "d1_open": {
-        "n": 52,
-        "mean": -0.44,
-        "median": -0.38,
-        "win_rate": 34.6,
+        "n": 53,
+        "mean": -0.47,
+        "median": -0.39,
+        "win_rate": 34.0,
         "sample_label": "관찰가능"
       },
       "d3_close": {
@@ -4490,29 +4580,29 @@
         "sample_label": "관찰가능"
       },
       "mfe": {
-        "n": 52,
-        "mean": 6.94,
-        "median": 5.71,
-        "win_rate": 82.7,
+        "n": 53,
+        "mean": 6.77,
+        "median": 5.6,
+        "win_rate": 81.1,
         "sample_label": "관찰가능"
       },
       "mae": {
-        "n": 52,
-        "mean": -11.88,
-        "median": -10.97,
+        "n": 53,
+        "mean": -11.81,
+        "median": -10.85,
         "win_rate": 1.9,
         "sample_label": "관찰가능"
       }
     },
     {
       "label": "+15~20%",
-      "n": 24,
+      "n": 25,
       "sample_label": "관찰가능",
       "d1_open": {
-        "n": 24,
-        "mean": -0.05,
-        "median": -0.61,
-        "win_rate": 41.7,
+        "n": 25,
+        "mean": -0.12,
+        "median": -0.7,
+        "win_rate": 40.0,
         "sample_label": "관찰가능"
       },
       "d3_close": {
@@ -4523,29 +4613,29 @@
         "sample_label": "관찰가능"
       },
       "mfe": {
-        "n": 24,
-        "mean": 7.38,
-        "median": 5.0,
-        "win_rate": 75.0,
+        "n": 25,
+        "mean": 7.15,
+        "median": 4.76,
+        "win_rate": 76.0,
         "sample_label": "관찰가능"
       },
       "mae": {
-        "n": 24,
-        "mean": -18.82,
-        "median": -16.46,
+        "n": 25,
+        "mean": -18.27,
+        "median": -14.08,
         "win_rate": 0.0,
         "sample_label": "관찰가능"
       }
     },
     {
       "label": "+20~25%",
-      "n": 29,
+      "n": 30,
       "sample_label": "관찰가능",
       "d1_open": {
-        "n": 29,
-        "mean": 1.51,
-        "median": 1.01,
-        "win_rate": 55.2,
+        "n": 30,
+        "mean": 1.42,
+        "median": 0.77,
+        "win_rate": 53.3,
         "sample_label": "관찰가능"
       },
       "d3_close": {
@@ -4556,17 +4646,17 @@
         "sample_label": "관찰가능"
       },
       "mfe": {
-        "n": 29,
-        "mean": 15.64,
-        "median": 7.55,
-        "win_rate": 89.7,
+        "n": 30,
+        "mean": 15.09,
+        "median": 7.43,
+        "win_rate": 86.7,
         "sample_label": "관찰가능"
       },
       "mae": {
-        "n": 29,
-        "mean": -12.65,
-        "median": -10.3,
-        "win_rate": 6.9,
+        "n": 30,
+        "mean": -12.62,
+        "median": -10.46,
+        "win_rate": 6.7,
         "sample_label": "관찰가능"
       }
     },
@@ -4582,9 +4672,9 @@
         "sample_label": "참고용"
       },
       "d3_close": {
-        "n": 8,
-        "mean": -14.86,
-        "median": -15.15,
+        "n": 9,
+        "mean": -13.7,
+        "median": -7.98,
         "win_rate": 0.0,
         "sample_label": "참고용"
       },
@@ -4597,7 +4687,7 @@
       },
       "mae": {
         "n": 12,
-        "mean": -18.23,
+        "mean": -18.27,
         "median": -20.14,
         "win_rate": 0.0,
         "sample_label": "참고용"
