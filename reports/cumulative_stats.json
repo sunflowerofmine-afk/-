@@ -4495,7 +4495,7 @@
       },
       "d1_close": {
         "n": 35,
-        "mean": -4.47,
+        "mean": -4.45,
         "median": -5.48,
         "win_rate": 20.0,
         "sample_label": "관찰가능"
@@ -4539,8 +4539,8 @@
       },
       "d3_close": {
         "n": 92,
-        "mean": -3.63,
-        "median": -4.05,
+        "mean": -3.62,
+        "median": -3.97,
         "win_rate": 30.4,
         "sample_label": "관찰가능"
       },
@@ -4654,7 +4654,7 @@
       },
       "mae": {
         "n": 30,
-        "mean": -12.62,
+        "mean": -12.63,
         "median": -10.46,
         "win_rate": 6.7,
         "sample_label": "관찰가능"
@@ -4673,7 +4673,7 @@
       },
       "d3_close": {
         "n": 9,
-        "mean": -13.7,
+        "mean": -13.65,
         "median": -7.98,
         "win_rate": 0.0,
         "sample_label": "참고용"
