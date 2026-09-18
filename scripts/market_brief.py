@@ -319,14 +319,6 @@ def collect(now: datetime, run_type: str, raw_data: dict[str, pd.DataFrame] | No
         except Exception as e:
             logger.warning(f"저녁 스냅샷 읽기 실패: {e}")
 
-    # 코스피200 야간선물 (18:00부터 익일 06:00) — 나오는 시간대에만
-    try:
-        from scripts.fetch_futures import fetch_night_futures
-        d["night_fut"] = fetch_night_futures()
-    except Exception as e:
-        logger.debug(f"야간선물 실패: {e}")
-        d["night_fut"] = None
-
     # 미선물 · 거시
     try:
         from scripts.fetch_futures import fetch_futures
@@ -372,9 +364,6 @@ def _macro_line(d: dict) -> str:
         parts.append(f"WTI {mc['wti']:.1f} ({mc.get('wti_chg', 0):+.2f})")
     if mc.get("usdkrw") is not None:
         parts.append(f"환율 {mc['usdkrw']:,.1f} ({mc.get('usdkrw_chg', 0):+.1f})")
-    nf = d.get("night_fut")
-    if nf and nf.get("price"):
-        parts.append(f"코스피200 야간선물 {nf['price']:,.2f} ({nf['chg_pct']:+.2f}%)")
     return " · ".join(parts)
 
 
