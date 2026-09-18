@@ -37,6 +37,11 @@ FIELDS = ["date", "slot", "time", "kospi_tv_eok", "kosdaq_tv_eok", "nxt_tv_eok",
 CLOSED_SLOTS = ("1535", "1750", "1930", "확정")   # 마감 후 = 확정 거래대금
 
 
+def _is_closed(slot: str) -> bool:
+    """마감 후 슬롯인가. 수동 실행의 HHMM 슬롯도 15:30 이후면 마감 후로 본다."""
+    return slot in CLOSED_SLOTS or (slot.isdigit() and slot >= "1530")
+
+
 def _f(v) -> float | None:
     try:
         return float(v) if v not in (None, "") else None
@@ -90,7 +95,7 @@ def compare(today: str, slot: str, kospi: float | None, kosdaq: float | None,
     out: dict = {"n_avg": 0}
     closed = _closed_by_date(rows, before=today)
 
-    if slot in CLOSED_SLOTS:
+    if _is_closed(slot):
         prev = closed[-1][1] if closed else None
         recent = [r for _, r in closed[-20:]]
         out["kospi_vs_prev"]  = _pct(kospi,  _f(prev and prev.get("kospi_tv_eok")))
@@ -139,7 +144,7 @@ def compare_index(today: str, slot: str, kospi: float | None, kosdaq: float | No
     pk, ak, n = _prev_and_avg(series_kospi)
     pd_, ad, _ = _prev_and_avg(series_kosdaq)
     out["n_avg"] = n
-    if slot in CLOSED_SLOTS:
+    if _is_closed(slot):
         out["kospi_vs_prev"], out["kospi_vs_avg20"]   = _pct(kospi, pk),  _pct(kospi, ak)
         out["kosdaq_vs_prev"], out["kosdaq_vs_avg20"] = _pct(kosdaq, pd_), _pct(kosdaq, ad)
     else:

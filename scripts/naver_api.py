@@ -132,28 +132,19 @@ def fetch_market_index(category: str, reuters_code: str) -> dict:
     return data.get("result") or {}
 
 
-INDEX_DAY_URL = "https://finance.naver.com/sise/sise_index_day.naver"
+INDEX_INTEGRATION_URL = "https://m.stock.naver.com/api/index/{code}/integration"
 
 
-def fetch_index_turnover(code: str, pages: int = 3) -> dict[str, float]:
-    """지수 일별 거래대금(억원). {YYYY-MM-DD: 억}. 페이지당 6거래일, 최신순.
+def fetch_index_turnover_today(code: str) -> float | None:
+    """오늘의 지수 거래대금(억원) — HTS·네이버 지수 화면의 "코스피 거래대금"(주식만).
 
-    이 값이 HTS·네이버 지수 화면의 "코스피 거래대금"이다 — 주식만이고 시간외 거래를 포함한다.
-    marketValue 전 종목 합(ETF·ETN 포함, 코스피의 46%)과는 거의 두 배 차이가 난다. 사용자가 보는
-    숫자와 같아야 하므로 시황 알림의 거래대금은 이 값을 쓴다(2026-09-15). 장중엔 오늘 행이
-    부분 누적으로 실린다. 아직 HTML 페이지다 — 폐지되면 marketValue 주식만 합으로 대체.
+    2026-09-15에 지수 일별 HTML 페이지로 과거 20일까지 받았으나 09-18에 그 페이지가 410으로 닫혔다.
+    과거치는 `data/market_history.csv`의 마감 후 행(kospi_idx_tv_eok)에 쌓여 있으므로 여기서는
+    오늘 값만 받는다. 장중엔 부분 누적. 실측(09-18 17:02): 15:35 주식만 합계와 0.002% 차이.
     """
-    import re as _re
-    from bs4 import BeautifulSoup as _BS
-    out: dict[str, float] = {}
-    for p in range(1, pages + 1):
-        r = requests.get(INDEX_DAY_URL, params={"code": code, "page": p}, headers=HEADERS, timeout=REQUEST_TIMEOUT)
-        r.encoding = "euc-kr"
-        soup = _BS(r.text, "lxml")
-        for tr in soup.select("table.type_1 tr"):
-            td = [x.get_text(strip=True) for x in tr.select("td")]
-            if len(td) >= 6 and _re.match(r"\d{4}\.\d{2}\.\d{2}", td[0]):
-                v = to_float(td[5])
-                if v is not None:
-                    out[td[0].replace(".", "-")] = v / 100.0   # 백만원 → 억원
-    return out
+    data = get_json(INDEX_INTEGRATION_URL.format(code=code))
+    for t in data.get("totalInfos") or []:
+        if t.get("code") == "accumulatedTradingValue":
+            v = to_float(str(t.get("value", "")).replace("백만", ""))
+            return v / 100.0 if v is not None else None   # 백만원 → 억원
+    return None

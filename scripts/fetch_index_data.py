@@ -13,37 +13,38 @@ import re
 import logging
 from statistics import mean
 
-import requests
-from bs4 import BeautifulSoup
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from config.settings import HEADERS, REQUEST_TIMEOUT
 
 logger = logging.getLogger(__name__)
-INDEX_URL = "https://finance.naver.com/sise/sise_index_day.naver"
+# 2026-09-18 네이버가 sise/sise_index_day.naver(HTML)를 410으로 닫아 모바일 JSON으로 전환.
+INDEX_URL = "https://m.stock.naver.com/api/index/{code}/price"
+_PAGE = 60   # 61 이상은 400
 
 
 def fetch_index_daily(code: str, pages: int = 3) -> dict:
     """code: KOSPI/KOSDAQ. {YYYY-MM-DD: 종가} (최근 약 pages*10거래일)."""
+    from scripts.naver_api import get_json, to_float
     out = {}
-    for p in range(1, pages + 1):
-        try:
-            r = requests.get(f"{INDEX_URL}?code={code}&page={p}",
-                             headers=HEADERS, timeout=REQUEST_TIMEOUT)
-            r.encoding = "euc-kr"
-            s = BeautifulSoup(r.text, "lxml")
-            for tr in s.select("table.type_1 tr"):
-                td = tr.select("td")
-                if len(td) < 2:
-                    continue
-                d = td[0].text.strip()
-                c = td[1].text.strip().replace(",", "")
-                if re.match(r"\d{4}\.\d{2}\.\d{2}", d) and c:
-                    out[d.replace(".", "-")] = float(c)
-        except Exception as e:
-            logger.warning(f"[{code}] 지수 일봉 수집 실패 p{p}: {e}")
+    need = pages * 10
+    page = 1
+    try:
+        while len(out) < need:
+            data = get_json(INDEX_URL.format(code=code), {"pageSize": _PAGE, "page": page})
+            if not isinstance(data, list) or not data:
+                break
+            for x in data:
+                d = str(x.get("localTradedAt") or "")
+                c = to_float(x.get("closePrice"))
+                if re.match(r"\d{4}-\d{2}-\d{2}", d) and c is not None:
+                    out[d] = c
+            if len(data) < _PAGE:
+                break
+            page += 1
+    except Exception as e:
+        logger.warning(f"[{code}] 지수 일봉 수집 실패: {e}")
     return out
 
 

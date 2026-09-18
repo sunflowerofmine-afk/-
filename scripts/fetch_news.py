@@ -5,16 +5,16 @@ import sys
 import logging
 from pathlib import Path
 
-import requests
-from bs4 import BeautifulSoup
-
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from config.settings import HEADERS, REQUEST_TIMEOUT, NEWS_SCORE_ENABLED
+from config.settings import NEWS_SCORE_ENABLED
 from scripts.models import NewsData
+from scripts.naver_api import get_json
 
 logger = logging.getLogger(__name__)
 
-NEWS_URL = "https://finance.naver.com/item/news_news.naver"
+# 2026-09-18 네이버가 item/news_news.naver(HTML)를 410으로 닫아 모바일 JSON으로 전환.
+# 응답은 [{total, items:[{title, datetime(YYYYMMDDHHMM), officeName, ...}]}, ...] 묶음 목록이다.
+NEWS_URL = "https://m.stock.naver.com/api/news/stock/{code}"
 
 # 점수화 키워드
 _POSITIVE_3 = ["수주", "계약", "실적", "영업이익", "흑자", "정부", "승인", "허가", "선정", "공급"]
@@ -74,29 +74,15 @@ def fetch_news(code: str, max_items: int = MAX_NEWS_ITEMS) -> NewsData:
         return result
 
     try:
-        url = f"{NEWS_URL}?code={code}&page=1"
-        try:
-            resp = requests.get(url, headers=HEADERS, timeout=REQUEST_TIMEOUT)
-            resp.encoding = "euc-kr"
-        except UnicodeDecodeError:
-            resp.encoding = "cp949"
-
-        soup = BeautifulSoup(resp.text, "lxml")
-        table = soup.select_one("table.type5")
-
-        if table is None:
+        groups = get_json(NEWS_URL.format(code=code), {"pageSize": max(10, max_items * 3), "page": 1})
+        items = [it for g in (groups or []) for it in (g.get("items") or [])]
+        if not items:
             result.status = "empty"
             return result
 
         seen_titles: set[str] = set()
-        for tr in table.select("tr"):
-            cols = tr.select("td")
-            if len(cols) < 2:
-                continue
-            title_tag = cols[0].select_one("a")
-            if title_tag is None:
-                continue
-            title_raw = title_tag.text.strip()
+        for it in items:
+            title_raw = str(it.get("titleFull") or it.get("title") or "").strip()
             if not title_raw:
                 continue
             # 중복 제거
@@ -106,7 +92,8 @@ def fetch_news(code: str, max_items: int = MAX_NEWS_ITEMS) -> NewsData:
             # 50자 초과 시 자르기
             title = title_raw[:MAX_NEWS_TITLE_LEN]
             result.titles.append(title)
-            result.timestamps.append(cols[1].text.strip() if len(cols) > 1 else "")
+            dt = str(it.get("datetime") or "")
+            result.timestamps.append(f"{dt[:4]}.{dt[4:6]}.{dt[6:8]} {dt[8:10]}:{dt[10:12]}" if len(dt) >= 12 else dt)
             result.keyword_tags.append(classify_keyword(title))
             if len(result.titles) >= max_items:
                 break
