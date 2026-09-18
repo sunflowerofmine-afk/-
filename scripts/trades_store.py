@@ -21,9 +21,13 @@ from pathlib import Path
 KST = timezone(timedelta(hours=9))
 SIDES = ("매수", "매도", "무포")
 
+# 수량은 "6주" · "수량 6" · 가격 뒤 맨 숫자 "6" 전부 받는다 (09-17 첫 입력 "하이닉스 1758000 수량 6"이 안 잡혔던 형태).
 _FIRST = re.compile(
-    r"^\s*(?P<side>매수|매도|무포)\s*(?P<name>[^\s\d/:：][^\s/]*)?\s*(?P<price>[\d,]+(?:\.\d+)?)?\s*(?:원)?\s*(?:(?P<qty>[\d,]+)\s*주)?"
+    r"^\s*(?P<side>매수|매도|무포)\s*(?P<name>[^\s\d/:：][^\s/]*)?\s*(?P<price>[\d,]+(?:\.\d+)?)?\s*(?:원)?"
+    r"\s*(?:(?:수량\s*[:：]?\s*)?(?P<qty>[\d,]+)\s*주?)?"
 )
+# 매수·매도 없이 가격처럼 보이는 4자리 이상 숫자가 있으면 "매매를 적으려다 형식이 빗나간 것"으로 보고 경고한다.
+_PRICE_LIKE = re.compile(r"\d[\d,]{3,}")
 _FIELDS = {
     "판":    re.compile(r"판\s*[:：]?\s*(대형주|개별주|무포)"),
     "깨는가": re.compile(r"깨는가\s*[:：]?\s*([\d,]+)"),
@@ -139,4 +143,17 @@ def format_ack(row: dict) -> str:
         return f"{t} {row['side']} {row.get('name') or '?'}{px}{q}{tail}"
     if row.get("side") == "무포":
         return f"{t} 무포 기록"
+    if looks_like_trade(row.get("raw") or ""):
+        return f"{t} 메모 기록 ⚠ 매수/매도가 없어 보유 종목에 안 잡힘 — 예: 매수 하이닉스 1758000 6주"
     return f"{t} 메모 기록"
+
+
+def looks_like_trade(text: str) -> bool:
+    """첫 줄에 매수·매도·무포는 없는데 가격 같은 숫자가 있으면 True — 형식 안내가 필요한 입력."""
+    first = next((ln for ln in text.strip().splitlines() if ln.strip()), "")
+    if not first:
+        return False
+    m = _FIRST.match(first)
+    if m and m.group("side"):
+        return False
+    return bool(_PRICE_LIKE.search(first))
