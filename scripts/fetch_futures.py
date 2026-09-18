@@ -73,3 +73,10 @@ def fetch_futures() -> dict:
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     print(fetch_futures())
+
+
+def fetch_night_futures() -> dict | None:
+    """코스피200 야간선물(KRX 야간파생시장, 18:00부터 익일 06:00) 현재가·전일 정규장 종가 대비 %.
+    아직 소스가 없다 — 네이버 FUT 지수는 20분 지연 정규장 값이고 야간 세션을 안 준다(2026-09-18 확인).
+    소스가 생기면 {"price": float, "chg_pct": float, "time": str}를 돌려주도록 채운다. 없으면 None(표시 생략)."""
+    return None

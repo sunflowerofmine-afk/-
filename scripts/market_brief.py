@@ -14,6 +14,7 @@
 """
 from __future__ import annotations
 
+import json
 import logging
 import sys
 from datetime import date, datetime, timedelta
@@ -257,16 +258,74 @@ def collect(now: datetime, run_type: str, raw_data: dict[str, pd.DataFrame] | No
     d["adl_pct"] = _adl_from(base_df) if not base_df.empty else None
     d["limit_up"] = None
     d["top5_pct"] = None
+    d["limit_up_top"] = []
+    d["day_top"] = []
     if not base_df.empty:
         try:
             ex = filter_excluded_stocks(base_df)
+            lu_df = ex[ex["등락률"] >= 29.5].nlargest(5, "거래대금")
             d["limit_up"] = int((ex["등락률"] >= 29.5).sum())
+            d["limit_up_top"] = [{"name": r["종목명"], "tv_eok": float(r["거래대금"]) / 1e8} for _, r in lu_df.iterrows()]
             total_eok = (d["kospi_tv_eok"] or 0) + (d["kosdaq_tv_eok"] or 0)
             if total_eok > 0:
                 top5_eok = float(ex.nlargest(5, "거래대금")["거래대금"].sum()) / 1e8
                 d["top5_pct"] = round(top5_eok / total_eok * 100, 1)
+            # 낮 상위 10 = KRX + NXT(전체) 합산 거래대금. 등락률은 KRX, NXT 비중 표기. 14:20·15:35 전용.
+            nxt_by_code = {x["code"]: x["tv_eok"] for x in nxt}
+            ex_raw = filter_excluded_stocks(all_raw) if not all_raw.empty else ex
+            rows = []
+            for _, r in ex_raw.iterrows():
+                code = str(r["종목코드"])
+                krx_eok = float(r["거래대금"]) / 1e8
+                n_eok = nxt_by_code.get(code, 0.0)
+                tot = krx_eok + n_eok
+                rows.append({"code": code, "name": r["종목명"], "chg": float(r["등락률"]),
+                             "total_eok": tot, "nxt_share": (n_eok / tot * 100) if tot > 0 else 0.0})
+            rows.sort(key=lambda x: x["total_eok"], reverse=True)
+            d["day_top"] = rows[:NXT_TOP_N]
         except Exception as e:
-            logger.warning(f"상한가·집중도 계산 실패: {e}")
+            logger.warning(f"상한가·집중도·상위 계산 실패: {e}")
+
+    # 시장 수급 — 지수 단위 외인·기관·개인 순매수(억). 당일 행이면 잠정치.
+    d["flow"] = {}
+    for code in ("KOSPI", "KOSDAQ"):
+        try:
+            from scripts.naver_api import get_json
+            t = get_json(f"https://m.stock.naver.com/api/index/{code}/trend", {"pageSize": 1})
+            t = t[0] if isinstance(t, list) else t
+            d["flow"][code] = {"date": str(t.get("bizdate") or ""), "foreign": to_float(t.get("foreignValue")),
+                               "inst": to_float(t.get("institutionalValue")), "personal": to_float(t.get("personalValue"))}
+        except Exception as e:
+            logger.warning(f"[{code}] 시장 수급 실패: {e}")
+
+    # 17:50 스냅샷 — 19:30이 "17:50 대비 변화"를 보이기 위해 저장(워크플로가 커밋)
+    snap_dir = Path("data") / "evening_snapshot"
+    snap_path = snap_dir / f"{today_s}.json"
+    d["snap_prev"] = None
+    if d["slot"] == "1750":
+        try:
+            snap_dir.mkdir(parents=True, exist_ok=True)
+            snap_path.write_text(json.dumps({
+                "time": now.strftime("%H:%M"), "nxt_total_eok": d.get("nxt_total_eok"),
+                "krx_am_total_eok": d.get("krx_am_total_eok"),
+                "rows": {x["code"]: {"price": x.get("price"), "total_eok": x.get("total_eok", x.get("tv_eok"))}
+                         for x in d.get("nxt_top") or []},
+            }, ensure_ascii=False), encoding="utf-8")
+        except Exception as e:
+            logger.warning(f"저녁 스냅샷 저장 실패: {e}")
+    elif d["slot"] == "1930" and snap_path.exists():
+        try:
+            d["snap_prev"] = json.loads(snap_path.read_text(encoding="utf-8"))
+        except Exception as e:
+            logger.warning(f"저녁 스냅샷 읽기 실패: {e}")
+
+    # 코스피200 야간선물 (18:00부터 익일 06:00) — 나오는 시간대에만
+    try:
+        from scripts.fetch_futures import fetch_night_futures
+        d["night_fut"] = fetch_night_futures()
+    except Exception as e:
+        logger.debug(f"야간선물 실패: {e}")
+        d["night_fut"] = None
 
     # 미선물 · 거시
     try:
@@ -302,94 +361,131 @@ def collect(now: datetime, run_type: str, raw_data: dict[str, pd.DataFrame] | No
     return d
 
 
-def build_text(d: dict) -> str:
-    now: datetime = d["now"]
-    slot = d["slot"]
-    head_when = f"{now.month:02d}/{now.day:02d} ({_WD[now.weekday()]}) {now.strftime('%H:%M')}"
-    label = _SLOT_LABEL.get(slot, "수동")
-    L = [f"<b>[종베 시황] {head_when} · {label}</b>"]
-
-    ix = d.get("index") or {}
-    def _lv(v):  return f"{v:,.2f}" if v is not None else "-"
-    def _ch(v):  return f"<b>{v:+.2f}%</b>" if v is not None else "-"
-    L.append(f"코스피 {_lv(ix.get('kospi_level'))} {_ch(ix.get('kospi_chg'))} · 코스닥 {_lv(ix.get('kosdaq_level'))} {_ch(ix.get('kosdaq_chg'))}")
-
-    c = d.get("cmp") or {}
-    ci = d.get("cmp_idx") or {}
-    kt, dt = d.get("kospi_idx_tv_eok"), d.get("kosdaq_idx_tv_eok")
-    if slot == "1420":
-        def _prog(v):  return f"{v}%" if v is not None else "-"
-        L.append(
-            f"거래대금(주식) 코스피 {_tv_txt(kt)} · 코스닥 {_tv_txt(dt)} — 지금까지 누적"
-        )
-        L.append(
-            f" ├ 전일 같은 시각 대비: 코스피 {_pct_txt(ci.get('kospi_vs_prev'))} · 코스닥 {_pct_txt(ci.get('kosdaq_vs_prev'))}"
-        )
-        L.append(
-            f" └ 전일 하루치 대비 진행률: 코스피 {_prog(ci.get('progress_kospi'))} · 코스닥 {_prog(ci.get('progress_kosdaq'))}"
-        )
-    else:
-        L.append(f"거래대금(주식·정규장) 코스피 {_tv_txt(kt)} · 코스닥 {_tv_txt(dt)}")
-        L.append(
-            f" ├ 전일 대비: 코스피 {_pct_txt(ci.get('kospi_vs_prev'))} · 코스닥 {_pct_txt(ci.get('kosdaq_vs_prev'))}"
-        )
-        L.append(
-            f" └ 20거래일 평균 대비: 코스피 {_pct_txt(ci.get('kospi_vs_avg20'))} · 코스닥 {_pct_txt(ci.get('kosdaq_vs_avg20'))}"
-        )
-        if d.get("after_k") or d.get("after_d"):
-            L.append(f"KRX 장후 누적(종가매매 + 애프터마켓 16:00부터) 코스피 {_tv_txt(d.get('after_k'))} · 코스닥 {_tv_txt(d.get('after_d'))}")
-
-    adl = d.get("adl_pct"); lu = d.get("limit_up"); t5 = d.get("top5_pct")
-    L.append(
-        f"오른 종목 {adl:.0f}%" if adl is not None else "오른 종목 -"
-        )
-    L[-1] += f" · 상한가 {lu if lu is not None else '-'} · Top5 집중 {t5 if t5 is not None else '-'}%"
-
+def _macro_line(d: dict) -> str:
     fu = d.get("futures") or {}; mc = d.get("macro") or {}
     parts = []
-    for name, short in (("나스닥선물", "나스닥선물"), ("S&P선물", "S&P선물"), ("VIX", "VIX")):
+    for name in ("나스닥선물", "S&P선물", "VIX"):
         v = fu.get(name)
         if v and v.get("chg_pct") is not None:
-            parts.append(f"{short} {v['value']:,.1f} ({v['chg_pct']:+.2f}%)" if name == "VIX" else f"{short} {v['chg_pct']:+.2f}%")
+            parts.append(f"{name} {v['value']:,.1f} ({v['chg_pct']:+.2f}%)" if name == "VIX" else f"{name} {v['chg_pct']:+.2f}%")
     if mc.get("wti") is not None:
         parts.append(f"WTI {mc['wti']:.1f} ({mc.get('wti_chg', 0):+.2f})")
     if mc.get("usdkrw") is not None:
         parts.append(f"환율 {mc['usdkrw']:,.1f} ({mc.get('usdkrw_chg', 0):+.1f})")
-    if parts:
-        L.append(" · ".join(parts))
+    nf = d.get("night_fut")
+    if nf and nf.get("price"):
+        parts.append(f"코스피200 야간선물 {nf['price']:,.2f} ({nf['chg_pct']:+.2f}%)")
+    return " · ".join(parts)
 
-    # NXT
-    if d.get("nxt_top"):
+
+def _flow_line(d: dict) -> str:
+    """시장 수급 — 외인·기관·개인 순매수(억). 당일 행이면 잠정."""
+    fl = d.get("flow") or {}
+    k = fl.get("KOSPI") or {}
+    if not k or k.get("foreign") is None:
+        return ""
+    today8 = d["now"].strftime("%Y%m%d")
+    kd = str(k.get("date") or "")
+    tag = "당일 잠정" if kd == today8 else f"{kd[4:6]}/{kd[6:8]} 확정"
+    def _v(x):  return f"{x:+,.0f}억" if x is not None else "-"
+    dq = fl.get("KOSDAQ") or {}
+    return (f"수급({tag}) 코스피 외인 {_v(k.get('foreign'))} · 기관 {_v(k.get('inst'))} · 개인 {_v(k.get('personal'))}"
+            f" / 코스닥 외인 {_v(dq.get('foreign'))} · 기관 {_v(dq.get('inst'))}")
+
+
+def build_text(d: dict) -> str:
+    # 낮(14:20·15:35)과 저녁(17:50·19:30)의 틀이 다르다 — 그 시각에 정할 것에 필요한 것만.
+    # 낮: 국면·비중 판단 재료 전부 + 테마 맵. 저녁: 저녁장 흐름만(정규장 숫자 반복 없음, 맵 없음).
+    now: datetime = d["now"]
+    slot = d["slot"]
+    head_when = f"{now.month:02d}/{now.day:02d} ({_WD[now.weekday()]}) {now.strftime('%H:%M')}"
+    label = _SLOT_LABEL.get(slot, "수동")
+    evening = now.strftime("%H%M") >= "1600"
+    L = [f"<b>[종베 시황] {head_when} · {label}</b>"]
+    c = d.get("cmp") or {}
+    basis = d.get("krx_basis") or "KRX 가격"
+
+    if not evening:
+        ix = d.get("index") or {}
+        def _lv(v):  return f"{v:,.2f}" if v is not None else "-"
+        def _ch(v):  return f"<b>{v:+.2f}%</b>" if v is not None else "-"
+        L.append(f"코스피 {_lv(ix.get('kospi_level'))} {_ch(ix.get('kospi_chg'))} · 코스닥 {_lv(ix.get('kosdaq_level'))} {_ch(ix.get('kosdaq_chg'))}")
+
+        ci = d.get("cmp_idx") or {}
+        kt, dt = d.get("kospi_idx_tv_eok"), d.get("kosdaq_idx_tv_eok")
+        if slot == "1420":
+            def _prog(v):  return f"{v}%" if v is not None else "-"
+            L.append(f"거래대금(주식) 코스피 {_tv_txt(kt)} · 코스닥 {_tv_txt(dt)} — 지금까지 누적")
+            L.append(f" ├ 전일 같은 시각 대비: 코스피 {_pct_txt(ci.get('kospi_vs_prev'))} · 코스닥 {_pct_txt(ci.get('kosdaq_vs_prev'))}")
+            L.append(f" └ 전일 하루치 대비 진행률: 코스피 {_prog(ci.get('progress_kospi'))} · 코스닥 {_prog(ci.get('progress_kosdaq'))}")
+        else:
+            L.append(f"거래대금(주식·정규장) 코스피 {_tv_txt(kt)} · 코스닥 {_tv_txt(dt)}")
+            L.append(f" ├ 전일 대비: 코스피 {_pct_txt(ci.get('kospi_vs_prev'))} · 코스닥 {_pct_txt(ci.get('kosdaq_vs_prev'))}")
+            L.append(f" └ 20거래일 평균 대비: 코스피 {_pct_txt(ci.get('kospi_vs_avg20'))} · 코스닥 {_pct_txt(ci.get('kosdaq_vs_avg20'))}")
+
+        adl = d.get("adl_pct"); lu = d.get("limit_up"); t5 = d.get("top5_pct")
+        L.append((f"오른 종목 {adl:.0f}%" if adl is not None else "오른 종목 -")
+                 + f" · 상한가 {lu if lu is not None else '-'} · Top5 집중 {t5 if t5 is not None else '-'}%")
+        if d.get("limit_up_top"):
+            L.append("상한가(거래대금순) " + " · ".join(f"{x['name']} {_tv_txt(x['tv_eok'])}" for x in d["limit_up_top"]))
+        fl = _flow_line(d)
+        if fl:
+            L.append(fl)
+        ml = _macro_line(d)
+        if ml:
+            L.append(ml)
+
+        if d.get("day_top"):
+            L.append("")
+            L.append("<b>거래대금 상위 10</b> — KRX + NXT 합산 · 등락률 · NXT 비중")
+            for i, x in enumerate(d["day_top"], 1):
+                L.append(f" {i:>2} {x['name']} {x['chg']:+.2f}% · {_tv_txt(x['total_eok'])} (NXT {x['nxt_share']:.0f}%)")
+
+    else:
+        # 저녁: 정규장 숫자는 반복하지 않는다. 저녁장 흐름 + 저녁에 움직이는 지표만.
         sess = d.get("nxt_session") or "NXT"
         state = "진행 중" if d.get("nxt_open") else "마감"
-        basis = d.get("krx_basis") or "KRX 가격"
-        L.append("")
-        L.append(f"<b>NXT {sess} {state} ({now.strftime('%H:%M')})</b>")
-        L.append(f"NXT 누적 거래대금 {_tv_txt(d.get('nxt_total_eok'))} — 08:00 프리장부터 지금까지 NXT 전체 · 전일 같은 시각 대비 {_pct_txt(c.get('nxt_vs_prev'))}")
+        prev = d.get("snap_prev") or {}
+        def _delta(cur, key):
+            base = prev.get(key)
+            return f" (17:50 대비 {cur - base:+,.0f}억)" if (prev and cur is not None and base is not None) else ""
+        L.append(f"NXT {sess} {state} · 누적 {_tv_txt(d.get('nxt_total_eok'))}{_delta(d.get('nxt_total_eok'), 'nxt_total_eok')} · 전일 같은 시각 대비 {_pct_txt(c.get('nxt_vs_prev'))}")
         if d.get("evening_merged"):
-            L.append(f"KRX 애프터마켓 누적 거래대금 {_tv_txt(d.get('krx_am_total_eok'))} — 16:00부터 지금까지")
-            L.append(f"저녁장 거래대금 상위 10 — 현재가 ({basis} 대비 %) · NXT + KRX 애프터마켓 합산")
-        else:
-            L.append(f"거래대금 상위 10 — NXT 현재가 ({basis} 대비 %) · NXT 거래대금")
-        for i, x in enumerate(d["nxt_top"], 1):
-            krx = (d.get("krx_price") or {}).get(x["code"])
-            px = x.get("price")
+            L.append(f"KRX 애프터마켓 누적 {_tv_txt(d.get('krx_am_total_eok'))}{_delta(d.get('krx_am_total_eok'), 'krx_am_total_eok')} (16:00부터)")
+        elif d.get("after_k") or d.get("after_d"):
+            L.append(f"KRX 장후 누적(종가매매 + 애프터마켓) 코스피 {_tv_txt(d.get('after_k'))} · 코스닥 {_tv_txt(d.get('after_d'))}")
+        ml = _macro_line(d)
+        if ml:
+            L.append(ml)
+
+        if d.get("nxt_top"):
+            L.append("")
             if d.get("evening_merged"):
-                amt = f"{_tv_txt(x.get('total_eok'))} (NXT {_tv_txt(x.get('tv_eok'))} · KRX {_tv_txt(x.get('krx_am_eok'))})"
+                L.append(f"<b>저녁장 거래대금 상위 10</b> — 현재가 · {basis} 대비 · NXT + KRX 애프터마켓 합산")
             else:
-                amt = _tv_txt(x["tv_eok"])
-            if px and krx:
-                L.append(f" {i:>2} {x['name']} {px:,.0f} ({basis} {krx:,.0f} 대비 {(px / krx - 1) * 100:+.2f}%) · {amt}")
-            elif px:
-                L.append(f" {i:>2} {x['name']} {px:,.0f} (기준가 없음) · {amt}")
-            else:
-                L.append(f" {i:>2} {x['name']} - · {amt}")
+                L.append(f"<b>NXT 거래대금 상위 10</b> — NXT 현재가 · {basis} 대비")
+            prev_rows = prev.get("rows") or {}
+            for i, x in enumerate(d["nxt_top"], 1):
+                krx = (d.get("krx_price") or {}).get(x["code"])
+                px = x.get("price")
+                if d.get("evening_merged"):
+                    amt = f"{_tv_txt(x.get('total_eok'))} = N {_tv_txt(x.get('tv_eok'))} + K {_tv_txt(x.get('krx_am_eok'))}"
+                else:
+                    amt = _tv_txt(x["tv_eok"])
+                pv = (prev_rows.get(x["code"]) or {}).get("price")
+                since = f" · 17:50 대비 {(px / pv - 1) * 100:+.2f}%" if (px and pv) else ""
+                if px and krx:
+                    L.append(f" {i:>2} {x['name']} {px:,.0f} {(px / krx - 1) * 100:+.2f}% (종가 {krx:,.0f}){since} · {amt}")
+                elif px:
+                    L.append(f" {i:>2} {x['name']} {px:,.0f} (기준가 없음){since} · {amt}")
+                else:
+                    L.append(f" {i:>2} {x['name']} - · {amt}")
 
     nd = d.get("next_day")
     if nd:
         L.append("")
         L.append(f"다음 거래일 {nd.month:02d}/{nd.day:02d} ({_WD[nd.weekday()]}) · 밤 {d.get('nights')}")
-    return "\n".join(L)
+    return chr(10).join(L)
 
 
 def build_map(d: dict) -> Path | None:
@@ -404,6 +500,9 @@ def send(d: dict) -> bool:
     text = build_text(d)
     ok = ntf.send_message(text)
     logger.info(f"시황 알림 발송 {'성공' if ok else '실패'} ({d.get('slot')})")
+    if d["now"].strftime("%H%M") >= "1600":
+        logger.info("저녁 슬롯 — 테마 맵 생략(15:35과 같은 그림)")
+        return ok
     img = build_map(d)
     if img:
         ok_img = ntf.send_photo(img)
