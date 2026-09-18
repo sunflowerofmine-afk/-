@@ -169,9 +169,22 @@ def collect(now: datetime, run_type: str, raw_data: dict[str, pd.DataFrame] | No
         hhmm = now.strftime("%H%M")
         close_path = KRX_CLOSE_DIR / f"{today_s}.csv"
         if "1530" <= hhmm < "1600":
+            # 정규장 종가·거래대금 + 시가·고가·저가·거래량. 저녁 실행과 D+1 복기가 이 파일로
+            # 오늘 일봉을 정규장 값으로 되돌린다(네이버 일봉은 애프터마켓 반영). fetch_stock_data 참조.
             try:
                 KRX_CLOSE_DIR.mkdir(parents=True, exist_ok=True)
-                all_raw[["종목코드", "현재가", "거래대금"]].to_csv(close_path, index=False, encoding="utf-8-sig")
+                out = all_raw[["종목코드", "현재가", "거래대금"]].copy()
+                try:
+                    krx_rows = fetch_stock_default(trade_type="KRX", market_type="ALL", order_type="marketSum")
+                    ohlv = pd.DataFrame([{
+                        "종목코드": str(r.get("itemcode") or ""),
+                        "시가": to_float(r.get("openPrice")), "고가": to_float(r.get("highPrice")),
+                        "저가": to_float(r.get("lowPrice")), "거래량": to_float(r.get("tradeVolume")),
+                    } for r in krx_rows])
+                    out = out.merge(ohlv, on="종목코드", how="left")
+                except Exception as e:
+                    logger.warning(f"정규장 시가·고가·저가 저장 실패(종가·거래대금만 저장): {e}")
+                out.to_csv(close_path, index=False, encoding="utf-8-sig")
             except Exception as e:
                 logger.warning(f"정규장 종가 저장 실패: {e}")
             d["krx_price"], d["krx_basis"] = live, "정규장 종가"

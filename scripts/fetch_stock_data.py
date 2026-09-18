@@ -6,7 +6,8 @@
 반환 구조는 예전과 같다: date(YYYY.MM.DD), close, change, open, high, low, volume — 최신이 index 0.
 
 ⚠ 두 소스 모두 **일봉 종가가 KRX 애프터마켓(16:00부터 20:00) 마지막 가격**이다(2026-09-14 개장 뒤,
-sise_day도 같았다). 공식 정규장 종가(다음 날 기준가)와 다를 수 있다. 시가는 정규장 시가다.
+sise_day도 같았다). 그래서 15:35 실행이 `data/krx_close/`에 남긴 정규장 값으로 그날 행을 되돌린다
+(`_apply_regular_override`, 2026-09-15 저장분부터). 사용자 지시(09-18): "정규장 종가로 맞춰".
 """
 
 import sys
@@ -67,6 +68,49 @@ def _from_price_api(code: str, n: int) -> list[dict]:
     return rows[:n]
 
 
+_KRX_CLOSE_DIR = Path("data") / "krx_close"
+_KRX_CLOSE_FROM = "2026.09.15"          # 15:35 저장이 시작된 날
+_close_cache: dict[str, pd.DataFrame | None] = {}
+
+
+def _regular_day(date_dot: str) -> pd.DataFrame | None:
+    """그날 15:35에 저장한 정규장 값(종목코드 index). 파일이 없으면 None. 실행당 한 번만 읽는다."""
+    if date_dot in _close_cache:
+        return _close_cache[date_dot]
+    path = _KRX_CLOSE_DIR / f"{date_dot.replace('.', '-')}.csv"
+    df = None
+    if path.exists():
+        try:
+            df = pd.read_csv(path, dtype={"종목코드": str}, encoding="utf-8-sig").set_index("종목코드")
+        except Exception as e:
+            logger.warning(f"정규장 종가 파일 읽기 실패 {path}: {e}")
+    _close_cache[date_dot] = df
+    return df
+
+
+def _apply_regular_override(df: pd.DataFrame, code: str) -> pd.DataFrame:
+    """일봉을 정규장 값으로 되돌린다 (2026-09-14 KRX 애프터마켓 개장 뒤 네이버 일봉 종가 = 20:00 가격).
+    15:35 저장 파일이 있는 날만: 종가는 항상, 시가·고가·저가·거래량은 파일에 있을 때. [[reference_krx_market_structure_2026]]"""
+    if df.empty:
+        return df
+    for i in df.index:
+        date_dot = str(df.at[i, "date"])
+        if date_dot < _KRX_CLOSE_FROM:
+            break                      # 내림차순이라 그 아래는 전부 저장 이전
+        day = _regular_day(date_dot)
+        if day is None or code not in day.index:
+            continue
+        row = day.loc[code]
+        close = pd.to_numeric(row.get("현재가"), errors="coerce")
+        if pd.notna(close) and close > 0:
+            df.at[i, "close"] = close
+        for src, dst in (("시가", "open"), ("고가", "high"), ("저가", "low"), ("거래량", "volume")):
+            v = pd.to_numeric(row.get(src), errors="coerce") if src in day.columns else None
+            if v is not None and pd.notna(v) and v > 0:
+                df.at[i, dst] = v
+    return df
+
+
 def fetch_daily_history(code: str, pages: int = 7) -> pd.DataFrame:
     """
     최근 pages*10행 일봉. 반환 컬럼: date(str), close, change, open, high, low, volume — 최신이 index 0.
@@ -95,6 +139,7 @@ def fetch_daily_history(code: str, pages: int = 7) -> pd.DataFrame:
     df.sort_values("date", ascending=False, inplace=True)
     df.reset_index(drop=True, inplace=True)
     df = df.head(n).copy()
+    df = _apply_regular_override(df, code)
 
     # 전일비 = 종가 - 전일 종가 (내림차순이라 다음 행이 전일)
     df["change"] = df["close"] - df["close"].shift(-1)
