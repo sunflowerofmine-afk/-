@@ -1,0 +1,76 @@
+{
+  "date": "2026-09-18",
+  "generated": "2026-09-19",
+  "stocks": {
+    "010170": {
+      "name": "대한광통신",
+      "signal_price": 18320,
+      "is_nxt": false,
+      "nxt_dominant": false,
+      "change_pct": 13.83,
+      "sector": "광통신(광케이블/광섬유 등)",
+      "total_score": 13,
+      "52w_high": 31500,
+      "52w_low": 1199,
+      "pct_from_52w_high": -41.84,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 89
+    },
+    "000500": {
+      "name": "가온전선",
+      "signal_price": 327000,
+      "is_nxt": true,
+      "nxt_dominant": true,
+      "change_pct": 27.06,
+      "sector": "전선",
+      "total_score": 12,
+      "52w_high": 352860,
+      "52w_low": 29229,
+      "pct_from_52w_high": -7.33,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 88
+    },
+    "043260": {
+      "name": "성호전자",
+      "signal_price": 26800,
+      "is_nxt": false,
+      "nxt_dominant": false,
+      "change_pct": 22.45,
+      "sector": "광통신(광케이블/광섬유 등)",
+      "total_score": 10,
+      "52w_high": 59600,
+      "52w_low": 1030,
+      "pct_from_52w_high": -55.03,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 131
+    },
+    "001440": {
+      "name": "대한전선",
+      "signal_price": 31450,
+      "is_nxt": false,
+      "nxt_dominant": false,
+      "change_pct": 12.54,
+      "sector": "전선",
+      "total_score": 6,
+      "52w_high": 75900,
+      "52w_low": 14740,
+      "pct_from_52w_high": -58.56,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 90
+    },
+    "218410": {
+      "name": "RFHIC",
+      "signal_price": 60100,
+      "is_nxt": true,
+      "nxt_dominant": false,
+      "change_pct": 14.61,
+      "sector": "광통신(광케이블/광섬유 등)",
+      "total_score": 10,
+      "52w_high": 126900,
+      "52w_low": 25600,
+      "pct_from_52w_high": -52.64,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 89
+    }
+  }
+}
