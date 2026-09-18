@@ -5,6 +5,7 @@
     매수 SK하이닉스 1812000 5주
     판 대형주 / 이유 대장·NXT·수급 / 깨는가 1768000 / 비중 900만
 첫 단어가 매수·매도·무포가 아니면 메모로 저장한다(버리지 않는다).
+    후보 SK하이닉스 삼성전기 두산        ← 15시대에 고른 후보(있을 때만, 사용자가 직접). 사후 판단지 대조용
 
 저장: `{TRADES_DIR}/YYYY-MM-DD.jsonl` — 메시지 시각(KST) 기준 날짜. **비공개 백업 레포에만** 둔다.
 공개 봇 레포에는 사용자 매매 기록을 두지 않는다. 워크플로가 백업 레포를 clone한 뒤
@@ -19,7 +20,9 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 KST = timezone(timedelta(hours=9))
-SIDES = ("매수", "매도", "무포")
+SIDES = ("매수", "매도", "무포", "후보")
+_CAND = re.compile(r"^\s*후보\s*[:：]?\s*(?P<names>.*)$")
+_CAND_SEP = re.compile(r"[\s,、·/]+")
 
 # 수량은 "6주" · "수량 6" · 가격 뒤 맨 숫자 "6" 전부 받는다 (09-17 첫 입력 "하이닉스 1758000 수량 6"이 안 잡혔던 형태).
 _FIRST = re.compile(
@@ -55,6 +58,21 @@ def parse(text: str) -> dict:
     first = lines[0] if lines else ""
     rest = "\n".join(lines[1:])
     out: dict = {"side": None, "name": None, "price": None, "qty": None, "raw": text.strip()}
+    mc = _CAND.match(first)
+    if mc:
+        # 후보 줄 — 종목명만 나열. 보유 종목 계산(open_positions)에는 안 들어간다(name이 없으므로).
+        out["side"] = "후보"
+        tail = mc.group("names")
+        cut = re.search(r"/|판\s*[:：]?\s*(?:대형주|개별주|무포)|깨는가|비중|이유", tail)   # 종목명은 첫 필드 앞까지
+        names_part, fields_part = (tail[:cut.start()], tail[cut.start():]) if cut else (tail, "")
+        out["names"] = [x for x in _CAND_SEP.split(names_part.strip()) if x]
+        body = fields_part + "\n" + rest
+        for key, rx in _FIELDS.items():
+            mm = rx.search(body)
+            if mm:
+                val = mm.group(1).strip()
+                out[key] = _num(val) if key in ("깨는가", "비중") else val
+        return out
     m = _FIRST.match(first)
     if m and m.group("side"):
         out["side"] = m.group("side")
@@ -143,6 +161,9 @@ def format_ack(row: dict) -> str:
         return f"{t} {row['side']} {row.get('name') or '?'}{px}{q}{tail}"
     if row.get("side") == "무포":
         return f"{t} 무포 기록"
+    if row.get("side") == "후보":
+        names = row.get("names") or []
+        return f"{t} 후보 기록: {' · '.join(names)}" if names else f"{t} 후보 기록 (종목명 없음)"
     if looks_like_trade(row.get("raw") or ""):
         return f"{t} 메모 기록 ⚠ 매수/매도가 없어 보유 종목에 안 잡힘 — 예: 매수 하이닉스 1758000 6주"
     return f"{t} 메모 기록"
