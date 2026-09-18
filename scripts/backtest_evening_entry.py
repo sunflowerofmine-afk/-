@@ -6,8 +6,8 @@
 
 자료(전부 비공개 백업 레포 data/):
   signals/{날짜}_1750_signals.csv   그날 최종 후보 · regular_close_price(정규장 종가)
-  nxt/{날짜}_nxt.csv                NXT 20:00 마지막가(거래량 상위 100/시장) — 20:10 예약이 자정 뒤에 돌던 날은
-                                    파일 이름이 하루 밀려 있으므로 커밋 시각으로 걸러 낸다(09-15 보정 전)
+  nxt/{날짜}_nxt.csv                NXT 20:00 마지막가(거래량 상위 100/시장). 자정 뒤 저장돼 하루 밀렸던 파일은
+                                    2026-09-18에 실제 날짜로 정정했다(백업 레포 eb8933a)
   signals/{날짜}_review.json        D+1 시가(t1_open)
 
 ⚠ 표본은 봇 후보(당일 +10% 안팎 강한 마감형이 대부분)이고 개편 전(KRX 애프터마켓 없음) NXT 값이다.
@@ -17,39 +17,15 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
-import subprocess
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
-LABEL_FIX_AT = "2026-09-15 08:29"     # save_nxt 날짜 보정 이후 저장분은 라벨이 정확
-
-
-def _label_ok(backup: Path) -> set[str]:
-    """파일 이름의 날짜가 실제 데이터 날짜와 같은 NXT 파일만. 마지막 커밋이 KST 자정 전(UTC 09-15시)이거나 보정 이후."""
-    log = subprocess.run(["git", "log", "--format=@%ad", "--date=format:%Y-%m-%d %H:%M", "--name-only", "--", "data/nxt/"],
-                         capture_output=True, text=True, cwd=backup).stdout
-    last: dict[str, str] = {}
-    t = ""
-    for ln in log.splitlines():
-        if ln.startswith("@"):
-            t = ln[1:]
-        elif ln.startswith("data/nxt/"):
-            last.setdefault(os.path.basename(ln)[:10], t)      # 최신 커밋이 먼저 나온다
-    ok = set()
-    for d, t in last.items():
-        h = int(t.split()[1][:2])
-        if t >= LABEL_FIX_AT or 9 <= h < 15:
-            ok.add(d)
-    return ok
-
-
 def load(backup: Path) -> pd.DataFrame:
     data = backup / "data"
     rows = []
-    for d in sorted(_label_ok(backup)):
+    for d in sorted(p.name[:10] for p in (data / "nxt").glob("*_nxt.csv")):
         sp, rp, xp = data / "signals" / f"{d}_1750_signals.csv", data / "signals" / f"{d}_review.json", data / "nxt" / f"{d}_nxt.csv"
         if not (sp.exists() and rp.exists() and xp.exists()):
             continue
