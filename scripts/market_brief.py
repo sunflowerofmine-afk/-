@@ -162,14 +162,16 @@ def collect(now: datetime, run_type: str, raw_data: dict[str, pd.DataFrame] | No
     # 그래서 15:30부터 16:00 사이 실행이 정규장 종가를 파일로 남기고, 저녁 실행은 그 파일을 읽는다.
     d["krx_price"] = {}
     d["krx_basis"] = ""
+    d["krx_am"] = {}          # 종목별 KRX 애프터마켓 누적 거래대금(억) = 지금 누적 − 15:35 누적
     if not all_raw.empty:
         live = dict(zip(all_raw["종목코드"].astype(str), all_raw["현재가"].astype(float)))
+        live_tv = dict(zip(all_raw["종목코드"].astype(str), all_raw["거래대금"].astype(float)))
         hhmm = now.strftime("%H%M")
         close_path = KRX_CLOSE_DIR / f"{today_s}.csv"
         if "1530" <= hhmm < "1600":
             try:
                 KRX_CLOSE_DIR.mkdir(parents=True, exist_ok=True)
-                all_raw[["종목코드", "현재가"]].to_csv(close_path, index=False, encoding="utf-8-sig")
+                all_raw[["종목코드", "현재가", "거래대금"]].to_csv(close_path, index=False, encoding="utf-8-sig")
             except Exception as e:
                 logger.warning(f"정규장 종가 저장 실패: {e}")
             d["krx_price"], d["krx_basis"] = live, "정규장 종가"
@@ -179,8 +181,15 @@ def collect(now: datetime, run_type: str, raw_data: dict[str, pd.DataFrame] | No
             saved = pd.read_csv(close_path, dtype={"종목코드": str}, encoding="utf-8-sig")
             d["krx_price"] = dict(zip(saved["종목코드"].astype(str), saved["현재가"].astype(float)))
             d["krx_basis"] = "정규장 종가"
+            if "거래대금" in saved.columns:
+                base_tv = dict(zip(saved["종목코드"].astype(str), saved["거래대금"].astype(float)))
+                for code, tv_now in live_tv.items():
+                    diff = tv_now - base_tv.get(code, tv_now)
+                    if diff > 0:
+                        d["krx_am"][code] = diff / 1e8
         else:
             d["krx_price"], d["krx_basis"] = live, "KRX 애프터마켓 반영가"   # 15:35 파일이 없을 때만
+        d["krx_live_price"] = live
 
     # NXT 전체 (거래대금 상위 10 + 총액). 실패하면 빈 값.
     nxt_rows: list[dict] = []
@@ -197,9 +206,31 @@ def collect(now: datetime, run_type: str, raw_data: dict[str, pd.DataFrame] | No
                     "status": r.get("marketStatus")})
     nxt.sort(key=lambda x: x["tv_eok"], reverse=True)
     d["nxt_total_eok"] = round(sum(x["tv_eok"] for x in nxt)) if nxt else None
-    d["nxt_top"] = nxt[:NXT_TOP_N]
     d["nxt_session"] = _SESSION_KO.get((nxt[0]["session"] if nxt else "") or "", "")
     d["nxt_open"] = bool(nxt and nxt[0]["status"] == "OPEN")
+    # 저녁(16:00 이후)엔 KRX 애프터마켓이 NXT와 같은 시간에 돈다 → 종목별 합산으로 순위를 매긴다.
+    # 15:35 저장 파일에 거래대금이 없으면(09-18 이전 파일) NXT만으로 순위.
+    d["krx_am_total_eok"] = round(sum(d["krx_am"].values())) if d.get("krx_am") else None
+    if d.get("krx_am"):
+        names = {r.get("itemcode"): r.get("itemname") for r in nxt_rows}
+        by_code = {x["code"]: dict(x) for x in nxt}
+        for code, am in d["krx_am"].items():
+            row = by_code.setdefault(code, {"code": code, "name": names.get(code), "price": None, "tv_eok": 0.0})
+            row["krx_am_eok"] = am
+        for row in by_code.values():
+            row.setdefault("krx_am_eok", 0.0)
+            row["total_eok"] = row["tv_eok"] + row["krx_am_eok"]
+            if not row.get("name"):
+                row["name"] = (all_raw.loc[all_raw["종목코드"].astype(str) == row["code"], "종목명"].iloc[0]
+                               if not all_raw.empty and (all_raw["종목코드"].astype(str) == row["code"]).any() else row["code"])
+            if not row.get("price"):
+                row["price"] = (d.get("krx_live_price") or {}).get(row["code"])   # NXT 체결 없으면 KRX 애프터마켓가
+        merged_rows = sorted(by_code.values(), key=lambda x: x["total_eok"], reverse=True)
+        d["nxt_top"] = merged_rows[:NXT_TOP_N]
+        d["evening_merged"] = True
+    else:
+        d["nxt_top"] = nxt[:NXT_TOP_N]
+        d["evening_merged"] = False
 
     # 오른 종목 비율 · 상한가 · Top5 집중도 — pipeline과 같은 정의.
     # 집중도 분자는 NXT 합산 후 거래대금이라(pipeline의 top_tv) 단독 실행도 같은 합산을 거친다.
@@ -322,16 +353,24 @@ def build_text(d: dict) -> str:
         L.append("")
         L.append(f"<b>NXT {sess} {state} ({now.strftime('%H:%M')})</b>")
         L.append(f"NXT 누적 거래대금 {_tv_txt(d.get('nxt_total_eok'))} — 08:00 프리장부터 지금까지 NXT 전체 · 전일 같은 시각 대비 {_pct_txt(c.get('nxt_vs_prev'))}")
-        L.append(f"거래대금 상위 10 — NXT 현재가 ({basis} 대비 %) · NXT 거래대금")
+        if d.get("evening_merged"):
+            L.append(f"KRX 애프터마켓 누적 거래대금 {_tv_txt(d.get('krx_am_total_eok'))} — 16:00부터 지금까지")
+            L.append(f"저녁장 거래대금 상위 10 — 현재가 ({basis} 대비 %) · NXT + KRX 애프터마켓 합산")
+        else:
+            L.append(f"거래대금 상위 10 — NXT 현재가 ({basis} 대비 %) · NXT 거래대금")
         for i, x in enumerate(d["nxt_top"], 1):
             krx = (d.get("krx_price") or {}).get(x["code"])
             px = x.get("price")
-            if px and krx:
-                L.append(f" {i:>2} {x['name']} {px:,.0f} ({basis} {krx:,.0f} 대비 {(px / krx - 1) * 100:+.2f}%) · {_tv_txt(x['tv_eok'])}")
-            elif px:
-                L.append(f" {i:>2} {x['name']} {px:,.0f} (기준가 없음) · {_tv_txt(x['tv_eok'])}")
+            if d.get("evening_merged"):
+                amt = f"{_tv_txt(x.get('total_eok'))} (NXT {_tv_txt(x.get('tv_eok'))} · KRX {_tv_txt(x.get('krx_am_eok'))})"
             else:
-                L.append(f" {i:>2} {x['name']} - · {_tv_txt(x['tv_eok'])}")
+                amt = _tv_txt(x["tv_eok"])
+            if px and krx:
+                L.append(f" {i:>2} {x['name']} {px:,.0f} ({basis} {krx:,.0f} 대비 {(px / krx - 1) * 100:+.2f}%) · {amt}")
+            elif px:
+                L.append(f" {i:>2} {x['name']} {px:,.0f} (기준가 없음) · {amt}")
+            else:
+                L.append(f" {i:>2} {x['name']} - · {amt}")
 
     nd = d.get("next_day")
     if nd:
