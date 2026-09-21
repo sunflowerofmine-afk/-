@@ -73,7 +73,15 @@ def _code_by_name(names: list[str]) -> dict[str, str]:
         from scripts.naver_api import fetch_stock_default
         rows = fetch_stock_default("KRX", "ALL", "marketSum")
         m = {str(r.get("itemname")): str(r.get("itemcode")) for r in rows}
-        return {n: m[n] for n in names if n in m}
+        out = {}
+        for n in names:
+            if n in m:
+                out[n] = m[n]
+            else:   # "하이닉스"처럼 줄여 쓴 이름 — 시총 순으로 처음 걸리는 종목(SK하이닉스)
+                hit = next((c for full, c in m.items() if n in full), None)
+                if hit:
+                    out[n] = hit
+        return out
     except Exception as e:
         logger.debug(f"종목코드 조회 실패: {e}")
         return {}

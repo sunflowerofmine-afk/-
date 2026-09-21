@@ -4,7 +4,7 @@
 입력 형식 (첫 줄만 고정, 둘째 줄부터 자유):
     매수 SK하이닉스 1812000 5주
     판 대형주 / 이유 대장·NXT·수급 / 깨는가 1768000 / 비중 900만
-첫 단어가 매수·매도·무포가 아니면 메모로 저장한다(버리지 않는다).
+첫 단어가 매수·매도·무포가 아니면 메모로 저장한다(버리지 않는다). 단 `종목 가격 [수량]` 꼴은 매수로 적는다(09-21).
     후보 SK하이닉스 삼성전기 두산        ← 15시대에 고른 후보(있을 때만, 사용자가 직접). 사후 판단지 대조용
 
 저장: `{TRADES_DIR}/YYYY-MM-DD.jsonl` — 메시지 시각(KST) 기준 날짜. **비공개 백업 레포에만** 둔다.
@@ -31,6 +31,13 @@ _FIRST = re.compile(
 )
 # 매수·매도 없이 가격처럼 보이는 4자리 이상 숫자가 있으면 "매매를 적으려다 형식이 빗나간 것"으로 보고 경고한다.
 _PRICE_LIKE = re.compile(r"\d[\d,]{3,}")
+# 첫 단어 없이 `종목 가격 [수량]`이면 매수로 적는다 — 사용자의 실제 입력 습관(09-17 "하이닉스 1758000 수량 6",
+# 09-21 "매수한 건데 적용이 안 됐다"). 매도·무포는 반드시 명시. 회신에 "매수로 기록"이라고 붙여 바로 고칠 수 있게 한다.
+_BARE = re.compile(
+    r"^\s*(?P<name>[^\s\d/:：][^\s/]*)\s+(?P<price>[\d,]{4,}(?:\.\d+)?)\s*(?:원)?"
+    r"\s*(?:(?:수량\s*[:：]?\s*)?(?P<qty>[\d,]+)\s*주?)?"
+)
+_NOT_STOCK = ("코스피", "코스닥", "나스닥", "지수", "선물", "환율", "달러", "유가", "비트")   # 시장 메모에 흔한 첫 단어
 _FIELDS = {
     "판":    re.compile(r"판\s*[:：]?\s*(대형주|개별주|무포)"),
     "깨는가": re.compile(r"깨는가\s*[:：]?\s*([\d,]+)"),
@@ -74,12 +81,19 @@ def parse(text: str) -> dict:
                 out[key] = _num(val) if key in ("깨는가", "비중") else val
         return out
     m = _FIRST.match(first)
+    mb = None if (m and m.group("side")) else _BARE.match(first)
+    if mb and mb.group("name").startswith(_NOT_STOCK):
+        mb = None
     if m and m.group("side"):
         out["side"] = m.group("side")
         out["name"] = m.group("name") if out["side"] != "무포" else None
         out["price"] = _num(m.group("price"))
         out["qty"] = _num(m.group("qty"))
         body = first[m.end():] + "\n" + rest
+    elif mb:
+        out["side"], out["side_inferred"] = "매수", True
+        out["name"], out["price"], out["qty"] = mb.group("name"), _num(mb.group("price")), _num(mb.group("qty"))
+        body = first[mb.end():] + "\n" + rest
     else:
         body = text
     for key, rx in _FIELDS.items():
@@ -158,7 +172,8 @@ def format_ack(row: dict) -> str:
         if row.get("비중"):
             extra.append(f"비중 {row['비중']:,.0f}만")
         tail = f" · {' · '.join(extra)}" if extra else ""
-        return f"{t} {row['side']} {row.get('name') or '?'}{px}{q}{tail}"
+        side = "매수(첫 단어 없어 매수로 기록 — 매도면 '매도'를 앞에)" if row.get("side_inferred") else row["side"]
+        return f"{t} {side} {row.get('name') or '?'}{px}{q}{tail}"
     if row.get("side") == "무포":
         return f"{t} 무포 기록"
     if row.get("side") == "후보":
