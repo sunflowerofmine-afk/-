@@ -104,8 +104,8 @@ def send_photo(path, caption: str = "") -> bool:
         return False
 
 
-def send_private(text: str) -> bool:
-    """TELEGRAM_CHAT_ID 단독 발송 — 공유 그룹 제외."""
+def send_private(text: str, silent: bool = False) -> bool:
+    """TELEGRAM_CHAT_ID 단독 발송 — 공유 그룹 제외. silent=True면 소리·진동 없이 도착(기록 확인 회신용)."""
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
         logger.error("TELEGRAM_BOT_TOKEN 또는 TELEGRAM_CHAT_ID 미설정")
         return False
@@ -115,7 +115,8 @@ def send_private(text: str) -> bool:
         try:
             resp = requests.post(
                 url,
-                json={"chat_id": TELEGRAM_CHAT_ID, "text": chunk, "parse_mode": "HTML"},
+                json={"chat_id": TELEGRAM_CHAT_ID, "text": chunk, "parse_mode": "HTML",
+                      "disable_notification": silent},
                 timeout=15,
             )
             if resp.status_code != 200:

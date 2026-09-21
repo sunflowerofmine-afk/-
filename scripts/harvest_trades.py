@@ -83,7 +83,7 @@ def harvest(store: Path, ack: bool = True) -> list[dict]:
         _save_offset(store, max_id)
     if saved and ack:
         lines = ["✅ 기록됨"] + [f" · {ts.format_ack(r)}" for r in saved]
-        send_private("\n".join(lines))
+        send_private("\n".join(lines), silent=True)   # 확인용이라 소리·진동 없이 — 새벽 4시 수거 때 울렸다(사용자 09-22)
     logger.info(f"수거 완료: 업데이트 {len(updates)}건 중 저장 {len(saved)}건 (offset {last} → {max_id})")
     return saved
 
