@@ -304,7 +304,8 @@ def collect(now: datetime, run_type: str, raw_data: dict[str, pd.DataFrame] | No
             if total_eok > 0:
                 top5_eok = float(ex.nlargest(5, "거래대금")["거래대금"].sum()) / 1e8
                 d["top5_pct"] = round(top5_eok / total_eok * 100, 1)
-            # 낮 상위 10 = KRX + NXT(전체) 합산 거래대금. 등락률은 KRX, NXT 비중 표기. 14:20·15:35 전용.
+            # 낮 상위 10 = KRX + NXT(그 시각까지, 08:00부터) 합산 거래대금. 등락률은 KRX. 14:20·15:35 전용.
+            # 괄호엔 NXT 몫을 %가 아니라 금액으로 — "NXT 32%"가 무엇의 비율인지 사용자가 몰랐다(2026-09-21).
             nxt_by_code = {x["code"]: x["tv_eok"] for x in nxt}
             ex_raw = filter_excluded_stocks(all_raw) if not all_raw.empty else ex
             rows = []
@@ -314,7 +315,7 @@ def collect(now: datetime, run_type: str, raw_data: dict[str, pd.DataFrame] | No
                 n_eok = nxt_by_code.get(code, 0.0)
                 tot = krx_eok + n_eok
                 rows.append({"code": code, "name": r["종목명"], "chg": float(r["등락률"]),
-                             "total_eok": tot, "nxt_share": (n_eok / tot * 100) if tot > 0 else 0.0})
+                             "total_eok": tot, "krx_eok": krx_eok, "nxt_eok": n_eok})
             rows.sort(key=lambda x: x["total_eok"], reverse=True)
             d["day_top"] = rows[:NXT_TOP_N]
         except Exception as e:
@@ -460,9 +461,9 @@ def build_text(d: dict) -> str:
 
         if d.get("day_top"):
             L.append("")
-            L.append("<b>거래대금 상위 10</b> — KRX + NXT 합산 · 등락률 · NXT 비중")
+            L.append("<b>거래대금 상위 10</b> — 등락률 · KRX + NXT 합산 = K 정규장 + N NXT(08:00부터 지금까지)")
             for i, x in enumerate(d["day_top"], 1):
-                L.append(f" {i:>2} {x['name']} {x['chg']:+.2f}% · {_tv_txt(x['total_eok'])} (NXT {x['nxt_share']:.0f}%)")
+                L.append(f" {i:>2} {x['name']} {x['chg']:+.2f}% · {_tv_txt(x['total_eok'])} = K {_tv_txt(x['krx_eok'])} + N {_tv_txt(x['nxt_eok'])}")
 
     else:
         # 저녁: 정규장 숫자는 반복하지 않는다. 저녁장 흐름 + 저녁에 움직이는 지표만.
