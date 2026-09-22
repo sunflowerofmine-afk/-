@@ -38,6 +38,18 @@ _BARE = re.compile(
     r"\s*(?:(?:수량\s*[:：]?\s*)?(?P<qty>[\d,]+)\s*주?)?"
 )
 _NOT_STOCK = ("코스피", "코스닥", "나스닥", "지수", "선물", "환율", "달러", "유가", "비트")   # 시장 메모에 흔한 첫 단어
+# "10주씩 두번" · "10주씩 2회" → 20주 (09-22 분할 매도 입력 습관). 한글 횟수는 열 번까지.
+_SPLIT = re.compile(r"([\d,]+)\s*주\s*씩\s*(?:(\d+)|([한두세네다섯여섯일곱여덟아홉열]+))\s*(?:번|회|차례)")
+_KO_NUM = {"한": 1, "두": 2, "세": 3, "네": 4, "다섯": 5, "여섯": 6, "일곱": 7, "여덟": 8, "아홉": 9, "열": 10}
+
+
+def _split_qty(first: str) -> float | None:
+    m = _SPLIT.search(first)
+    if not m:
+        return None
+    per = _num(m.group(1))
+    times = int(m.group(2)) if m.group(2) else _KO_NUM.get(m.group(3))
+    return per * times if (per and times) else None
 _FIELDS = {
     "판":    re.compile(r"판\s*[:：]?\s*(대형주|개별주|무포)"),
     "깨는가": re.compile(r"깨는가\s*[:：]?\s*([\d,]+)"),
@@ -88,11 +100,11 @@ def parse(text: str) -> dict:
         out["side"] = m.group("side")
         out["name"] = m.group("name") if out["side"] != "무포" else None
         out["price"] = _num(m.group("price"))
-        out["qty"] = _num(m.group("qty"))
+        out["qty"] = _split_qty(first) or _num(m.group("qty"))
         body = first[m.end():] + "\n" + rest
     elif mb:
         out["side"], out["side_inferred"] = "매수", True
-        out["name"], out["price"], out["qty"] = mb.group("name"), _num(mb.group("price")), _num(mb.group("qty"))
+        out["name"], out["price"], out["qty"] = mb.group("name"), _num(mb.group("price")), (_split_qty(first) or _num(mb.group("qty")))
         body = first[mb.end():] + "\n" + rest
     else:
         body = text
