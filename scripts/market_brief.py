@@ -36,6 +36,7 @@ _WD = ["월", "화", "수", "목", "금", "토", "일"]
 _SLOT_LABEL = {"1420": "KRX 마감 70분 전 · 잠정치", "1535": "KRX 마감 · 종가 확정",
                "1750": "저녁장(KRX·NXT) 중간", "1930": "저녁장 마감 30분 전"}
 KRX_CLOSE_DIR = Path("data") / "krx_close"   # 정규장 종가 저장(15:35 실행이 씀, 저녁 실행이 읽음)
+SIM_SNAPSHOT_DIR = Path("data") / "sim_snapshot"   # 종베 시뮬레이터 문제지 재료(15:35) — save_sim_snapshot
 _SESSION_KO = {"PRE_MARKET": "프리장", "REGULAR_MARKET": "메인", "AFTER_MARKET": "저녁장"}
 NXT_TOP_N = 10
 
@@ -318,6 +319,7 @@ def collect(now: datetime, run_type: str, raw_data: dict[str, pd.DataFrame] | No
                              "total_eok": tot, "krx_eok": krx_eok, "nxt_eok": n_eok})
             rows.sort(key=lambda x: x["total_eok"], reverse=True)
             d["day_top"] = rows[:NXT_TOP_N]
+            d["day_rows"] = rows          # 전체 — 15:35 시뮬레이터 스냅샷이 상위 40·상승률 상위를 여기서 뽑는다
         except Exception as e:
             logger.warning(f"상한가·집중도·상위 계산 실패: {e}")
 
@@ -540,6 +542,69 @@ def send(d: dict) -> bool:
     else:
         logger.warning("테마 맵 없음 — 텍스트만 발송")
     return ok
+
+
+def save_sim_snapshot(d: dict) -> Path | None:
+    """15:35 실행에서만 — 판단 시각(정규장 마감)에 보이던 시장 재료를 하루 한 파일로 남긴다.
+
+    종베 시뮬레이터의 문제지 재료(2026-09-27 사용자 결정 "매일저장 추가"). 알림에 쓴 값 +
+    알림엔 안 싣는 것: 거래대금 상위 40 · 상승률 상위 15(거래대금 200억 이상) · 상한가 전부 ·
+    테마 전체표 · 테마 맵에 오른 20개와 약세 10개의 구성 종목. 수급은 이 시각의 잠정치다 —
+    과거 날짜를 마감 뒤 확정치로 복원하면 생기는 누설이 여기엔 없다. 분봉·뉴스는 20:10 save_sim_daily.
+    실패해도 알림·파이프라인에 영향 없다."""
+    if d.get("slot") != "1535":
+        return None
+    try:
+        from scripts.naver_api import fetch_group_list, fetch_group_stocks
+        from scripts.theme_map import MIN_STOCKS, MIN_TV_EOK, _INDEX_LIKE, select_themes
+        rows = d.get("day_rows") or []
+
+        def _row(x: dict) -> dict:
+            return {"code": x["code"], "name": x["name"], "chg": round(x["chg"], 2),
+                    "krx_eok": round(x["krx_eok"], 1), "nxt_eok": round(x["nxt_eok"], 1)}
+
+        raw = fetch_group_list("theme")
+        themes = [{"no": int(to_float(t.get("no"), 0) or 0), "name": str(t.get("name") or "").strip(),
+                   "chg": to_float(t.get("changeRate")),
+                   "tv_eok": round((to_float(t.get("totalAccAmount"), 0) or 0) * 1000 / 1e8, 1),
+                   "n": int(to_float(t.get("totalCnt"), 0) or 0),
+                   "rise": int(to_float(t.get("riseCnt"), 0) or 0),
+                   "fall": int(to_float(t.get("fallCnt"), 0) or 0)} for t in raw]
+        # 구성 종목: 테마 맵에 오른 20개(같은 거름) + 내린 종목이 더 많은 테마 중 등락률 아래 10개
+        weak = sorted((t for t in themes if t["chg"] is not None and t["n"] >= MIN_STOCKS
+                       and t["tv_eok"] >= MIN_TV_EOK and t["fall"] > t["rise"]
+                       and not any(k in t["name"].lower() for k in _INDEX_LIKE)), key=lambda t: t["chg"])[:10]
+        no_by_name = {t["name"]: t["no"] for t in themes}
+        members: dict[str, list[str]] = {}
+        for name in [r["name"] for r in select_themes(raw)] + [t["name"] for t in weak]:
+            try:
+                members[name] = [str(s.get("itemcode") or "") for s in fetch_group_stocks("theme", no_by_name[name])]
+            except Exception as e:
+                logger.warning(f"[{name}] 테마 구성 종목 실패: {e}")
+        now: datetime = d["now"]
+        snap = {
+            "date": now.date().isoformat(), "time": now.strftime("%H:%M"),
+            "index": d.get("index"),
+            "tv_eok": {"kospi": d.get("kospi_idx_tv_eok"), "kosdaq": d.get("kosdaq_idx_tv_eok")},   # 주식만·정규장
+            "tv_cmp_pct": d.get("cmp_idx"),
+            "adl_pct": d.get("adl_pct"), "limit_up": d.get("limit_up"), "top5_pct": d.get("top5_pct"),
+            "flow": d.get("flow"), "futures": d.get("futures"), "macro": d.get("macro"),
+            "nxt_total_eok": d.get("nxt_total_eok"),
+            "next_day": d["next_day"].isoformat() if d.get("next_day") else None, "nights": d.get("nights"),
+            "top40": [_row(x) for x in rows[:40]],
+            "gainers15": [_row(x) for x in sorted((x for x in rows if x["total_eok"] >= 200),
+                                                  key=lambda x: x["chg"], reverse=True)[:15]],
+            "limit_ups": [_row(x) for x in rows if x["chg"] >= 29.5],
+            "themes": themes, "theme_members": members,
+        }
+        SIM_SNAPSHOT_DIR.mkdir(parents=True, exist_ok=True)
+        path = SIM_SNAPSHOT_DIR / f"{snap['date']}.json"
+        path.write_text(json.dumps(snap, ensure_ascii=False, default=str), encoding="utf-8")
+        logger.info(f"시뮬레이터 스냅샷 저장: {path} (테마 {len(themes)} · 구성 종목 {len(members)}개 테마)")
+        return path
+    except Exception as e:
+        logger.warning(f"시뮬레이터 스냅샷 저장 실패: {e}")
+        return None
 
 
 def run(run_type: str | None = None) -> None:

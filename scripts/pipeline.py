@@ -689,8 +689,10 @@ def run(preview: bool = False):
     # 종목 크롤링(약 20분) 전에 보내므로 14:20 실행이면 14:22 전후에 도착한다.
     try:
         from scripts import market_brief as _mb
-        _mb.send(_mb.collect(now, run_type, raw_data=raw_data, merged_df=all_df,
-                             index_levels=index_levels))
+        _brief = _mb.collect(now, run_type, raw_data=raw_data, merged_df=all_df,
+                             index_levels=index_levels)
+        _mb.send(_brief)
+        _mb.save_sim_snapshot(_brief)   # 15:35만 — 종베 시뮬레이터 문제지 재료(2026-09-27). 알림 뒤라 발송 시각과 무관
     except Exception as e:
         logger.error(f"시황 알림 실패: {e}")
 
