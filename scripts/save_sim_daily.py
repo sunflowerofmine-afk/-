@@ -15,6 +15,7 @@
   minute/YYYY-MM-DD.csv.gz   종목코드·시각·가격·누적거래량. 09:00부터 19:59(애프터마켓 포함).
                              15:20부터 15:29는 동시호가라 행이 없고 15:30 행에 종가 체결이 들어 있다. NXT 08시대는 없다.
   news/YYYY-MM-DD.json       그날 종목과 고른 이유 + 기사(시각·언론사·제목) — 직전 거래일 15:30부터 그날 20:10까지
+                             + 종목별 최근 5거래일 기사 수(각 날 15:30 기준 창) — 돌팬티 "재료 신선도: 이슈가 며칠째인지"
   snapshot/YYYY-MM-DD.json   15:35 스냅샷 사본
 """
 from __future__ import annotations
@@ -45,6 +46,7 @@ WINDOW = 6                     # fchart 분봉이 주는 거래일 수
 FCHART_URL = "https://fchart.stock.naver.com/sise.nhn"
 NEWS_URL = "https://m.stock.naver.com/api/news/stock/{code}"
 NEWS_MAX_PAGES = 40            # 투탑은 기사가 많아 15쪽(300건)으로는 전일 15:30까지 못 내려갔다(2026-09-27 시험). 300쪽은 거절
+FRESH_DAYS = 5                 # 기사 수를 셀 거래일 수(재료가 며칠째인지). 투탑은 40쪽 안에 다 못 내려가면 부분값
 TWO_TOP = ("005930", "000660")
 SNAP_DIR = Path("data") / "sim_snapshot"
 KRX_CLOSE_DIR = Path("data") / "krx_close"
@@ -119,8 +121,9 @@ def fetch_minute(code: str) -> pd.DataFrame:
     return pd.DataFrame(rows, columns=["시각", "가격", "누적거래량"])
 
 
-def fetch_news(code: str, since: str) -> list[dict]:
-    """since(YYYYMMDDHHMM) 이후 기사. 1쪽(최신)부터 넘기다 since보다 오래된 기사가 나오면 멈춘다."""
+def fetch_news(code: str, since: str) -> tuple[list[dict], bool]:
+    """since(YYYYMMDDHHMM) 이후 기사와 "since까지 다 내려갔는가". 1쪽(최신)부터 넘기다
+    since보다 오래된 기사가 나오면 멈춘다. 쪽 상한·오류로 멈추면 False(부분값)."""
     out: list[dict] = []
     seen: set[tuple[str, str]] = set()
     for page in range(1, NEWS_MAX_PAGES + 1):
@@ -128,10 +131,10 @@ def fetch_news(code: str, since: str) -> list[dict]:
             groups = get_json(NEWS_URL.format(code=code), {"pageSize": 20, "page": page})
         except Exception as e:
             logger.warning(f"[{code}] 뉴스 {page}쪽 실패: {e}")
-            break
+            return out, False
         items = [it for g in (groups or []) for it in (g.get("items") or [])]
         if not items:
-            break
+            return out, True           # 끝까지 다 봤다(기사가 적은 종목)
         for it in items:
             dt = str(it.get("datetime") or "")
             title = str(it.get("titleFull") or it.get("title") or "").strip()
@@ -139,9 +142,9 @@ def fetch_news(code: str, since: str) -> list[dict]:
                 seen.add((dt, title))
                 out.append({"code": code, "time": dt, "office": it.get("officeName"), "title": title})
         if min(str(it.get("datetime") or "") for it in items) < since:
-            break
+            return out, True
         time.sleep(0.2)
-    return out
+    return out, False
 
 
 def run(now: datetime | None = None, start: date = START) -> list[date]:
@@ -154,16 +157,20 @@ def run(now: datetime | None = None, start: date = START) -> list[date]:
         return []
     plan = {d: codes_for(d) for d in days}
     codes = sorted({c for why in plan.values() for c in why})
-    since = min(_prev_trading_day(d) for d in days).strftime("%Y%m%d") + "1530"
+    first = min(days)
+    for _ in range(FRESH_DAYS):
+        first = _prev_trading_day(first)
+    since = first.strftime("%Y%m%d") + "1530"
     logger.info(f"대상 {', '.join(map(str, days))} · 종목 {len(codes)} · 기사 {since} 이후")
     minute: dict[str, pd.DataFrame] = {}
     news: dict[str, list[dict]] = {}
+    complete: dict[str, bool] = {}
     for code in codes:
         try:
             minute[code] = fetch_minute(code)
         except Exception as e:
             logger.warning(f"[{code}] 분봉 실패: {e}")
-        news[code] = fetch_news(code, since)
+        news[code], complete[code] = fetch_news(code, since)
         time.sleep(0.2)
     for sub in ("minute", "news", "snapshot"):
         (out / sub).mkdir(parents=True, exist_ok=True)
@@ -183,8 +190,17 @@ def run(now: datetime | None = None, start: date = START) -> list[date]:
             logger.warning(f"{d} 분봉 없음 — 6거래일 창 밖이거나 수집 실패")
         lo, hi = _prev_trading_day(d).strftime("%Y%m%d") + "1530", d8 + "2010"
         items = [n for code in why for n in news.get(code, []) if lo <= n["time"] <= hi]
+        # 최근 5거래일 기사 수 — 각 날의 창은 [직전 거래일 15:30, 그날 15:30). 마지막 값이 판단 시각 전 그날 몫
+        wins, x = [], d
+        for _ in range(FRESH_DAYS):
+            wins.append((_prev_trading_day(x).strftime("%Y%m%d") + "1530", x.strftime("%Y%m%d") + "1530"))
+            x = _prev_trading_day(x)
+        wins.reverse()
+        counts = {code: [sum(a <= n["time"] < b for n in news.get(code, [])) for a, b in wins] for code in why}
         (out / "news" / f"{d}.json").write_text(json.dumps(
-            {"date": d.isoformat(), "from": lo, "to": hi, "stocks": why, "items": items},
+            {"date": d.isoformat(), "from": lo, "to": hi, "stocks": why, "items": items,
+             "counts5": counts, "counts5_days": [b[:8] for _, b in wins],
+             "counts5_partial": sorted(c for c in why if not complete.get(c, False))},
             ensure_ascii=False), encoding="utf-8")
         snap = SNAP_DIR / f"{d}.json"
         if snap.exists():
