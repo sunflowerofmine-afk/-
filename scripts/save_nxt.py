@@ -43,6 +43,12 @@ def run() -> None:
         date_str = f"{prev[:4]}-{prev[4:6]}-{prev[6:]}" if prev else now.strftime("%Y-%m-%d")
     else:
         date_str = now.strftime("%Y-%m-%d")
+    # 휴장일 저녁(schedule은 월-금)엔 직전 거래일 값이 그 날짜로 한 번 더 저장됐다(07-17=07-16, 08-17=08-14 중복,
+    # 09-18 정정 때 삭제). 파일 날짜가 거래일이 아니면 저장하지 않는다.
+    from scripts.market_calendar import is_trading_day
+    if not is_trading_day(datetime.strptime(date_str, "%Y-%m-%d").date()):
+        logger.info(f"{date_str}는 비거래일 — 저장 생략")
+        return
     path = _OUT_DIR / f"{date_str}_nxt.csv"
     df.to_csv(path, encoding="utf-8-sig")
 
