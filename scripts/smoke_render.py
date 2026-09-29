@@ -289,6 +289,48 @@ def _check_morning(verbose: bool) -> list[str]:
     return fails
 
 
+def _check_market_card(verbose: bool) -> list[str]:
+    """시황 카드 — 네 슬롯 × (값 있음 / 전부 빈 값). 카드가 None이면 알림이 텍스트로 떨어진다."""
+    fails = []
+    try:
+        import tempfile
+        from datetime import date, datetime
+        from pathlib import Path
+        from scripts.market_card import build
+        out = Path(tempfile.mkdtemp())
+        rows = [{"code": c, "name": n, "chg": ch, "krx_eok": k, "nxt_eok": nx, "total_eok": k + nx}
+                for c, n, ch, k, nx in (("000660", "SK하이닉스", -0.17, 49985.8, 14812.2),
+                                        ("005930", "삼성전자", 0.93, 40600.0, 20422.0),
+                                        ("009150", "삼성전기", 1.93, 7975.8, 3500.0))]
+        eve = [dict(r, price=100000.0, nxt_eve_eok=r["nxt_eok"] * 0.2, krx_am_eok=r["krx_eok"] * 0.03,
+                    total_eok=r["nxt_eok"] * 0.2 + r["krx_eok"] * 0.03) for r in rows]
+        full = {"index": {"kospi_level": 6870.81, "kospi_chg": -0.27, "kosdaq_level": 849.8, "kosdaq_chg": 0.38},
+                "kospi_idx_tv_eok": 179931.0, "kosdaq_idx_tv_eok": 74498.0,
+                "cmp_idx": {"kospi_vs_prev": -17.5, "kospi_vs_avg20": -15.5, "kosdaq_vs_prev": 25.6,
+                            "kosdaq_vs_avg20": 12.6, "progress_kospi": 78, "progress_kosdaq": 81},
+                "adl_pct": 31.8, "limit_up": 1, "top5_pct": 37.0,
+                "limit_up_top": [{"name": "글로벌테크놀로지", "tv_eok": 10254.6}],
+                "flow": {"KOSPI": {"date": "20260929", "foreign": -29030.0, "inst": 1211.0},
+                         "KOSDAQ": {"date": "20260929", "foreign": -1291.0, "inst": 52.0}},
+                "macro": {"usdkrw": 1357.3, "usdkrw_chg": -2.7}, "day_top": rows, "day_rows": rows,
+                "nxt_eve_total_eok": 9120, "evening_merged": True, "krx_am_total_eok": 2310,
+                "krx_price": {r["code"]: 99000.0 for r in rows}, "nxt_top": eve,
+                "next_day": date(2026, 9, 30), "nights": 1}
+        for slot, hm in (("1420", (14, 21)), ("1535", (15, 36)), ("1750", (17, 51)), ("1930", (19, 31))):
+            for tag, extra in (("값 있음", full), ("빈 값", {})):
+                d = dict(extra, now=datetime(2026, 9, 29, *hm), slot=slot)
+                p = build(d, out / f"{slot}_{len(extra)}")
+                if not p or not p.exists():
+                    fails.append(f"[카드] {slot} {tag}: 렌더 실패")
+                elif verbose:
+                    print(f"카드 {slot} {tag}: {p}")
+    except Exception as e:
+        fails.append(f"[카드] {e}")
+        if verbose:
+            traceback.print_exc()
+    return fails
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="알림·대시보드 출력 스모크")
     ap.add_argument("-v", "--verbose", action="store_true", help="렌더 결과도 출력")
@@ -301,7 +343,8 @@ def main() -> int:
     fails = (_check_market_summary(args.verbose)
              + _check_dashboard_sections(args.verbose)
              + _check_definitions()
-             + _check_morning(args.verbose))
+             + _check_morning(args.verbose)
+             + _check_market_card(args.verbose))
 
     if fails:
         print(f"\n스모크 실패 {len(fails)}건")

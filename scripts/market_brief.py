@@ -529,9 +529,15 @@ def build_map(d: dict) -> Path | None:
 
 
 def send(d: dict) -> bool:
+    # 2026-09-30부터 텍스트 대신 카드 이미지(사용자: "문자는 가독성이 너무 떨어져"). 카드가 안 그려지거나
+    # 사진 전송이 실패하면 예전 텍스트로 보낸다 — 알림이 비는 것보다 낫다.
+    from scripts.market_card import build as build_card
     text = build_text(d)
-    ok = ntf.send_message(text)
-    logger.info(f"시황 알림 발송 {'성공' if ok else '실패'} ({d.get('slot')})")
+    card = build_card(d, REPORTS_DIR / "market_card")
+    ok = as_card = bool(card) and ntf.send_photo(card)
+    if not ok:
+        ok = ntf.send_message(text)
+    logger.info(f"시황 알림 발송 {'성공' if ok else '실패'} ({d.get('slot')}, {'카드' if as_card else '텍스트'})")
     if d["now"].strftime("%H%M") >= "1600":
         logger.info("저녁 슬롯 — 테마 맵 생략(15:35과 같은 그림)")
         return ok

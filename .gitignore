@@ -46,4 +46,5 @@ data/backtest_cache/
 
 # 테마 맵 이미지 — 텔레그램으로 보내고 끝. 레포에 쌓지 않는다
 reports/theme_map/
+reports/market_card/
 reports/theme_map_test.png
