@@ -6,6 +6,7 @@
     판 대형주 / 이유 대장·NXT·수급 / 깨는가 1768000 / 비중 900만
 첫 단어가 매수·매도·무포가 아니면 메모로 저장한다(버리지 않는다). 단 `종목 가격 [수량]` 꼴은 매수로 적는다(09-21).
     후보 SK하이닉스 삼성전기 두산        ← 15시대에 고른 후보(있을 때만, 사용자가 직접). 사후 판단지 대조용
+    판 대형주 / 투탑이 대금 흡수 / 비중 1000   ← 14:30 판 판정, 종목 보기 전(2026-09-30). 일지 "내 사전 판단" 대신
 
 저장: `{TRADES_DIR}/YYYY-MM-DD.jsonl` — 메시지 시각(KST) 기준 날짜. **비공개 백업 레포에만** 둔다.
 공개 봇 레포에는 사용자 매매 기록을 두지 않는다. 워크플로가 백업 레포를 clone한 뒤
@@ -20,9 +21,11 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 KST = timezone(timedelta(hours=9))
-SIDES = ("매수", "매도", "무포", "후보")
+SIDES = ("매수", "매도", "무포", "후보", "판")
 _CAND = re.compile(r"^\s*후보\s*[:：]?\s*(?P<names>.*)$")
 _CAND_SEP = re.compile(r"[\s,、·/]+")
+# "판단 보류" 같은 메모는 안 잡히게 — 판 뒤에 대형주·개별주·무포가 바로 와야 한다
+_PAN = re.compile(r"^\s*판\s*[:：]?\s*(대형주|개별주|무포)")
 
 # 수량은 "6주" · "수량 6" · 가격 뒤 맨 숫자 "6" 전부 받는다 (09-17 첫 입력 "하이닉스 1758000 수량 6"이 안 잡혔던 형태).
 _FIRST = re.compile(
@@ -91,6 +94,20 @@ def parse(text: str) -> dict:
             if mm:
                 val = mm.group(1).strip()
                 out[key] = _num(val) if key in ("깨는가", "비중") else val
+        return out
+    if _PAN.match(first):
+        # 판 줄 — 14:30 판단 기록. 종목명이 없으니 보유 종목 계산엔 안 들어간다. 첫 필드 뒤 자유 문장은 이유로.
+        out["side"] = "판"
+        for key, rx in _FIELDS.items():
+            mm = rx.search(text)
+            if mm:
+                val = mm.group(1).strip()
+                out[key] = _num(val) if key in ("깨는가", "비중") else val
+        if "이유" not in out:
+            parts = [x.strip() for x in first[_PAN.match(first).end():].split("/")]
+            free = [x for x in parts if x and not re.match(r"(비중|깨는가)\s", x)]
+            if free:
+                out["이유"] = " / ".join(free)
         return out
     m = _FIRST.match(first)
     mb = None if (m and m.group("side")) else _BARE.match(first)
@@ -188,6 +205,9 @@ def format_ack(row: dict) -> str:
         return f"{t} {side} {row.get('name') or '?'}{px}{q}{tail}"
     if row.get("side") == "무포":
         return f"{t} 무포 기록"
+    if row.get("side") == "판":
+        w = f" · 비중 {row['비중']:,.0f}만" if row.get("비중") else ""
+        return f"{t} 판 기록: {row.get('판')}{w}"
     if row.get("side") == "후보":
         names = row.get("names") or []
         return f"{t} 후보 기록: {' · '.join(names)}" if names else f"{t} 후보 기록 (종목명 없음)"
@@ -202,6 +222,6 @@ def looks_like_trade(text: str) -> bool:
     if not first:
         return False
     m = _FIRST.match(first)
-    if m and m.group("side"):
+    if (m and m.group("side")) or _PAN.match(first):
         return False
     return bool(_PRICE_LIKE.search(first))
