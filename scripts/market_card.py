@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 TWIN = (("005930", "삼성전자"), ("000660", "SK하이닉스"))
 _WD = ["월", "화", "수", "목", "금", "토", "일"]
 
+KOSPI_C, KOSDAQ_C = "#4f8a96", "#d9a441"   # 시장 거래대금 두 계열 — 상승·하락 색과 겹치지 않게
 UP, DOWN, FLAT = "#d6293e", "#1f5fd1", "#555555"
 INK, SUB, LINE, PANEL = "#111111", "#666666", "#dddddd", "#f4f5f7"
 K_BAR, N_BAR = "#2b2f36", "#b8bec9"
@@ -252,15 +253,34 @@ def _day(d: dict, out: Path, label: str) -> Path:
     c.text(3, y, title, size=11, bold=True)
     basis = d.get("mkt_hist_basis") or ("같은 시각 비교" if d.get("slot") == "1420" else "")
     c.text(97, y, str(basis), size=9, color=SUB, ha="right")
+    # 코스피·코스닥을 한 그래프에 — 날마다 두 막대 나란히, 같은 축척(2026-09-30 사용자 요청)
     history = d.get("mkt_hist") or {}
-    for j, (nm, k, tv) in enumerate((("코스피", "kospi", kt), ("코스닥", "kosdaq", dt))):
-        x = 3 + j * 48
-        h = history.get(k) or []
-        vmax = max((r.get("tv") or 0 for r in h[-5:]), default=0) or 1
-        c.text(x + 2, y + 5, f"{nm}  {_tv(tv)}", size=11.5, bold=True)
-        _history(c, x + 2, y + 7, h, vmax)
-        c.text(x + 2, y + 34, f"전일 대비 {_pct(ci.get(f'{k}_vs_prev'), 0)}", size=9, color=SUB)
-        c.text(x + 2, y + 38, f"20일 평균 대비 {_pct(ci.get(f'{k}_vs_avg20'), 0)}", size=9, color=SUB)
+    series = (("코스피", "kospi", kt, KOSPI_C), ("코스닥", "kosdaq", dt, KOSDAQ_C))
+    for j, (nm, k, tv, col) in enumerate(series):
+        yy = y + 5.5 + j * 4.2
+        c.rect(3, yy - 1.1, 2.2, 2.2, col)
+        c.text(6.5, yy, f"{nm} {_tv(tv)}", size=11, bold=True)
+        c.text(30, yy, f"전일 대비 {_pct(ci.get(f'{k}_vs_prev'), 0)} · 20일 평균 대비 {_pct(ci.get(f'{k}_vs_avg20'), 0)}",
+               size=9.5, color=SUB)
+    seqs = [list(history.get(k) or [])[-5:] for _, k, _, _ in series]
+    n = max((len(q) for q in seqs), default=0)
+    vmax = max((r.get("tv") or 0 for q in seqs for r in q), default=0) or 1
+    base, height, group, bw = y + 34, 17, 18, 5.6
+    c.hline(base, 4, 96)
+    for i in range(n):
+        gx = 5 + i * group + (group - 2 * bw - 1) / 2
+        label = None
+        for j, (_, _, _, col) in enumerate(series):
+            q = seqs[j]
+            r = q[i - (n - len(q))] if i >= n - len(q) else {}
+            label = label or r.get("label")
+            v = r.get("tv")
+            bx = gx + j * (bw + 1)
+            if v:
+                h = height * v / vmax
+                c.rect(bx, base - h, bw, h, col, alpha=0.5 if r.get("partial") else 1.0)
+            c.text(bx + bw / 2, base - (height * (v or 0) / vmax) - 1.6, _tv(v), size=8.5, ha="center", color=SUB)
+        c.text(5 + i * group + group / 2 - 0.5, base + 2.4, label or "-", size=8.5, ha="center", color=SUB)
     _donut(c, 26, y + 53, "오른 종목 비율", d.get("adl_pct"))
     _donut(c, 74, y + 53, "상위 5 집중", d.get("top5_pct"), marks=(40, 50))
     c.text(74, y + 72, "40 미만 분산 · 50 이상 극단", size=9, ha="center", color=SUB)
