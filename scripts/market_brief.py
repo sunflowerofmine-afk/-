@@ -211,6 +211,7 @@ def collect(now: datetime, run_type: str, raw_data: dict[str, pd.DataFrame] | No
         else:
             d["krx_price"], d["krx_basis"] = live, "KRX 애프터마켓 반영가"   # 15:35 파일이 없을 때만
         d["krx_live_price"] = live
+        d["krx_live_tv_eok"] = {k: v / 1e8 for k, v in live_tv.items()}   # 시황 카드 저녁 막대(KRX 하루치)
 
     # NXT 전체 (거래대금 상위 10 + 총액). 실패하면 빈 값.
     nxt_rows: list[dict] = []
@@ -533,6 +534,8 @@ def send(d: dict) -> bool:
     # 사진 전송이 실패하면 예전 텍스트로 보낸다 — 알림이 비는 것보다 낫다.
     from scripts.market_card import build as build_card
     text = build_text(d)
+    from scripts.card_history import attach
+    attach(d)
     card = build_card(d, REPORTS_DIR / "market_card")
     ok = as_card = bool(card) and ntf.send_photo(card)
     if not ok:
