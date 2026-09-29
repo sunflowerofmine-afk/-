@@ -391,6 +391,16 @@ def collect(now: datetime, run_type: str, raw_data: dict[str, pd.DataFrame] | No
     return d
 
 
+def nights_note(d: dict) -> str:
+    """밤이 2 이상일 때만 "보유 밤 3 (주말)" — 평일(밤 1)은 늘 같아서 표시하지 않는다(2026-09-30 사용자 결정)."""
+    n, nd = d.get("nights"), d.get("next_day")
+    if not n or n < 2 or not nd:
+        return ""
+    gap = [nd - timedelta(days=i) for i in range(1, n)]          # 사이에 낀 날들
+    kind = "주말" if all(g.weekday() >= 5 for g in gap) else "연휴"
+    return f"보유 밤 {n} ({kind})"
+
+
 def _macro_line(d: dict) -> str:
     fu = d.get("futures") or {}; mc = d.get("macro") or {}
     parts = []
@@ -517,7 +527,8 @@ def build_text(d: dict) -> str:
     nd = d.get("next_day")
     if nd:
         L.append("")
-        L.append(f"다음 거래일 {nd.month:02d}/{nd.day:02d} ({_WD[nd.weekday()]}) · 밤 {d.get('nights')}")
+        nn = nights_note(d)
+        L.append(f"다음 거래일 {nd.month:02d}/{nd.day:02d} ({_WD[nd.weekday()]})" + (f" · <b>{nn}</b>" if nn else ""))
     return chr(10).join(L)
 
 

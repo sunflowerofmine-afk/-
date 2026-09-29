@@ -107,15 +107,18 @@ def _header(c: _Canvas, d: dict, label: str) -> None:
 
 
 def _footer(c: _Canvas, d: dict, y: float) -> None:
-    from scripts.market_brief import _macro_line
+    from scripts.market_brief import _macro_line, nights_note
     c.hline(y - 2.5)
     ml = _macro_line(d)
     if ml:
         c.text(3, y, ml, size=9.5, color=SUB)
     nd = d.get("next_day")
     if nd:
-        c.text(3, y + 4, f"다음 거래일 {nd.month:02d}/{nd.day:02d} ({_WD[nd.weekday()]}) · 밤 {d.get('nights')}",
+        c.text(3, y + 4, f"다음 거래일 {nd.month:02d}/{nd.day:02d} ({_WD[nd.weekday()]})",
                size=10.5, color=INK, bold=True)
+        nn = nights_note(d)
+        if nn:
+            c.text(27, y + 4, nn, size=12, color="#d97706", bold=True)
 
 
 def _history(c: _Canvas, x, y, rows, vmax, stacked=False):
