@@ -200,10 +200,10 @@
   {
     "week_start": "2026-09-25",
     "n": 10,
-    "d1_win_rate": 25.0,
-    "d1_avg": -1.11,
+    "d1_win_rate": 50.0,
+    "d1_avg": -0.04,
     "buy_review_n": 4,
-    "buy_review_win_rate": 50.0,
-    "buy_review_avg": -0.37
+    "buy_review_win_rate": 75.0,
+    "buy_review_avg": 0.52
   }
 ]
