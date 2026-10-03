@@ -183,9 +183,9 @@ TWOTOP_OVERSOLD_2D_PCT                  = -12.0  # 2일 누적 등락률 이 값
 TRADE_ANALYZER_BASE_CAPITAL             = 0      # 포지션 비중 산정 기준 자본 (0=해당 기간 총 매수대금)
 
 # ── 일반 눌림 관찰 (Pullback Observer) — 기존 종가베팅 체계와 완전 분리 ───
-# 평일 파이프라인에선 OFF (수집 비용 큼·소급 가능). 금요일 weekly_research에서
-# 그 주 5일치를 소급 생성. weekly_research는 pullback_observer.run을 직접 호출하므로
-# 이 플래그와 무관하게 동작.
+# 평일 파이프라인에선 OFF (수집 비용 큼·소급 가능). 금요일 자동 실행(weekly_research.yml)은
+# 2026-10-03 사용자 결정으로 삭제 — 필요하면 `python -m scripts.weekly_research`로 수동 소급.
+# weekly_research는 pullback_observer.run을 직접 호출하므로 이 플래그와 무관하게 동작.
 ENABLE_PULLBACK_OBS                 = False
 PULLBACK_OBS_DIR                    = DATA_DIR / "pullback_observation"
 PULLBACK_OBS_SIGNALS_LOOKBACK_DAYS  = 20     # signals.csv 탐색 범위 (거래일)
