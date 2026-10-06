@@ -1,0 +1,2 @@
+﻿종목명,종목코드,시장,등락률,거래대금,signal_price,sector,source_pool,observation_only,pattern_type_label,is_htc_candidate,is_high_range_candidate,base_candle_date,base_candle_offset,today_tv_ratio,close_from_base_high_pct,supply_label,note
+한화솔루션,009830,KOSPI,2.49,144904000000.0,37000.0,에너지장비및서비스,recent_base_pool,True,없음,False,False,2026-09-28,5,0.4349926887545054,9.62962962962963,,최근 기준봉 이후 관찰 후보 (매수 신호 아님)
