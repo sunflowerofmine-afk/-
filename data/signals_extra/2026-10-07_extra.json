@@ -1,0 +1,20 @@
+{
+  "date": "2026-10-07",
+  "generated": "2026-10-09",
+  "stocks": {
+    "012210": {
+      "name": "삼미금속",
+      "signal_price": 13720,
+      "is_nxt": false,
+      "nxt_dominant": false,
+      "change_pct": 10.71,
+      "sector": "기계",
+      "total_score": 7,
+      "52w_high": 20850,
+      "52w_low": 0,
+      "pct_from_52w_high": -34.2,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 151
+    }
+  }
+}
