@@ -1,0 +1,20 @@
+{
+  "date": "2026-10-12",
+  "generated": "2026-10-13",
+  "stocks": {
+    "002990": {
+      "name": "금호건설",
+      "signal_price": 13400,
+      "is_nxt": false,
+      "nxt_dominant": false,
+      "change_pct": 21.54,
+      "sector": "건설",
+      "total_score": 7,
+      "52w_high": 19380,
+      "52w_low": 0,
+      "pct_from_52w_high": -30.86,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 60
+    }
+  }
+}
