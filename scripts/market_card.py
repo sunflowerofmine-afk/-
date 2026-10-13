@@ -225,15 +225,16 @@ def _day(d: dict, out: Path, label: str) -> Path:
             c.text(x + 2.5, 27, "자료 없음", size=12, color=SUB)
             continue
         c.text(x + 2.5, 26.3, _pct(r.get("chg")), size=24, color=_tone(r.get("chg")), bold=True)
-        c.text(x + 43.5, 20.2, f"거래대금 {rank.get(code)}위", size=11, ha="right",
+        c.text(x + 43.5, 20.2, f"시장 거래대금 {rank.get(code)}위", size=11, ha="right",
                color=UP if rank.get(code, 99) <= 2 else INK, bold=True)
-        c.text(x + 2.5, 31.5, f"{_tv(r.get('total_eok'))} = K {_tv(r.get('krx_eok'))} + N {_tv(r.get('nxt_eok'))}",
+        c.text(x + 2.5, 31.5, f"오늘 {_tv(r.get('total_eok'))} = KRX {_tv(r.get('krx_eok'))} + NXT {_tv(r.get('nxt_eok'))}",
                size=9.5, color=SUB)
     kt, dt = d.get("kospi_idx_tv_eok"), d.get("kosdaq_idx_tv_eok")
     twin_k = sum((by_code.get(cd) or {}).get("krx_eok") or 0 for cd, _ in TWIN)
     if kt and dt and twin_k:
         c.text(3, 65, f"투탑 거래대금 = 시장 전체(주식·KRX)의 {twin_k / (kt + dt) * 100:.0f}%",
                size=11.5, bold=True)
+    c.text(97, 65, "막대 = 최근 5거래일 거래대금 · 검정 KRX · 회색 NXT", size=9, color=SUB, ha="right")
 
     # ② 국면
     c.section(72, "② 국면")
@@ -283,13 +284,15 @@ def _day(d: dict, out: Path, label: str) -> Path:
         c.text(5 + i * group + group / 2 - 0.5, base + 2.4, label or "-", size=8.5, ha="center", color=SUB)
     _donut(c, 26, y + 53, "오른 종목 비율", d.get("adl_pct"))
     _donut(c, 74, y + 53, "상위 5 집중", d.get("top5_pct"), marks=(40, 50))
-    c.text(74, y + 72, "40 미만 분산 · 50 이상 극단", size=9, ha="center", color=SUB)
-    y += 78
+    c.text(26, y + 71.5, "전 종목 중 오른 종목 (보합 제외)", size=9, ha="center", color=SUB)
+    c.text(74, y + 71.5, "전체 거래대금 중 상위 5종목 몫", size=9, ha="center", color=SUB)
+    c.text(74, y + 75, "40 미만 분산 · 50 이상 극단", size=9, ha="center", color=SUB)
+    y += 80
     fl = d.get("flow") or {}
     kf, qf = fl.get("KOSPI") or {}, fl.get("KOSDAQ") or {}
     if kf.get("foreign") is not None:
         tag = "잠정" if str(kf.get("date")) == (d.get("now") or datetime.now()).strftime("%Y%m%d") else "전일 확정"
-        c.text(3, y, f"수급({tag})", size=10, color=SUB)
+        c.text(3, y, f"순매수({tag})", size=10, color=SUB)
         for i, (mk, f) in enumerate((("코스피", kf), ("코스닥", qf))):
             yy = y + i * 4
             c.text(19, yy, mk, size=10.5, bold=True)
@@ -301,12 +304,12 @@ def _day(d: dict, out: Path, label: str) -> Path:
 
     # ③ 돈이 몰린 곳
     c.section(y, "③ 돈이 몰린 곳 · 거래대금 상위 10")
-    c.text(3, y + 4, "회색 = NXT · 검정 = KRX", size=9, color=SUB)
+    c.text(3, y + 4, "막대 = 오늘 거래대금(회색 NXT · 검정 KRX) · 등락 = 전일 종가 대비", size=9, color=SUB)
     y = _top_bars(c, y + 9, d.get("day_top") or [], "total_eok", "krx_eok", "nxt_eok",
                   lambda r: (_pct(r.get("chg")), _tone(r.get("chg"))), twin_codes={cd for cd, _ in TWIN})
     y += 2.5
     lu = d.get("limit_up")
-    c.text(3, y, f"상한가 {lu if lu is not None else '-'}", size=12, color=UP, bold=True)
+    c.text(3, y, f"상한가 {lu if lu is not None else '-'}종목", size=12, color=UP, bold=True)
     tops = d.get("limit_up_top") or []
     line, lines = "", []
     for t in (f"{x.get('name', '')} {_tv(x.get('tv_eok'))}" for x in tops):
@@ -329,13 +332,13 @@ def _evening(d: dict, out: Path, label: str) -> Path:
 
     def since(cur, key):
         base = prev.get(key)
-        return f"17:50 대비 {cur - base:+,.0f}억" if (prev and cur is not None and base is not None) else ""
+        return f"17:50 이후 {cur - base:+,.0f}억" if (prev and cur is not None and base is not None) else ""
 
     c.section(13, "저녁장 거래대금")
     eve = d.get("nxt_eve_total_eok")
     tiles = []
     if eve is not None:
-        tiles.append(("NXT 15:30 이후", eve, f"전일 같은 시각 대비 {_pct(d.get('nxt_eve_vs_prev'), 0)}",
+        tiles.append(("NXT 15:30 이후", eve, (f"전일 같은 시각 대비 {_pct(d.get('nxt_eve_vs_prev'), 0)}" if d.get("nxt_eve_vs_prev") is not None else "전일 같은 시각 비교 없음"),
                       since(eve, "nxt_eve_total_eok")))
     else:
         tiles.append(("NXT 하루 누적", d.get("nxt_total_eok"), "", since(d.get("nxt_total_eok"), "nxt_total_eok")))
@@ -349,7 +352,7 @@ def _evening(d: dict, out: Path, label: str) -> Path:
         c.text(x + 2.5, 25.2, _tv(v), size=20, bold=True)
         c.text(x + 2.5, 29.8, "  ".join(t for t in (s1, s2) if t), size=9, color=SUB)
 
-    basis = d.get("krx_basis") or "KRX 가격"
+    basis = d.get("krx_basis") or "정규장 종가"
     c.section(39, "저녁장 거래대금 상위 10")
     c.text(97, 39, f"등락 = {basis} 대비", size=9, color=SUB, ha="right")
     prev_rows = prev.get("rows") or {}
@@ -362,14 +365,14 @@ def _evening(d: dict, out: Path, label: str) -> Path:
             return ("기준가 없음", SUB)
         v = (px / kp - 1) * 100
         pv = (prev_rows.get(r.get("code")) or {}).get("price")
-        extra = f"  ({(px / pv - 1) * 100:+.1f})" if pv else ""
+        extra = f"  ({(px / pv - 1) * 100:+.1f}%)" if pv else ""
         return (f"{v:+.2f}%{extra}", _tone(v))
 
     y = _top_bars(c, 45, rows, "total_eok", "krx_day_eok", "nxt_day_eok", right,
                   twin_codes={cd for cd, _ in TWIN}, evening=True)
     c.text(3, y + 1.5, "회색 = NXT(낮·저녁) · 검정 = KRX · 순위 = 저녁장 합산", size=9, color=SUB)
     if prev_rows:
-        c.text(3, y + 5, "괄호 = 17:50 대비", size=9, color=SUB)
+        c.text(3, y + 5, "괄호 = 17:50 알림 이후 가격 변화율 (예: -1.5% = 17:50보다 1.5% 내림)", size=9, color=SUB)
         y += 4
     _footer(c, d, y + 8)
     return c.save(out, y + 14)

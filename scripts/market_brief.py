@@ -407,11 +407,11 @@ def _macro_line(d: dict) -> str:
     for name in ("나스닥선물", "S&P선물", "VIX"):
         v = fu.get(name)
         if v and v.get("chg_pct") is not None:
-            parts.append(f"{name} {v['value']:,.1f} ({v['chg_pct']:+.2f}%)" if name == "VIX" else f"{name} {v['chg_pct']:+.2f}%")
+            parts.append(f"{name} {v['value']:,.1f}(전일 {v['chg_pct']:+.2f}%)" if name == "VIX" else f"{name} {v['chg_pct']:+.2f}%")
     if mc.get("wti") is not None:
-        parts.append(f"WTI {mc['wti']:.1f} ({mc.get('wti_chg', 0):+.2f})")
+        parts.append(f"WTI {mc['wti']:.1f}달러(전일 {mc.get('wti_chg', 0):+.2f})")
     if mc.get("usdkrw") is not None:
-        parts.append(f"환율 {mc['usdkrw']:,.1f} ({mc.get('usdkrw_chg', 0):+.1f})")
+        parts.append(f"환율 {mc['usdkrw']:,.1f}원(전일 {mc.get('usdkrw_chg', 0):+.1f})")
     return " · ".join(parts)
 
 

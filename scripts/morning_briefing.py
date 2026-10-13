@@ -46,7 +46,7 @@ def _us_section() -> str:
         parts = [f"<b>🌏 미국장</b>\n<pre>{_index_table(indices)}</pre>"]
         semi = _semi_moves()
         if semi:
-            parts.append("반도체 " + " · ".join(f"{k} {_sign(v)}" for k, v in semi.items()))
+            parts.append("반도체(미국 전일 등락) " + " · ".join(f"{k} {_sign(v)}" for k, v in semi.items()))
         return "\n".join(parts)
     except Exception as e:
         logger.warning(f"미국장 블록 생성 실패 (무시): {e}")
@@ -120,13 +120,13 @@ def _positions_section(pre_open: bool) -> str:
         lines.append(head)
         if p.get("깨는가") and entry:
             k = p["깨는가"]
-            lines.append(f"  깨는가 {k:,.0f} ({(k / entry - 1) * 100:+.1f}%)")
+            lines.append(f"  깨는가 {k:,.0f} (매수가 대비 {(k / entry - 1) * 100:+.1f}%)")
         if p.get("이유"):
             lines.append(f"  이유 {p['이유']}")
         if not pre_open and entry and codes.get(name):
             px, sess = _nxt_now(codes[name])
             if px:
-                lines.append(f"  NXT {sess} {px:,.0f} ({(px / entry - 1) * 100:+.2f}%)")
+                lines.append(f"  NXT {sess} 현재가 {px:,.0f} (매수가 대비 {(px / entry - 1) * 100:+.2f}%)")
             else:
                 lines.append("  NXT 가격 없음(미대상 또는 미체결)")
         lines.append(f"  입력 {p.get('time', '')[5:16]}")
