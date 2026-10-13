@@ -2,7 +2,7 @@
 """아침 브리핑 — 07:40 KST 발송.
 
 2026-09-11부터 **봇 후보가 아니라 사용자가 텔레그램에 남긴 보유 종목**을 다룬다.
-  1. 미국장 지수 + 반도체(SOX·마이크론·샌디스크·하이닉스 프랑크푸르트) — 투톱 갭의 선행 지표
+  1. 미국장 지수 + 반도체(SOX·마이크론·샌디스크·SK하이닉스 ADR(SKHY)) — 투톱 갭의 선행 지표
   2. 보유 종목(매수 입력 중 매도 입력이 없는 것): 매수가 · 사용자가 적은 깨는가 · 비중
   3. 08:00 이후 실행이면 NXT 프리장 가격과 매수가 대비 %
 "어제 복기하기" 구글폼 링크는 삭제했다 — 복기는 매매 입력 + 판단지로 한다.
@@ -23,7 +23,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 logger = logging.getLogger(__name__)
 
 _DAY_KO = ["월", "화", "수", "목", "금", "토", "일"]
-_SEMI = {"마이크론": "MU", "샌디스크": "SNDK", "하이닉스(FRA)": "HY9H.F"}
+_SEMI = {"마이크론": "MU", "샌디스크": "SNDK", "SKHY(ADR)": "SKHY"}
 
 
 def _sign(v: float) -> str:
@@ -54,7 +54,7 @@ def _us_section() -> str:
 
 
 def _semi_moves() -> dict[str, float]:
-    """마이크론·샌디스크·하이닉스 프랑크푸르트 전일 등락. 룰북 역설계: 투톱 갭과 순위상관 +0.55에서 0.61."""
+    """마이크론·샌디스크·SK하이닉스 미국 ADR(SKHY) 전일 등락. 2026-10-13 프랑크푸르트(HY9H.F)에서 교체 — 고수들이 보는 지표가 SKHY. 룰북 역설계: 투톱 갭과 순위상관 +0.55에서 0.61."""
     out: dict[str, float] = {}
     try:
         import yfinance as yf

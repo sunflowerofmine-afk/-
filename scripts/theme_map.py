@@ -117,8 +117,11 @@ def render(themes: list[dict], out_path: Path, title: str) -> Path | None:
                 color="black" if abs(r["chg"]) < 6 else "white")
     ax.set_xlim(0, 100); ax.set_ylim(0, 100); ax.axis("off")
     ax.set_title(title, fontproperties=fp, fontsize=13, loc="left")
-    fig.text(0.99, 0.01, "크기 = 거래대금 · 색 = 등락률 · 오른 종목이 더 많은 테마 중 등락률 상위 20 (거래대금 300억↑)",
-             ha="right", va="bottom", fontsize=8, fontproperties=fp, color="#555")
+    # 범례는 지도 밖(아래)에 — 지도 위에 겹치면 박스 글자를 가린다. bbox_inches="tight"가 잘라내지 않고 포함한다
+    ax.text(100, -1.5, "크기 = 거래대금 · 색 = 등락률 · 오른 종목이 더 많은 테마 중 등락률 상위 20 (거래대금 300억↑)",
+            ha="right", va="top", fontsize=8, fontproperties=fp, color="#555", clip_on=False)
+    ax.text(100, -5, "2↑ 1↓ / 3 = 오른 종목 2 · 내린 종목 1 / 테마 전체 3종목 (나머지는 보합)",
+            ha="right", va="top", fontsize=8, fontproperties=fp, color="#555", clip_on=False)
     plt.tight_layout()
     out_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_path, bbox_inches="tight")
