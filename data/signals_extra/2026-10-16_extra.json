@@ -1,0 +1,20 @@
+{
+  "date": "2026-10-16",
+  "generated": "2026-10-17",
+  "stocks": {
+    "396300": {
+      "name": "HT로보틱스",
+      "signal_price": 9010,
+      "is_nxt": false,
+      "nxt_dominant": false,
+      "change_pct": 24.34,
+      "sector": "nan",
+      "total_score": 10,
+      "52w_high": 9180,
+      "52w_low": 2270,
+      "pct_from_52w_high": -1.85,
+      "is_near_52w_high": true,
+      "days_since_52w_high": 0
+    }
+  }
+}
