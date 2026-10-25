@@ -110,17 +110,22 @@ def fetch_group_list(group: str) -> list[dict]:
 
 def fetch_group_stocks(group: str, no: int | str) -> list[dict]:
     """업종/테마 구성 종목 전체 (200개 단위 페이지 순회)."""
+    # 2026-10-16 무렵 응답이 {"hasNext", "items", "cursor"}로 바뀌었다 — marketType=ALL은 400, 한 번에 10개, 다음 쪽은 cursor로
+    # (10-16부터 구성 종목 0건). 새 응답은 itemCode·itemName이라 기존 호출부가 읽는 itemcode·itemname을 같이 채운다.
     rows: list[dict] = []
-    for page in range(0, 20):
-        data = get_json(GROUP_STOCKS_URL.format(group=group, no=no), {
-            "marketType": "ALL", "orderType": "quantTop",
-            "startIdx": page, "pageSize": GROUP_PAGE_SIZE,
-        })
-        if not isinstance(data, list) or not data:
+    params: dict = {"pageSize": GROUP_PAGE_SIZE}
+    for _ in range(40):
+        data = get_json(GROUP_STOCKS_URL.format(group=group, no=no), params)
+        items = data.get("items") if isinstance(data, dict) else None
+        if not isinstance(items, list) or not items:
             break
-        rows.extend(data)
-        if len(data) < GROUP_PAGE_SIZE:
+        for it in items:
+            it.setdefault("itemcode", it.get("itemCode"))
+            it.setdefault("itemname", it.get("itemName"))
+        rows.extend(items)
+        if not data.get("hasNext") or not data.get("cursor"):
             break
+        params = {"pageSize": GROUP_PAGE_SIZE, "cursor": data["cursor"]}
     return rows
 
 
