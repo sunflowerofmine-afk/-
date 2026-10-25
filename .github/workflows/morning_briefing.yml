@@ -10,6 +10,9 @@ on:
 jobs:
   briefing:
     runs-on: ubuntu-latest
+    # 테마 구성 종목 파일(data/theme_members.json) 자동 커밋에 쓰기 권한 필요
+    permissions:
+      contents: write
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
@@ -63,3 +66,17 @@ jobs:
           TRADES_DIR: /tmp/trades_repo/data/trades
           TZ: Asia/Seoul
         run: python -m scripts.morning_briefing
+
+      - name: Save theme members (14:20 테마 히트맵용)
+        # 구성 종목은 그 자리에서 받으면 1분 넘게 걸려 14:20 알림이 늦는다(2026-10-25) — 아침에 하루 한 번 저장.
+        # 브리핑 발송 뒤에 돈다(브리핑을 늦추지 않게). 실패하면 14:20은 전날 파일을, 파일이 없으면 예전 테마 맵을 쓴다.
+        continue-on-error: true
+        if: always()
+        env:
+          TZ: Asia/Seoul
+        run: |
+          python -m scripts.theme_members
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/theme_members.json
+          git diff --cached --quiet && echo "테마 구성 변화 없음" ||             (git commit -m "chore: 테마 구성 종목 저장 [skip ci]" && for i in 1 2 3; do git pull --rebase -X theirs origin main && git push && break; sleep 5; done)

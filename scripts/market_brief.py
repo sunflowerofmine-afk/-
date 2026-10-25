@@ -112,6 +112,10 @@ def collect(now: datetime, run_type: str, raw_data: dict[str, pd.DataFrame] | No
     all_raw = pd.concat([x for x in (kospi_df, kosdaq_df) if not x.empty], ignore_index=True) \
         if (not kospi_df.empty or not kosdaq_df.empty) else pd.DataFrame()
     totals = calc_market_total(kospi_df, kosdaq_df)
+    # 테마 히트맵(14:20)용 종목 시세 — 종목코드 → 이름·등락률·KRX 거래대금(억)
+    d["quotes"] = {} if all_raw.empty else {
+        str(c): {"name": n, "chg": float(r), "tv": float(v) / 1e8}
+        for c, n, r, v in zip(all_raw["종목코드"], all_raw["종목명"], all_raw["등락률"], all_raw["거래대금"])}
     d["kospi_tv_eok"]  = totals.get("kospi_total_tv_eok") or None     # ETF·ETN 포함 (집중도 분모용)
     d["kosdaq_tv_eok"] = totals.get("kosdaq_total_tv_eok") or None
 
@@ -543,6 +547,14 @@ def build_map(d: dict) -> Path | None:
     return build(out, title)
 
 
+def build_heat(d: dict) -> Path | None:
+    from scripts.theme_map import build_heatmap
+    now: datetime = d["now"]
+    title = f"거래대금 중심 테마 히트맵 · {now.month:02d}/{now.day:02d} ({_WD[now.weekday()]}) {now.strftime('%H:%M')}"
+    out = REPORTS_DIR / "theme_map" / f"{now.strftime('%Y-%m-%d_%H%M')}_heat.png"
+    return build_heatmap(d.get("quotes") or {}, out, title, f"{now.strftime('%H:%M')} 현재")
+
+
 def send(d: dict) -> bool:
     # 2026-09-30부터 텍스트 대신 카드 이미지(사용자: "문자는 가독성이 너무 떨어져"). 카드가 안 그려지거나
     # 사진 전송이 실패하면 예전 텍스트로 보낸다 — 알림이 비는 것보다 낫다.
@@ -556,7 +568,7 @@ def send(d: dict) -> bool:
         try:
             from scripts.check_cards import build as build_checks
             cards = build_checks(d, REPORTS_DIR / "check_cards")
-            img = build_map(d)
+            img = build_heat(d) or build_map(d)
             album = cards + ([img] if img else [])
             if len(cards) == 7 and ntf.send_media_group(album):
                 logger.info(f"14:20 점검 카드 앨범 발송 성공 ({len(album)}장)")

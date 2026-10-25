@@ -373,6 +373,45 @@ def _check_check_cards(verbose: bool) -> list[str]:
     return fails
 
 
+def _check_theme_heatmap(verbose: bool) -> list[str]:
+    """14:20 테마 히트맵 — 고르기(투탑 분리·한 종목 한 테마)와 그리기. 네트워크 없이 가짜 테마·시세로."""
+    fails = []
+    try:
+        import tempfile
+        from pathlib import Path
+        from scripts import theme_map as tm
+        themes = [{"no": str(i), "name": f"테마{i}", "totalCnt": 5, "changeRate": 1.0, "totalAccAmount": 1e8 * (10 - i),
+                   "riseCnt": 3, "fallCnt": 2} for i in range(10)]
+        themes.append({"no": "99", "name": "코스피200 지수", "totalCnt": 5, "changeRate": 0, "totalAccAmount": 1e12})
+        quotes = {"005930": {"name": "삼성전자", "chg": -0.5, "tv": 30000.0},
+                  "000660": {"name": "SK하이닉스", "chg": 4.4, "tv": 40000.0}}
+        members = {"99": ["005930", "000660"]}
+        for i in range(10):
+            codes = [f"{i}{j:05d}" for j in range(8)] + ["005930", "100000"]   # 100000 = 여러 테마에 걸친 종목
+            members[str(i)] = codes
+            for j, c in enumerate(codes[:8]):
+                quotes[c] = {"name": f"종목{i}{j}", "chg": (j - 4) * 3.0, "tv": 100.0 * (8 - j)}
+        g = tm.select_heat_groups(themes, members, quotes)
+        names = [x["name"] for x in g]
+        if names[0] != "반도체 투탑" or "코스피200 지수" in names or len(g) != 1 + tm.HEAT_THEMES:
+            fails.append(f"[테마 히트맵] 고르기 이상: {names}")
+        codes = [s["code"] for x in g[1:] for s in x["stocks"]]
+        if len(codes) != len(set(codes)) or "005930" in codes:
+            fails.append("[테마 히트맵] 한 종목이 두 테마에 들어갔거나 투탑이 아래 지도에 들어감")
+        p = tm.render_heatmap(g, Path(tempfile.mkdtemp()) / "heat.png", "스모크", "스모크")
+        if not p or not p.exists():
+            fails.append("[테마 히트맵] 렌더 실패")
+        if tm.render_heatmap([], Path(tempfile.mkdtemp()) / "x.png", "스모크", "스모크") is not None:
+            fails.append("[테마 히트맵] 빈 입력에 그림을 만듦")
+        if verbose:
+            print(f"테마 히트맵: {p}")
+    except Exception as e:
+        fails.append(f"[테마 히트맵] {e}")
+        if verbose:
+            traceback.print_exc()
+    return fails
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="알림·대시보드 출력 스모크")
     ap.add_argument("-v", "--verbose", action="store_true", help="렌더 결과도 출력")
@@ -387,7 +426,8 @@ def main() -> int:
              + _check_definitions()
              + _check_morning(args.verbose)
              + _check_market_card(args.verbose)
-             + _check_check_cards(args.verbose))
+             + _check_check_cards(args.verbose)
+             + _check_theme_heatmap(args.verbose))
 
     if fails:
         print(f"\n스모크 실패 {len(fails)}건")
