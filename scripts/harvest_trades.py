@@ -57,6 +57,34 @@ def fetch_updates(offset: int) -> list[dict]:
     return data.get("result") or []
 
 
+def _send_reviews(rows: list[dict]) -> None:
+    """매수(연습 포함)를 적은 뒤에만 복기 카드를 보낸다 — 판단 전엔 고수 질문을 보이지 않는다(2026-10-25).
+    실패해도 수거에는 영향 없다."""
+    buys = [r for r in rows if r.get("side") == "매수" and r.get("name") and not r.get("edited")]
+    if not buys:
+        return
+    # 수거는 정기 알림 시각 밖(12:00·23:00 등)에도 돌므로 ✅ 기록됨처럼 소리·진동 없이 보낸다 — 하루 3번 원칙
+    try:
+        from scripts.check_cards import build_review
+        from scripts.morning_briefing import _code_by_name
+        from scripts.notifier import send_photo
+        codes = _code_by_name([r["name"] for r in buys])
+    except Exception as e:
+        logger.warning(f"복기 카드 준비 실패: {e}")
+        return
+    for r in buys:
+        try:
+            code = codes.get(r["name"])
+            if not code:
+                logger.info(f"복기 카드 생략 — 종목코드를 못 찾음: {r['name']}")
+                continue
+            p = build_review(r["name"], code, bool(r.get("practice")), Path("reports") / "review_card" / f"{code}.png")
+            if p:
+                send_photo(p, silent=True)
+        except Exception as e:
+            logger.warning(f"[{r.get('name')}] 복기 카드 실패: {e}")
+
+
 def harvest(store: Path, ack: bool = True) -> list[dict]:
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
         logger.error("TELEGRAM_BOT_TOKEN 또는 TELEGRAM_CHAT_ID 미설정 — 수거 생략")
@@ -84,6 +112,7 @@ def harvest(store: Path, ack: bool = True) -> list[dict]:
     if saved and ack:
         lines = ["✅ 기록됨"] + [f" · {ts.format_ack(r)}" for r in saved]
         send_private("\n".join(lines), silent=True)   # 확인용이라 소리·진동 없이 — 새벽 4시 수거 때 울렸다(사용자 09-22)
+        _send_reviews(saved)
     logger.info(f"수거 완료: 업데이트 {len(updates)}건 중 저장 {len(saved)}건 (offset {last} → {max_id})")
     return saved
 

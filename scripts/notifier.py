@@ -77,8 +77,8 @@ def send_message(text: str) -> bool:
     return success
 
 
-def send_photo(path, caption: str = "") -> bool:
-    """이미지 한 장 전송 (테마 맵). preview 모드는 send_message와 같은 대상 규칙."""
+def send_photo(path, caption: str = "", silent: bool = False) -> bool:
+    """이미지 한 장 전송 (테마 맵). preview 모드는 send_message와 같은 대상 규칙. silent=True면 소리·진동 없이(복기 카드)."""
     if not TELEGRAM_BOT_TOKEN:
         logger.error("TELEGRAM_BOT_TOKEN 미설정")
         return False
@@ -91,7 +91,8 @@ def send_photo(path, caption: str = "") -> bool:
         with open(path, "rb") as f:
             resp = requests.post(
                 url,
-                data={"chat_id": chat_id, "caption": caption[:1024], "parse_mode": "HTML"},
+                data={"chat_id": chat_id, "caption": caption[:1024], "parse_mode": "HTML",
+                      "disable_notification": "true" if silent else "false"},
                 files={"photo": (Path(str(path)).name, f, "image/png")},
                 timeout=30,
             )
@@ -102,6 +103,37 @@ def send_photo(path, caption: str = "") -> bool:
     except Exception as e:
         logger.error(f"텔레그램 사진 전송 예외: {e}")
         return False
+
+
+def send_media_group(paths: list, caption: str = "") -> bool:
+    """이미지 여러 장을 앨범 한 묶음으로(최대 10장) — 알림이 한 번만 울린다(2026-10-25 14:20 점검 카드)."""
+    import json
+    if not TELEGRAM_BOT_TOKEN:
+        logger.error("TELEGRAM_BOT_TOKEN 미설정")
+        return False
+    chat_id = TELEGRAM_CHAT_ID_DEV if _preview_mode else TELEGRAM_CHAT_ID
+    if not chat_id or not paths:
+        return False
+    paths = list(paths)[:10]
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMediaGroup"
+    media = [{"type": "photo", "media": f"attach://p{i}"} for i in range(len(paths))]
+    if caption:
+        media[0]["caption"] = caption[:1024]
+    files = {}
+    try:
+        for i, p in enumerate(paths):
+            files[f"p{i}"] = (Path(str(p)).name, open(p, "rb"), "image/png")
+        resp = requests.post(url, data={"chat_id": chat_id, "media": json.dumps(media)}, files=files, timeout=60)
+        if resp.status_code != 200:
+            logger.error(f"텔레그램 앨범 전송 실패: {resp.status_code} {resp.text[:200]}")
+            return False
+        return True
+    except Exception as e:
+        logger.error(f"텔레그램 앨범 전송 예외: {e}")
+        return False
+    finally:
+        for v in files.values():
+            v[1].close()
 
 
 def send_private(text: str, silent: bool = False) -> bool:

@@ -23,6 +23,9 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Install Korean font (복기 카드)
+        run: sudo apt-get install -y -qq fonts-nanum > /dev/null
+
       - name: Harvest trade inputs (텔레그램 답장 → 비공개 백업 레포)
         # 수거가 실패해도 알림은 나가야 한다 — 2026-09-11 19:30 실행이 여기서 죽어 시황이 안 갔다.
         continue-on-error: true

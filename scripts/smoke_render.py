@@ -331,6 +331,48 @@ def _check_market_card(verbose: bool) -> list[str]:
     return fails
 
 
+def _check_check_cards(verbose: bool) -> list[str]:
+    """14:20 점검 카드 7장 + 복기 카드 그리기 — 자료가 있을 때와 전부 비었을 때. 수집(네트워크)은 건너뛴다."""
+    fails = []
+    try:
+        import tempfile
+        from datetime import date, datetime
+        from pathlib import Path
+        from scripts import check_cards as cc
+        out = Path(tempfile.mkdtemp())
+        idx = [{"date": f"2026-09-{i:02d}", "open": 100 + i, "high": 103 + i, "low": 98 + i, "close": 101 + i,
+                "ma20": 100.0 + i, "ma60": 99.0 + i} for i in range(1, 31)]
+        bar = (100.0, 105.0, 98.0, 103.0)
+        top = [{"code": "000660", "name": "SK하이닉스", "chg": 1.2, "total_eok": 50000.0, "nxt_eok": 10000.0, "rank": 1,
+                "bars": [bar, None, bar, bar], "inst_days": 2, "frgn_days": -1, "vs_hi": -5.0, "n_days": 250, "new": False},
+               {"code": "0015M0", "name": "신규", "chg": 35.0, "total_eok": 700.0, "nxt_eok": 0.0, "rank": 2,
+                "bars": [None, None, None, bar], "inst_days": 0, "frgn_days": 0, "vs_hi": None, "n_days": 1, "new": True}]
+        x_full = {"time": "14:21", "idx_KOSPI": idx, "idx_KOSDAQ": idx, "days": ["09/24", "09/25", "09/26", "09/29"],
+                  "hist": [{"date": "2026-09-26", "kospi": 1.5e5, "kosdaq": 5e4, "top5": 33.0, "adl": 40.0, "lu": "3"}],
+                  "top10": top, "limit_n": 1, "limit_rest": [], "new_listings": [{"name": "신규", "chg": 35.0, "tv_eok": 700.0}],
+                  "limit_top": [{"name": "상한", "chg": 29.9, "tv_eok": 120.0,
+                                 "news": {"title": "상한 공시", "office": "언론", "time": "09/29 10:00"},
+                                 "theme": {"name": "테마", "chg": 2.0, "mates": [("동료", 1.0)]}}]}
+        d_full = {"now": datetime(2026, 9, 29, 14, 21), "index": {"kospi_level": 101.0, "kospi_chg": 0.5},
+                  "cmp_idx": {"kospi_vs_prev": 3.0, "progress_kospi": 70}, "kospi_idx_tv_eok": 1.2e5,
+                  "flow": {"KOSPI": {"foreign": -100.0, "inst": 50.0, "personal": 50.0}},
+                  "adl_pct": 40.0, "top5_pct": 33.0, "next_day": date(2026, 9, 30), "nights": 1}
+        fns = (cc._card1, cc._card2, cc._card3, cc._card4, cc._card5, cc._card6, cc._card7)
+        for tag, d, x in (("값 있음", d_full, x_full), ("빈 값", {"now": datetime(2026, 9, 29, 14, 21)}, {"time": "14:21"})):
+            for i, fn in enumerate(fns, 1):
+                p = out / f"check_{tag}_{i}.png"
+                fn(d, x, p, "스모크")
+                if not p.exists():
+                    fails.append(f"[점검 카드] {i} {tag}: 렌더 실패")
+        if verbose:
+            print(f"점검 카드: {out}")
+    except Exception as e:
+        fails.append(f"[점검 카드] {e}")
+        if verbose:
+            traceback.print_exc()
+    return fails
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="알림·대시보드 출력 스모크")
     ap.add_argument("-v", "--verbose", action="store_true", help="렌더 결과도 출력")
@@ -344,7 +386,8 @@ def main() -> int:
              + _check_dashboard_sections(args.verbose)
              + _check_definitions()
              + _check_morning(args.verbose)
-             + _check_market_card(args.verbose))
+             + _check_market_card(args.verbose)
+             + _check_check_cards(args.verbose))
 
     if fails:
         print(f"\n스모크 실패 {len(fails)}건")

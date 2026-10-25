@@ -302,6 +302,9 @@ def collect(now: datetime, run_type: str, raw_data: dict[str, pd.DataFrame] | No
             lu_df = ex[ex["등락률"] >= 29.5].nlargest(5, "거래대금")
             d["limit_up"] = int((ex["등락률"] >= 29.5).sum())
             d["limit_up_top"] = [{"name": r["종목명"], "tv_eok": float(r["거래대금"]) / 1e8} for _, r in lu_df.iterrows()]
+            # 점검 카드 4번(14:20)용 — 코드까지. 상장 첫날 구분은 check_cards가 전 거래일 파일로 한다
+            d["limit_up_rows"] = [{"code": str(r["종목코드"]), "name": r["종목명"], "chg": float(r["등락률"]),
+                                   "tv_eok": float(r["거래대금"]) / 1e8} for _, r in ex[ex["등락률"] >= 29.5].iterrows()]
             total_eok = (d["kospi_tv_eok"] or 0) + (d["kosdaq_tv_eok"] or 0)
             if total_eok > 0:
                 top5_eok = float(ex.nlargest(5, "거래대금")["거래대금"].sum()) / 1e8
@@ -543,6 +546,24 @@ def build_map(d: dict) -> Path | None:
 def send(d: dict) -> bool:
     # 2026-09-30부터 텍스트 대신 카드 이미지(사용자: "문자는 가독성이 너무 떨어져"). 카드가 안 그려지거나
     # 사진 전송이 실패하면 예전 텍스트로 보낸다 — 알림이 비는 것보다 낫다.
+    # 2026-10-25 사용자 결정: 알림은 하루 3번(07:40·14:20·19:30). 15:35·17:50은 저장·스냅샷만 하고 보내지 않는다
+    slot = d.get("slot")
+    if slot in ("1535", "1750"):
+        logger.info(f"{slot} 시황은 발송하지 않는다(저장·스냅샷만)")
+        return True
+    if slot == "1420":
+        # 점검 카드 7장 + 테마 맵을 앨범 한 묶음으로 — 알림은 한 번 울린다
+        try:
+            from scripts.check_cards import build as build_checks
+            cards = build_checks(d, REPORTS_DIR / "check_cards")
+            img = build_map(d)
+            album = cards + ([img] if img else [])
+            if len(cards) == 7 and ntf.send_media_group(album):
+                logger.info(f"14:20 점검 카드 앨범 발송 성공 ({len(album)}장)")
+                return True
+            logger.warning(f"점검 카드 앨범 실패(카드 {len(cards)}장) — 예전 시황 카드로 보낸다")
+        except Exception as e:
+            logger.warning(f"점검 카드 실패 — 예전 시황 카드로 보낸다: {e}")
     from scripts.market_card import build as build_card
     text = build_text(d)
     from scripts.card_history import attach
