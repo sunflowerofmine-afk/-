@@ -1,0 +1,34 @@
+{
+  "date": "2026-10-26",
+  "generated": "2026-10-27",
+  "stocks": {
+    "108490": {
+      "name": "로보티즈",
+      "signal_price": 246500,
+      "is_nxt": true,
+      "nxt_dominant": true,
+      "change_pct": 10.22,
+      "sector": "로봇(산업용/협동로봇 등)",
+      "total_score": 8,
+      "52w_high": 464000,
+      "52w_low": 155000,
+      "pct_from_52w_high": -46.88,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 97
+    },
+    "028050": {
+      "name": "삼성E&A",
+      "signal_price": 59800,
+      "is_nxt": false,
+      "nxt_dominant": false,
+      "change_pct": -0.33,
+      "sector": "건설",
+      "total_score": 5,
+      "52w_high": 67300,
+      "52w_low": 23150,
+      "pct_from_52w_high": -11.14,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 114
+    }
+  }
+}
