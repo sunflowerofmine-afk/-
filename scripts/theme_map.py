@@ -153,7 +153,7 @@ if __name__ == "__main__":
 # 주식시장 히트맵 형식: 테마 박스 안에 종목 박스, 크기 = 종목 KRX 거래대금, 색 = 등락률.
 # 테마를 거래대금 순으로만 뽑으면 삼성전자·SK하이닉스가 들어간 테마가 상위를 다 차지한다(10-23 견본 실측)
 # → 투탑은 맨 위 띠로 따로 두고, 아래는 투탑을 뺀 나머지로 거래대금이 큰 테마를 고른다.
-# 한 종목이 여러 테마에 있으면 먼저 뽑힌 테마 한 곳에만 둔다. 구성 종목은 아침에 저장한 파일(theme_members),
+# 한 종목이 여러 테마에 있으면 테마 등락률이 자기 등락률과 가장 가까운 테마 한 곳에만 둔다. 구성 종목은 아침에 저장한 파일(theme_members),
 # 등락률·거래대금은 그 시각 전 종목 시세 — 그 자리에서 구성 종목을 받으면 1분 넘게 늦는다.
 HEAT_THEMES    = 8
 HEAT_STOCKS    = 6
@@ -201,25 +201,51 @@ def select_heat_groups(themes: list[dict], members: dict, quotes: dict) -> list[
 
     twin = [r for r in (row(c) for c in TWIN) if r]
     groups = [{"name": "반도체 투탑", "stocks": twin, "size": sum(r["tv"] for r in twin)}] if twin else []
-    used = set(TWIN)
-    mem = {t["no"]: [r for r in (row(c) for c in dict.fromkeys(members[t["no"]])) if r] for t in cand}
-    picked: set[str] = set()
-    while len(picked) < HEAT_THEMES:
-        best = None
-        for t in cand:
-            if t["no"] in picked:
-                continue
-            rows = [r for r in mem[t["no"]] if r["code"] not in used]
-            size = sum(r["tv"] for r in rows)
-            if len(rows) >= 2 and (best is None or size > best[1]):
-                best = (t, size, rows)
-        if not best:
+    mem = {t["no"]: [r for r in (row(c) for c in dict.fromkeys(members[t["no"]])) if r and r["code"] not in TWIN] for t in cand}
+
+    # 1단계 테마 고르기 — 크기는 '가장 큰 한 종목을 뺀' 거래대금 합. 한 종목이 테마를 끌고 들어오는 것을 막는다
+    # (10-27: 삼성전기 하나 때문에 자율주행차가 뽑히고 삼성전기를 가져갔다).
+    # 이미 고른 테마의 상위 종목은 다음 테마 크기에서 뺀다 — 같은 종목 묶음이 이름만 바꿔 여러 번 뽑히지 않게.
+    # 2단계 종목 배치 — 여러 고른 테마에 걸친 종목은 테마 전체 등락률이 자기 등락률과 가장 가까운 곳에 둔다.
+    # 같이 움직였다는 증거가 아니라 표시 위치를 정하는 규칙이다. 테마 등락률이 없으면 등락률 있는 테마가 우선, 둘 다 없으면 먼저 고른 테마.
+    # 배치 뒤 2종목 미만이 된 테마는 빼고 다음 후보로 다시 고른다(GPT 검토 10-27).
+    banned: set[str] = set()
+    for _ in range(len(cand) + 1):
+        picked: list[dict] = []
+        taken: set[str] = set()
+        while len(picked) < HEAT_THEMES:
+            best = None
+            for t in cand:
+                if t["no"] in banned or any(p["no"] == t["no"] for p in picked):
+                    continue
+                rows = sorted([r for r in mem[t["no"]] if r["code"] not in taken], key=lambda r: -r["tv"])
+                size = sum(r["tv"] for r in rows[1:])
+                if len(rows) >= 2 and (best is None or size > best[1]):
+                    best = (t, size, rows)
+            if not best:
+                break
+            t, _, rows = best
+            picked.append(t)
+            taken.update(r["code"] for r in rows[:HEAT_STOCKS])
+
+        def dist(t, r):
+            return float("inf") if t.get("chg") is None else abs(t["chg"] - r["chg"])
+
+        home: dict[str, str] = {}
+        for t in picked:
+            for r in mem[t["no"]]:
+                cur = next((p for p in picked if p["no"] == home.get(r["code"])), None)
+                if cur is None or dist(t, r) < dist(cur, r):
+                    home[r["code"]] = t["no"]
+        out = []
+        for t in picked:
+            top = sorted([r for r in mem[t["no"]] if home.get(r["code"]) == t["no"]], key=lambda r: -r["tv"])[:HEAT_STOCKS]
+            out.append((t, top))
+        thin = {t["no"] for t, top in out if len(top) < 2}
+        if not thin:
             break
-        t, _, rows = best
-        picked.add(t["no"])
-        top = sorted(rows, key=lambda r: -r["tv"])[:HEAT_STOCKS]
-        used.update(r["code"] for r in top)      # 표시한 종목만 — 7위 아래 종목은 다른 테마에 나올 수 있다
-        groups.append({**t, "stocks": top, "size": sum(r["tv"] for r in top)})
+        banned |= thin
+    groups += [{**t, "stocks": top, "size": sum(r["tv"] for r in top)} for t, top in out if len(top) >= 2]
     return groups
 
 
@@ -282,10 +308,10 @@ def render_heatmap(groups: list[dict], out_path: Path, title: str, basis: str) -
                     fontproperties=fp, color="white" if abs(s["chg"]) >= 6 else "black")
     ax.set_xlim(0, W_); ax.set_ylim(0, H_); ax.axis("off")
     ax.set_title(title, fontproperties=fpb, fontsize=14, loc="left", pad=26 if twin else 8)
-    ax.text(100, -1.2, f"투탑을 뺀 거래대금이 큰 테마 {len(rest)}개 · 테마마다 상위 {HEAT_STOCKS}종목 · "
+    ax.text(100, -1.2, f"투탑을 뺀 거래대금이 큰 테마 {len(rest)}개(가장 큰 한 종목 제외하고 잼) · 테마마다 상위 {HEAT_STOCKS}종목 · "
                        f"크기 = 종목 KRX 거래대금 · 색 = 등락률({basis})",
             ha="right", va="top", fontsize=8, fontproperties=fp, color="#555", clip_on=False)
-    ax.text(100, -4.2, "한 종목은 먼저 뽑힌 테마 한 곳에만 둔다(네이버 분류 기준, 등락 원인 아님) · "
+    ax.text(100, -4.2, "한 종목은 등락률이 가장 비슷한 테마 한 곳에만 둔다(네이버 분류 기준, 등락 원인 아님) · "
                        "테마 이름 옆 숫자는 네이버 테마 전체 등락률·오른/내린 종목 수",
             ha="right", va="top", fontsize=8, fontproperties=fp, color="#555", clip_on=False)
     plt.tight_layout()
