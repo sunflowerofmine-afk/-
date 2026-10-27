@@ -547,6 +547,22 @@ def build_map(d: dict) -> Path | None:
     return build(out, title)
 
 
+# 판단 기록 안내(2026-10-27 사용자 "나의 시장 뷰, 매수·무포 근거를 적게 알림으로 알려줘").
+# 알림 횟수를 늘리지 않으려고 14:20 앨범·19:30 카드의 설명글로 붙인다. 주문 규칙 ①: 매수는 주문 전에 손절가까지 한 줄.
+VIEW_PROMPT_1420 = (
+    "✍️ 고수 글 열기 전에 내 판단부터\n"
+    "판 대형주|개별주|무포 / 오늘 돈: A vs B → A / 근거 숫자 2개\n"
+    "매수면 주문 전에: 매수 종목 가격 수량 손절 손절가\n"
+    "무포면: 무포 / 이유\n"
+    "(연습이면 앞에 '연습')"
+)
+VIEW_PROMPT_1930 = (
+    "✍️ 오늘 판단을 안 적었다면 지금\n"
+    "매수면 주문 전에: 매수 종목 가격 수량 손절 손절가\n"
+    "무포면: 무포 / 이유"
+)
+
+
 def build_heat(d: dict) -> Path | None:
     from scripts.theme_map import build_heatmap
     now: datetime = d["now"]
@@ -570,7 +586,7 @@ def send(d: dict) -> bool:
             cards = build_checks(d, REPORTS_DIR / "check_cards")
             img = build_heat(d) or build_map(d)
             album = cards + ([img] if img else [])
-            if len(cards) == 7 and ntf.send_media_group(album):
+            if len(cards) == 7 and ntf.send_media_group(album, caption=VIEW_PROMPT_1420):
                 logger.info(f"14:20 점검 카드 앨범 발송 성공 ({len(album)}장)")
                 return True
             logger.warning(f"점검 카드 앨범 실패(카드 {len(cards)}장) — 예전 시황 카드로 보낸다")
@@ -581,9 +597,10 @@ def send(d: dict) -> bool:
     from scripts.card_history import attach
     attach(d)
     card = build_card(d, REPORTS_DIR / "market_card")
-    ok = as_card = bool(card) and ntf.send_photo(card)
+    prompt = {"1420": VIEW_PROMPT_1420, "1930": VIEW_PROMPT_1930}.get(slot, "")
+    ok = as_card = bool(card) and ntf.send_photo(card, caption=prompt)
     if not ok:
-        ok = ntf.send_message(text)
+        ok = ntf.send_message(text + (chr(10) * 2 + prompt if prompt else ""))
     logger.info(f"시황 알림 발송 {'성공' if ok else '실패'} ({d.get('slot')}, {'카드' if as_card else '텍스트'})")
     if d["now"].strftime("%H%M") >= "1600":
         logger.info("저녁 슬롯 — 테마 맵 생략(15:35과 같은 그림)")

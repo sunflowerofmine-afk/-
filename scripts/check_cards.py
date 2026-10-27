@@ -538,7 +538,7 @@ def _card7(d, x, out, stamp):
     y += 7
     c.box(3, y, 94, 13, "#eef3ff")
     c.text(6, y + 4.5, "판단을 먼저 적어 주세요", size=11, bold=True)
-    c.text(6, y + 9.5, "판 대형주 | 개별주 | 무포  /  이유  /  비중     (연습이면 앞에 '연습')", size=10)
+    c.text(6, y + 9.5, "판 대형주|개별주|무포 / 돈: A vs B → A / 근거   ·   매수는 주문 전에 '손절 손절가'까지", size=10)
     c.save(out, _foot(c, y + 17, stamp))
 
 

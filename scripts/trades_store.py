@@ -8,6 +8,7 @@
     후보 SK하이닉스 삼성전기 두산        ← 15시대에 고른 후보(있을 때만, 사용자가 직접). 사후 판단지 대조용
     판 대형주 / 투탑이 대금 흡수 / 비중 1000   ← 14:30 판 판정, 종목 보기 전(2026-09-30). 일지 "내 사전 판단" 대신
     연습 매수 SK하이닉스 1277000 2주    ← 주문 없는 판단 연습(2026-10-25). practice=True로 저장, 보유 종목에 안 잡힌다
+    매수 SK하이닉스 1277000 2주 손절 1240000   ← 주문 규칙 ①(2026-10-27): 주문 전 한 줄에 손절가. "손절"은 "깨는가"와 같은 칸
 
 저장: `{TRADES_DIR}/YYYY-MM-DD.jsonl` — 메시지 시각(KST) 기준 날짜. **비공개 백업 레포에만** 둔다.
 공개 봇 레포에는 사용자 매매 기록을 두지 않는다. 워크플로가 백업 레포를 clone한 뒤
@@ -58,7 +59,8 @@ def _split_qty(first: str) -> float | None:
     return per * times if (per and times) else None
 _FIELDS = {
     "판":    re.compile(r"판\s*[:：]?\s*(대형주|개별주|무포)"),
-    "깨는가": re.compile(r"깨는가\s*[:：]?\s*([\d,]+)"),
+    # 손절가는 가격만 — "손절 2번 당함" 같은 문장 속 횟수가 잡히지 않게 4자 이상 + 뒤에 번·회·%·일이 오지 않을 때(GPT 검토 10-27)
+    "깨는가": re.compile(r"(?:깨는가|손절가?)(?:\s*가격)?\s*[:：]?\s*(\d[\d,]{3,})(?!\s*(?:번|회|%|일))"),
     "비중":  re.compile(r"비중\s*[:：]?\s*([\d,]+)\s*만?"),
     "이유":  re.compile(r"이유\s*[:：]?\s*([^/\n]+)"),
 }
@@ -207,9 +209,11 @@ def format_ack(row: dict) -> str:
         q = f" {row['qty']:,.0f}주" if row.get("qty") else ""
         extra = []
         if row.get("깨는가"):
-            extra.append(f"깨는가 {row['깨는가']:,.0f}")
+            extra.append(f"손절 {row['깨는가']:,.0f}")
         if row.get("비중"):
             extra.append(f"비중 {row['비중']:,.0f}만")
+        if row.get("side") == "매수" and not row.get("깨는가"):
+            extra.append("⚠ 손절가 없음 — 규칙 ① 예: 손절 1240000")
         tail = f" · {' · '.join(extra)}" if extra else ""
         side = "매수(첫 단어 없어 매수로 기록 — 매도면 '매도'를 앞에)" if row.get("side_inferred") else row["side"]
         return f"{t} {side} {row.get('name') or '?'}{px}{q}{tail}"
