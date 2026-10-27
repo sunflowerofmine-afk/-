@@ -61,6 +61,23 @@ def _f(v):
         return None
 
 
+def _rank_history(today_s: str, universe: set | None, n: int = 5) -> list[dict]:
+    """지난 n거래일 각 날의 거래대금 순위(15:35 저장분, KRX 정규장 + NXT 15:35까지). 종목코드 → 순위.
+    universe = 오늘 상위 10을 뽑은 종목군(ETF 등 제외) — 같은 종목군에서 매겨야 오늘 순위와 견줄 수 있다."""
+    out = []
+    for day in _closed_days(today_s, n):
+        rows = []
+        for code, r in _load_close(day).items():
+            if universe is not None and code not in universe:
+                continue
+            tv = (_f(r.get("거래대금")) or 0) + (_f(r.get("NXT거래대금")) or 0)
+            if tv > 0:
+                rows.append((code, tv))
+        rows.sort(key=lambda t: -t[1])
+        out.append({code: i for i, (code, _) in enumerate(rows, 1)})
+    return out
+
+
 def _index_rows(code: str, today_s: str) -> list[dict]:
     from scripts.fetch_index_data import INDEX_URL
     from scripts.naver_api import get_json, to_float
@@ -190,6 +207,11 @@ def collect_extra(d: dict) -> dict:
         return out
 
     price = (d.get("krx_price") or {})
+    # 관심이 새로 붙는가 이미 붙어 있었나(2026-10-28 사용자 "많은 사람이 나와 같은 뷰를 보고 있는건지") — 전일 순위·최근 5일 상위 10 횟수
+    hist = _rank_history(today_s, d.get("rank_universe"))
+    ranks = [h for h in hist if h]
+    last = hist[-1] if hist else {}          # 저장이 빠진 날을 건너뛰어 그 전날을 "전일"로 쓰지 않는다(GPT 검토 10-28)
+    x["rank_days"] = len(ranks)
     top = []
     for i, r in enumerate((d.get("day_top") or [])[:10], 1):
         code = r["code"]
@@ -201,6 +223,8 @@ def collect_extra(d: dict) -> dict:
         cur = price.get(code)
         f["vs_hi"] = round((cur / hi - 1) * 100, 1) if (hi and cur) else None
         f["n_days"] = n
+        f["prev_rank"] = (last.get(code) or 999) if last else None
+        f["top10_cnt"] = sum(1 for h in ranks if h.get(code, 99) <= 10)
         top.append(f)
     x["top10"] = top
 
@@ -378,7 +402,7 @@ def _card2(d, x, out, stamp):
 
 def _card3(d, x, out, stamp):
     rows = x.get("top10") or []
-    c = _Canvas(40 + len(rows) * 7.5)
+    c = _Canvas(44 + len(rows) * 9)
     _head(c, "3/7", "돌팬티 9강 · 2시 30분 점검 ③", "어디에 돈이 몰렸나 · 투탑이 대금을 끌고 가나", "9강 사전 점검 6단계")
     y = 20
     days = x.get("days") or []
@@ -386,13 +410,18 @@ def _card3(d, x, out, stamp):
                   (78, f"{days[0]} → {days[-1]} 일봉" if days else "최근 4일 일봉")):
         c.text(xx, y, s, size=9, color=SUB)
     c.hline(y + 2.5)
+    nd = x.get("rank_days") or 0
     for r in rows:
-        y += 7
+        y += 9
         twin = r["code"] in TWIN_CODES
         if twin:
-            c.rect(1.5, y - 3.3, 97, 6.6, "#fff4e0")
+            c.rect(1.5, y - 3.3, 97, 8.2, "#fff4e0")
         c.text(4.5, y, str(r["rank"]), size=11, bold=True, ha="center")
         c.text(10, y, r["name"], size=11, bold=twin)
+        if nd and not r.get("new"):
+            pr = r.get("prev_rank")
+            prev_s = "전일 저장 없음" if pr is None else (f"전일 {pr}위" if pr <= 99 else "전일 100위 밖")
+            c.text(10, y + 3.6, f"{prev_s} · 최근 {nd}일 중 상위 10 {r.get('top10_cnt', 0)}번", size=8, color=SUB)
         c.text(40, y, _pct(r.get("chg")), size=11, color=_tone(r.get("chg")), bold=True)
         c.text(55, y, _tv(r.get("total_eok")), size=11)
         n = _mini(c, 78, 97, y, 5.6, r.get("bars") or [])
@@ -400,9 +429,12 @@ def _card3(d, x, out, stamp):
             c.text(78, y, "상장 첫날", size=8.5, color=SUB)
         elif n == 0:
             c.text(78, y, "일봉 없음", size=8.5, color=SUB)
-    y += 7
+    y += 9
     c.text(3, y, "봉: KRX 정규장 시가·고가·저가·종가(지난날은 15:35 저장분, 오늘은 지금까지) · 종목마다 자기 범위로 그림 · 주황 줄 = 투탑",
            size=8, color=SUB)
+    if nd:
+        y += 4
+        c.text(3, y, "전일 순위·상위 10 횟수: 각 날 15:35 저장분(KRX 정규장 + NXT) 거래대금, 오늘과 같은 종목군 · 오늘 순위는 지금까지 누적이라 시점이 다름", size=8, color=SUB)
     c.save(out, _foot(c, y + 4, stamp))
 
 

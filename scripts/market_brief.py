@@ -317,6 +317,7 @@ def collect(now: datetime, run_type: str, raw_data: dict[str, pd.DataFrame] | No
             # 괄호엔 NXT 몫을 %가 아니라 금액으로 — "NXT 32%"가 무엇의 비율인지 사용자가 몰랐다(2026-09-21).
             nxt_by_code = {x["code"]: x["tv_eok"] for x in nxt}
             ex_raw = filter_excluded_stocks(all_raw) if not all_raw.empty else ex
+            d["rank_universe"] = set(ex_raw["종목코드"].astype(str))   # 점검 카드 3의 지난 순위를 같은 종목군에서 매기려고
             rows = []
             for _, r in ex_raw.iterrows():
                 code = str(r["종목코드"])
