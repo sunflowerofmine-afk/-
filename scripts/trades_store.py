@@ -47,6 +47,10 @@ _BARE = re.compile(
 _NOT_STOCK = ("코스피", "코스닥", "나스닥", "지수", "선물", "환율", "달러", "유가", "비트")   # 시장 메모에 흔한 첫 단어
 # "10주씩 두번" · "10주씩 2회" → 20주 (09-22 분할 매도 입력 습관). 한글 횟수는 열 번까지.
 _SPLIT = re.compile(r"([\d,]+)\s*주\s*씩\s*(?:(\d+)|([한두세네다섯여섯일곱여덟아홉열]+))\s*(?:번|회|차례)")
+# "148만원"·"148.3만" → 1480000·1483000 (2026-10-28 입력 "하이닉스 185만원 2주"가 가격 185원으로 저장됨). "비중 300만"은 그대로 둔다.
+_MANWON = re.compile(r"(?<![\d.])(?<!비중)(?<!비중 )(\d+(?:\.\d+)?)\s*만\s*원?")
+# "손절 -2%"·"손절가 2%" — 가격 대비 %로 적으면 손절가를 계산해 넣는다(같은 날 입력 "손절가 -2%"가 빠졌다)
+_STOP_PCT = re.compile(r"(?:손절가?|깨는가)\s*[:：]?\s*-?\s*(\d+(?:\.\d+)?)\s*%")
 _KO_NUM = {"한": 1, "두": 2, "세": 3, "네": 4, "다섯": 5, "여섯": 6, "일곱": 7, "여덟": 8, "아홉": 9, "열": 10}
 
 
@@ -86,12 +90,14 @@ def parse(text: str) -> dict:
         out = parse(text[mp.end():])
         out["practice"], out["raw"] = True, text.strip()
         return out
+    raw_text = text
+    text = _MANWON.sub(lambda m: str(round(float(m.group(1)) * 10000)), text)
     lines = [ln for ln in text.strip().splitlines() if ln.strip()]
     first = lines[0] if lines else ""
     if re.match(r"^\s*(매수|매도)\s*/", first):
         first = first.replace("/", " ")   # "매수/종목/가격/수량" 입력 습관(2026-10-25)
     rest = "\n".join(lines[1:])
-    out: dict = {"side": None, "name": None, "price": None, "qty": None, "raw": text.strip()}
+    out: dict = {"side": None, "name": None, "price": None, "qty": None, "raw": raw_text.strip()}
     mc = _CAND.match(first)
     if mc:
         # 후보 줄 — 종목명만 나열. 보유 종목 계산(open_positions)에는 안 들어간다(name이 없으므로).
@@ -142,6 +148,10 @@ def parse(text: str) -> dict:
         if mm:
             val = mm.group(1).strip()
             out[key] = _num(val) if key in ("깨는가", "비중") else val
+    mp = _STOP_PCT.search(body)
+    if mp and out.get("price") and not out.get("깨는가"):
+        out["손절_pct"] = float(mp.group(1))
+        out["깨는가"] = round(out["price"] * (1 - out["손절_pct"] / 100))
     return out
 
 
