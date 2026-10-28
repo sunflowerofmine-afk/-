@@ -1,0 +1,48 @@
+{
+  "date": "2026-10-28",
+  "generated": "2026-10-29",
+  "stocks": {
+    "179880": {
+      "name": "멜콘",
+      "signal_price": 19210,
+      "is_nxt": false,
+      "nxt_dominant": false,
+      "change_pct": 20.34,
+      "sector": "반도체와반도체장비",
+      "total_score": 8,
+      "52w_high": 28800,
+      "52w_low": 11550,
+      "pct_from_52w_high": -33.3,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 9
+    },
+    "000660": {
+      "name": "SK하이닉스",
+      "signal_price": 1487000,
+      "is_nxt": true,
+      "nxt_dominant": true,
+      "change_pct": 11.33,
+      "sector": "S7(삼성전자/SK하이닉스 등)",
+      "total_score": 8,
+      "52w_high": 2987000,
+      "52w_low": 449500,
+      "pct_from_52w_high": -50.22,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 83
+    },
+    "402340": {
+      "name": "SK스퀘어",
+      "signal_price": 921000,
+      "is_nxt": true,
+      "nxt_dominant": true,
+      "change_pct": 11.23,
+      "sector": "S7(삼성전자/SK하이닉스 등)",
+      "total_score": 11,
+      "52w_high": 2189000,
+      "52w_low": 241000,
+      "pct_from_52w_high": -57.93,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 85
+    }
+  }
+}
