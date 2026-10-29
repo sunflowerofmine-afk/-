@@ -1,0 +1,20 @@
+{
+  "date": "2026-10-29",
+  "generated": "2026-10-30",
+  "stocks": {
+    "489790": {
+      "name": "한화비전",
+      "signal_price": 49100,
+      "is_nxt": true,
+      "nxt_dominant": false,
+      "change_pct": 19.15,
+      "sector": "CCTV＆DVR",
+      "total_score": 12,
+      "52w_high": 97900,
+      "52w_low": 30950,
+      "pct_from_52w_high": -49.85,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 146
+    }
+  }
+}
