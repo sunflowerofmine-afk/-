@@ -5,6 +5,7 @@
   1. 미국장 지수 + 반도체(SOX·마이크론·샌디스크·SK하이닉스 ADR(SKHY)) — 투톱 갭의 선행 지표
   2. 보유 종목(매수 입력 중 매도 입력이 없는 것): 매수가 · 사용자가 적은 깨는가 · 비중
   3. 08:00 이후 실행이면 NXT 프리장 가격과 매수가 대비 %
+  4. 코스피200 야간선물(KIS) + 굵직한 이벤트 — 밤사이 빅테크·반도체 실적과 다음 브리핑 전까지의 실적·지표 일정(2026-11-03)
 "어제 복기하기" 구글폼 링크는 삭제했다 — 복기는 매매 입력 + 판단지로 한다.
 
 돌팬티 3강 00:09:28 "프리장에서 8시에서 8시 50분까지 종가베팅 대응 필수". 07:40인 이유는
@@ -65,6 +66,59 @@ def _semi_moves() -> dict[str, float]:
     except Exception as e:
         logger.debug(f"반도체 개별 조회 실패: {e}")
     return out
+
+
+def _night_section() -> str:
+    """코스피200 야간선물. 실패도 한 줄로 알린다(빈칸이면 하락인지 조회 실패인지 구분이 안 된다)."""
+    from scripts.fetch_events import night_futures
+    nf = night_futures()
+    if not nf:
+        return "<b>🌙 코스피200 야간선물</b> 조회 실패"
+    return (f"<b>🌙 코스피200 야간선물</b> {nf['last']:,.2f} (<b>{_sign(nf['pct'])}</b>)\n"
+            f"정규장 종가 {nf['day_close']:,.2f} 대비 · 거래량 {nf['vol']:,}계약")
+
+
+def _kst_txt(t) -> str:
+    return f"{t.month:02d}/{t.day:02d}({_DAY_KO[t.weekday()]}) {t:%H:%M}"
+
+
+def _events_section() -> str:
+    """밤사이 실적 결과 + 다음 브리핑(다음 거래일 07:40) 전까지 일정. 없으면 빈 문자열."""
+    try:
+        from datetime import timedelta
+        from scripts.fetch_events import KST, earnings, macro_events
+        from scripts.market_calendar import get_next_trading_day, get_prev_trading_day
+        now = datetime.now(KST)
+        def at0740(d8):
+            return datetime.strptime(d8, "%Y%m%d").replace(hour=7, minute=40, tzinfo=KST)
+        today8 = now.strftime("%Y%m%d")
+        since = at0740(get_prev_trading_day(today8) or (now - timedelta(days=1)).strftime("%Y%m%d"))
+        until = at0740(get_next_trading_day(today8) or (now + timedelta(days=1)).strftime("%Y%m%d"))
+        done, todo = earnings(since, until)
+        macro = macro_events(until)
+    except Exception as e:
+        logger.warning(f"이벤트 블록 생성 실패 (무시): {e}")
+        return ""
+    if not (done or todo or macro):
+        return "" if macro is not None else "<b>📌 굵직한 이벤트</b> 지표 일정 조회 실패"
+    lines = ["<b>📌 굵직한 이벤트</b>"]
+    if done:
+        lines.append("실적 발표(지난 브리핑 이후)")
+        for e in done:
+            est = f"예상 {e['est']:.2f}" if e["est"] is not None else "예상 없음"
+            eps = f"EPS {e['rep']:.2f} / {est}" if e["rep"] is not None else f"EPS 미집계({est})"
+            mv = f" · {e['move_label']} <b>{_sign(e['move'])}</b>" if e.get("move") is not None else ""
+            lines.append(f"• {e['name']} {eps}{mv}")
+    sched = [(e["when"], f"{e['name']} 실적({'장 전' if e['bmo'] else '장 마감 후'}"
+                         + (f", 예상 EPS {e['est']:.2f})" if e["est"] is not None else ")")) for e in todo]
+    sched += [(m["when"], f"[{m['country']}] {m['title']}"
+                          + (f" 예상 {m['forecast']} · 이전 {m['previous']}" if m["forecast"] else "")) for m in macro or []]
+    if sched:
+        lines.append("예정(다음 브리핑 전까지, 한국 시각)")
+        lines += [f"• {_kst_txt(t)} {txt}" for t, txt in sorted(sched, key=lambda x: x[0])]
+    if macro is None:
+        lines.append("※ 지표 일정 조회 실패 — 실적 일정만 표시")
+    return "\n".join(lines)
 
 
 def _code_by_name(names: list[str]) -> dict[str, str]:
@@ -143,6 +197,10 @@ def build_message() -> str:
     us = _us_section()
     if us:
         parts.append(us)
+    parts.append(_night_section())
+    ev = _events_section()
+    if ev:
+        parts.append(ev)
     parts.append(_positions_section(pre_open))
     return "\n\n".join(parts)
 

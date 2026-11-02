@@ -64,6 +64,9 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
           TRADES_DIR: /tmp/trades_repo/data/trades
+          # 코스피200 야간선물(2026-11-03) — KIS 국내선물 시세, 시장구분 CM. 키가 없으면 "조회 실패" 한 줄
+          KIS_APP_KEY:    ${{ secrets.KIS_APP_KEY }}
+          KIS_APP_SECRET: ${{ secrets.KIS_APP_SECRET }}
           TZ: Asia/Seoul
         run: python -m scripts.morning_briefing
 
