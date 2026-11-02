@@ -241,5 +241,14 @@
     "buy_review_n": 4,
     "buy_review_win_rate": 66.7,
     "buy_review_avg": 1.63
+  },
+  {
+    "week_start": "2026-10-30",
+    "n": 2,
+    "d1_win_rate": 50.0,
+    "d1_avg": 0.51,
+    "buy_review_n": 1,
+    "buy_review_win_rate": 0.0,
+    "buy_review_avg": -0.66
   }
 ]
