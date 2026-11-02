@@ -27,7 +27,10 @@ SIDES = ("매수", "매도", "무포", "후보", "판")
 _CAND = re.compile(r"^\s*후보\s*[:：]?\s*(?P<names>.*)$")
 _CAND_SEP = re.compile(r"[\s,、·/]+")
 # "판단 보류" 같은 메모는 안 잡히게 — 판 뒤에 대형주·개별주·무포가 바로 와야 한다
-_PAN = re.compile(r"^\s*판\s*[:：]?\s*(대형주|개별주|무포)")
+# "판"을 빼고 "개별주 / …"로 시작해도 판 줄로 읽는다(2026-10-30 입력이 메모로 저장됨). "무포"만은 매매 줄과 겹쳐 "판"이 붙을 때만.
+_PAN = re.compile(r"^\s*(?:판\s*[:：]?\s*(대형주|개별주|무포)|(대형주|개별주)(?=\s*[/|,:：]|\s*$))")   # "대형주 쏠림이…" 같은 문장은 판이 아니다 — 구분자가 바로 와야
+_MUPO_WORD = re.compile(r"(?:^|[\s/|,])무포(?=[\s/|,.]|$)")
+_PRIORITY = {"매수": 0, "매도": 0, "무포": 1, "판": 2, "후보": 3}
 # 운용 중단 중 주문 없는 판단 연습(2026-10-25) — 실전 기록·보유 종목과 섞이지 않게 앞에 "연습"을 붙인다
 _PRACTICE = re.compile(r"^\s*연습\s*[:：]?\s*")
 
@@ -84,7 +87,34 @@ def _num(s: str | None) -> float | None:
 
 
 def parse(text: str) -> dict:
-    """텍스트 → 필드. side가 None이면 메모."""
+    """텍스트 → 필드. side가 None이면 메모.
+
+    첫 줄이 형식에 안 맞아도 **문맥으로** 읽는다(2026-11-02 사용자 "별도 형식이 아니더라도 문맥상 알맞은걸로 저장"):
+    첫 줄이 질문·메모여도 다른 줄에 `매수 …`·`무포 …`·`판 …`이 있으면 그 줄로 분류한다(매수·매도 > 무포 > 판 > 후보).
+    단 첫 단어 없는 `종목 가격` 꼴은 첫 줄에서만 매수로 본다 — 메모 속 숫자를 매수로 잘못 적지 않게.
+    판 줄 안에 "무포"가 있으면 결정=무포로 남긴다. 문맥으로 읽은 것은 from_context=True, 회신에 그렇게 밝힌다."""
+    out = _parse_one(text)
+    best = None
+    for ln in text.strip().splitlines()[1:]:
+        r = _parse_one(ln)
+        if r.get("side") in ("매수", "매도") and not (r.get("name") and r.get("price")):
+            continue   # 아래 줄의 매수·매도는 종목과 가격이 있을 때만 — "매수는 내일 검토" 같은 문장 제외(GPT 검토 11-02)
+        if r.get("side") and not r.get("side_inferred") and (best is None or _PRIORITY[r["side"]] < _PRIORITY[best["side"]]):
+            best = r
+    cur = _PRIORITY.get(out.get("side"), 9)
+    if best and _PRIORITY[best["side"]] < cur:
+        # 첫 줄이 판·메모여도 아래 줄에 매수·매도가 있으면 그 줄이 기록의 본체 — 첫 줄의 판 값은 남긴다
+        keep = {k: out[k] for k in ("판", "이유", "비중", "names", "깨는가") if out.get(k) and not best.get(k)}
+        out = {**best, **keep, "raw": text.strip(), "from_context": True, **({"practice": True} if out.get("practice") else {})}
+    first = (text.strip().splitlines() or [""])[0]
+    if out.get("side") == "판" and out.get("판") != "무포" and _MUPO_WORD.search(first):
+        out["결정"] = "무포"   # 판 줄 자체에 무포가 있을 때만 — 아래 줄의 "어제는 무포" 같은 설명은 결정이 아니다
+    if re.search(r"^\s*연습", text, re.M):
+        out["practice"] = True   # 어느 줄이든 "연습"으로 시작하면 메시지 전체가 연습 기록
+    return out
+
+
+def _parse_one(text: str) -> dict:
     mp = _PRACTICE.match(text)
     if mp:
         out = parse(text[mp.end():])
@@ -121,6 +151,8 @@ def parse(text: str) -> dict:
             if mm:
                 val = mm.group(1).strip()
                 out[key] = _num(val) if key in ("깨는가", "비중") else val
+        mpan = _PAN.match(first)
+        out.setdefault("판", mpan.group(1) or mpan.group(2))
         if "이유" not in out:
             parts = [x.strip() for x in first[_PAN.match(first).end():].split("/")]
             free = [x for x in parts if x and not re.match(r"(비중|깨는가)\s", x)]
@@ -226,12 +258,13 @@ def format_ack(row: dict) -> str:
             extra.append("⚠ 손절가 없음 — 규칙 ① 예: 손절 1240000")
         tail = f" · {' · '.join(extra)}" if extra else ""
         side = "매수(첫 단어 없어 매수로 기록 — 매도면 '매도'를 앞에)" if row.get("side_inferred") else row["side"]
-        return f"{t} {side} {row.get('name') or '?'}{px}{q}{tail}"
+        return f"{t} {side} {row.get('name') or '?'}{px}{q}{tail}" + (" (문맥으로 읽음)" if row.get("from_context") else "")
     if row.get("side") == "무포":
-        return f"{t} 무포 기록"
+        return f"{t} 무포 기록" + (" (문맥으로 읽음)" if row.get("from_context") else "")
     if row.get("side") == "판":
         w = f" · 비중 {row['비중']:,.0f}만" if row.get("비중") else ""
-        return f"{t} 판 기록: {row.get('판')}{w}"
+        d = " → 무포" if row.get("결정") == "무포" else ""
+        return f"{t} 판 기록: {row.get('판')}{d}{w}" + (" (문맥으로 읽음)" if row.get("from_context") else "")
     if row.get("side") == "후보":
         names = row.get("names") or []
         return f"{t} 후보 기록: {' · '.join(names)}" if names else f"{t} 후보 기록 (종목명 없음)"

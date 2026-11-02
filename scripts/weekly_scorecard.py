@@ -92,7 +92,7 @@ def build(store: Path, days_n: int) -> str:
             for r in recs:
                 tag = "연습 " if r.get("practice") else ""
                 if r["side"] == "판":
-                    parts.append(f"{tag}판 {r.get('판')}" + (f" / {r['이유'][:30]}" if r.get("이유") else ""))
+                    parts.append(f"{tag}판 {r.get('판')}" + (" → 무포" if r.get("결정") == "무포" else "") + (f" / {r['이유'][:30]}" if r.get("이유") else ""))
                 elif r["side"] == "무포":
                     parts.append(f"{tag}무포")
                 else:
@@ -108,7 +108,7 @@ def build(store: Path, days_n: int) -> str:
                 if close_ret is not None and base is not None:      # 같은 날 짝이 다 있을 때만 평균에 넣는다
                     stat["mine"].append(close_ret)
                     stat["trade_base"].append(base)
-            elif any(x["side"] == "무포" or x.get("판") == "무포" for x in recs):
+            elif any(x["side"] == "무포" or x.get("판") == "무포" or x.get("결정") == "무포" for x in recs):
                 stat["mupo_base"].append(d1(top1))
         lines.append(f"| {day[5:]} | {mine_txt} | {names.get(top1, top1)} {_fmt(d1(top1))} | "
                      f"{names.get(top1x, top1x)} {_fmt(d1(top1x))} | {mine_ret} | |")
