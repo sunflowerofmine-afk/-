@@ -39,6 +39,68 @@ _FF_COUNTRIES = {"USD", "CNY", "JPY", "EUR"}
 _FF_FEEDS = ("https://nfs.faireconomy.media/ff_calendar_thisweek.json",
              "https://nfs.faireconomy.media/ff_calendar_nextweek.json")
 
+# 지표 이름 한글화(2026-11-03 사용자 "한글로 해야지"). 정확히 맞는 이름 → 아래 규칙 → 그래도 없으면 영어 그대로
+_COUNTRY_KO = {"USD": "미국", "CNY": "중국", "JPY": "일본", "EUR": "유로"}
+_TITLE_KO = {
+    "Non-Farm Employment Change": "비농업 고용 변화", "ADP Non-Farm Employment Change": "ADP 민간 고용 변화",
+    "Unemployment Rate": "실업률", "Unemployment Claims": "신규 실업수당 청구", "Average Hourly Earnings": "평균 시간당 임금",
+    "JOLTS Job Openings": "JOLTS 구인 건수", "CPI": "소비자물가", "Core CPI": "근원 소비자물가",
+    "CPI Flash Estimate": "소비자물가 예비치", "Core CPI Flash Estimate": "근원 소비자물가 예비치",
+    "PPI": "생산자물가", "Core PPI": "근원 생산자물가", "Core PCE Price Index": "근원 PCE 물가",
+    "PCE Price Index": "PCE 물가", "Advance GDP": "GDP 속보치", "Prelim GDP": "GDP 잠정치", "Final GDP": "GDP 확정치",
+    "GDP": "GDP", "Retail Sales": "소매판매", "Core Retail Sales": "근원 소매판매",
+    "ISM Manufacturing PMI": "ISM 제조업 PMI", "ISM Services PMI": "ISM 서비스업 PMI",
+    "Flash Manufacturing PMI": "제조업 PMI 예비치", "Flash Services PMI": "서비스업 PMI 예비치",
+    "Manufacturing PMI": "제조업 PMI", "Non-Manufacturing PMI": "비제조업 PMI",
+    "Caixin Manufacturing PMI": "차이신 제조업 PMI", "Caixin Services PMI": "차이신 서비스업 PMI",
+    "Federal Funds Rate": "미국 기준금리 결정", "FOMC Statement": "FOMC 성명", "FOMC Press Conference": "FOMC 기자회견",
+    "FOMC Meeting Minutes": "FOMC 의사록", "FOMC Economic Projections": "FOMC 경제전망",
+    "BOJ Policy Rate": "일본은행 금리 결정", "Monetary Policy Statement": "통화정책 성명", "BOJ Press Conference": "일본은행 기자회견",
+    "BOJ Outlook Report": "일본은행 전망 보고서", "Main Refinancing Rate": "ECB 기준금리 결정",
+    "ECB Press Conference": "ECB 기자회견", "Congressional Elections": "의회 선거",
+    "Presidential Election": "대통령 선거", "Prelim UoM Consumer Sentiment": "미시간대 소비자심리 예비치",
+    "Revised UoM Consumer Sentiment": "미시간대 소비자심리 확정치", "CB Consumer Confidence": "콘퍼런스보드 소비자신뢰",
+    "Durable Goods Orders": "내구재 주문", "Core Durable Goods Orders": "근원 내구재 주문",
+    "Empire State Manufacturing Index": "뉴욕 제조업지수", "Philly Fed Manufacturing Index": "필라델피아 제조업지수",
+    "Industrial Production": "산업생산", "Trade Balance": "무역수지", "Tokyo Core CPI": "도쿄 근원 소비자물가",
+    "National Core CPI": "전국 근원 소비자물가", "German Prelim CPI": "독일 소비자물가 예비치",
+    "Crude Oil Inventories": "원유 재고", "Treasury Currency Report": "미 재무부 환율보고서",
+}
+_SUFFIX_KO = {"m/m": "전월 대비", "y/y": "전년 대비", "q/q": "전분기 대비", "q/y": "전년 동기 대비"}
+_WHO_KO = {"Fed Chair": "연준 의장", "BOJ Gov": "일본은행 총재", "ECB President": "ECB 총재",
+           "FOMC Member": "FOMC 위원", "Treasury Secretary": "재무장관", "President": "대통령"}
+
+
+def ko_num(v: str) -> str:
+    """65K → 6.5만, -1.2M → -120만, 3.4B → 34억. 퍼센트 등 그 밖의 값은 그대로."""
+    import re
+    m = re.fullmatch(r"(-?[\d.]+)([KMB])", v.strip())
+    if not m:
+        return v
+    n = float(m.group(1)) * {"K": 1e3, "M": 1e6, "B": 1e9}[m.group(2)]
+    if abs(n) >= 1e8:
+        return f"{n / 1e8:,.4g}억"
+    return f"{n / 1e4:,.4g}만"
+
+
+def ko_title(title: str) -> str:
+    t = title.strip()
+    suf = ""
+    for en, ko in _SUFFIX_KO.items():
+        if t.endswith(" " + en):
+            t, suf = t[: -len(en) - 1], f"({ko})"
+            break
+    if t in _TITLE_KO:
+        return _TITLE_KO[t] + suf
+    if t.endswith(" Speaks"):                     # "Fed Chair Powell Speaks" → "연준 의장 Powell 발언"
+        who = t[: -len(" Speaks")]
+        for en, ko in _WHO_KO.items():
+            if who.startswith(en):
+                who = ko + who[len(en):]
+                break
+        return f"{who} 발언"
+    return title
+
 
 # ── 야간선물 ─────────────────────────────────────────────
 

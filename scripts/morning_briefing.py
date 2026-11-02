@@ -86,7 +86,7 @@ def _events_section() -> str:
     """밤사이 실적 결과 + 다음 브리핑(다음 거래일 07:40) 전까지 일정. 없으면 빈 문자열."""
     try:
         from datetime import timedelta
-        from scripts.fetch_events import KST, earnings, macro_events
+        from scripts.fetch_events import _COUNTRY_KO, KST, earnings, ko_num, ko_title, macro_events
         from scripts.market_calendar import get_next_trading_day, get_prev_trading_day
         now = datetime.now(KST)
         def at0740(d8):
@@ -111,8 +111,8 @@ def _events_section() -> str:
             lines.append(f"• {e['name']} {eps}{mv}")
     sched = [(e["when"], f"{e['name']} 실적({'장 전' if e['bmo'] else '장 마감 후'}"
                          + (f", 예상 EPS {e['est']:.2f})" if e["est"] is not None else ")")) for e in todo]
-    sched += [(m["when"], f"[{m['country']}] {m['title']}"
-                          + (f" 예상 {m['forecast']} · 이전 {m['previous']}" if m["forecast"] else "")) for m in macro or []]
+    sched += [(m["when"], f"[{_COUNTRY_KO.get(m['country'], m['country'])}] {ko_title(m['title'])}"
+                          + (f" 예상 {ko_num(m['forecast'])} · 이전 {ko_num(m['previous'])}" if m["forecast"] else "")) for m in macro or []]
     if sched:
         lines.append("예정(다음 브리핑 전까지, 한국 시각)")
         lines += [f"• {_kst_txt(t)} {txt}" for t, txt in sorted(sched, key=lambda x: x[0])]
