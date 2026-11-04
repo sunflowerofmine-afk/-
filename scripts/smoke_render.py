@@ -344,9 +344,9 @@ def _check_check_cards(verbose: bool) -> list[str]:
                 "ma20": 100.0 + i, "ma60": 99.0 + i} for i in range(1, 31)]
         bar = (100.0, 105.0, 98.0, 103.0)
         top = [{"code": "000660", "name": "SK하이닉스", "chg": 1.2, "total_eok": 50000.0, "nxt_eok": 10000.0, "rank": 1,
-                "bars": [bar, None, bar, bar], "inst_days": 2, "frgn_days": -1, "vs_hi": -5.0, "n_days": 250, "new": False},
+                "bars": [bar, None, bar, bar], "inst_days": 2, "frgn_days": -1, "vs_hi": -5.0, "n_days": 250, "new": False, "nxt_ok": True},
                {"code": "0015M0", "name": "신규", "chg": 35.0, "total_eok": 700.0, "nxt_eok": 0.0, "rank": 2,
-                "bars": [None, None, None, bar], "inst_days": 0, "frgn_days": 0, "vs_hi": None, "n_days": 1, "new": True}]
+                "bars": [None, None, None, bar], "inst_days": 0, "frgn_days": 0, "vs_hi": None, "n_days": 1, "new": True, "nxt_ok": False}]
         x_full = {"time": "14:21", "idx_KOSPI": idx, "idx_KOSDAQ": idx, "days": ["09/24", "09/25", "09/26", "09/29"],
                   "hist": [{"date": "2026-09-26", "kospi": 1.5e5, "kosdaq": 5e4, "top5": 33.0, "adl": 40.0, "lu": "3"}],
                   "top10": top, "limit_n": 1, "limit_rest": [], "new_listings": [{"name": "신규", "chg": 35.0, "tv_eok": 700.0}],

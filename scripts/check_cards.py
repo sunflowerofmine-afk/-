@@ -129,6 +129,11 @@ def _supply_days(code: str, today_s: str) -> tuple[int | None, int | None]:
         return None, None
 
 
+def _fetch_quote(code: str) -> dict:
+    from scripts.fetch_morning_nxt import _fetch_quote as fq
+    return fq(code)
+
+
 def _hi250(code: str, today_s: str, today_high: float | None) -> tuple[float | None, int]:
     from scripts.fetch_stock_data import fetch_daily_history
     try:
@@ -225,6 +230,8 @@ def collect_extra(d: dict) -> dict:
         f["n_days"] = n
         f["prev_rank"] = (last.get(code) or 999) if last else None
         f["top10_cnt"] = sum(1 for h in ranks if h.get(code, 99) <= 10)
+        q = _fetch_quote(code)
+        f["nxt_ok"] = q["nxt_eligible"] if q["krx_close"] is not None else None    # None = 조회 실패
         top.append(f)
     x["top10"] = top
 
@@ -544,7 +551,7 @@ def _card7(d, x, out, stamp):
     c = _Canvas(62 + len(rows) * 7)
     _head(c, "7/7", "미모사 5강 · 판단 순서 3·4", "신고가 부근에 주도주가 있나 · NXT로 대응 가능한가", "5강 판단 순서")
     y = 21
-    for xx, s in ((3, "종목"), (36, "등락"), (52, "최근 250거래일 고가 대비"), (80, "NXT 거래상위")):
+    for xx, s in ((3, "종목"), (36, "등락"), (52, "최근 250거래일 고가 대비"), (80, "NXT 거래대금")):
         c.text(xx, y, s, size=9, color=SUB)
     c.hline(y + 2.5)
     for r in rows:
@@ -559,10 +566,13 @@ def _card7(d, x, out, stamp):
         else:
             txt = f"{v:+.1f}%" + (f" (상장 {nd}일째)" if nd < 250 else "")
         c.text(52, y, txt, size=11, color=SUB if (v is None or r.get("new")) else INK)
-        nx = r.get("nxt_eok") or 0
-        c.text(80, y, f"포함 {_tv(nx)}" if nx > 0 else "미포함", size=10.5, color=INK if nx > 0 else SUB)
+        nx, ok = r.get("nxt_eok") or 0, r.get("nxt_ok")
+        if ok is False:
+            c.text(80, y, "거래 불가", size=10.5, color=INK, bold=True)
+        else:
+            c.text(80, y, _tv(nx) if nx > 0 else ("미확인" if ok is None else "-"), size=10.5, color=INK if nx > 0 else SUB)
     y += 8
-    c.text(3, y, "NXT 거래 가능 여부는 자료가 없어 미확인 — NXT 거래대금 상위(시장별 100종목) 포함 여부만 표시", size=8.5, color=SUB)
+    c.text(3, y, "거래 불가 = 네이버에 NXT 시세 없음 또는 거래정지  ·  - = 거래 가능, 시장별 거래대금 상위 100 밖", size=8.5, color=SUB)
     nd = d.get("next_day")
     if nd:
         y += 5

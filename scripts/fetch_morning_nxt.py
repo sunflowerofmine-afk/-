@@ -91,7 +91,7 @@ def _fetch_quote(code: str) -> dict:
         out["integrated_open"] = _to_int(ip.get("openPrice"))
         om = d.get("overMarketPriceInfo")
         if om:
-            out["nxt_eligible"] = True
+            out["nxt_eligible"] = (om.get("tradeStopType") or {}).get("name", "TRADING") == "TRADING"
             out["nxt_price"] = _to_int(om.get("overPrice"))
             out["session"] = f'{om.get("tradingSessionType")}/{om.get("overMarketStatus")}'
     except Exception as e:
