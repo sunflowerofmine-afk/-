@@ -108,7 +108,7 @@ def harvest(store: Path, ack: bool = True) -> list[dict]:
         if row.get("side") == "매도" and not row.get("practice"):
             row["warn"] = ts.sell_warning(row, store)
         saved.append(row)
-        logger.info(f"기록: {ts.format_ack(row)}")
+        logger.info(f"기록 1건: {row.get('side') or '메모'}")   # 종목·가격은 로그에 남기지 않는다 — 공개 레포 실행 로그(2026-11-05)
     if max_id > last:
         _save_offset(store, max_id)
     if saved and ack:

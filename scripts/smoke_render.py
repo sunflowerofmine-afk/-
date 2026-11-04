@@ -266,6 +266,8 @@ def _check_morning(verbose: bool) -> list[str]:
         orig_pre, orig_us, orig_pos = mb._is_pre_open, mb._us_section, ts.open_positions
         mb._is_pre_open = lambda: True          # 08:00 이전 분기 강제
         mb._us_section = lambda: ""             # yfinance 생략
+        orig_extra = mb._gap_extra
+        mb._gap_extra = lambda: {"nq_fut": 0.5, "wti": 88.11, "wti_pct": -8.3}
         try:
             mb.ts.open_positions = lambda days=15, store=None, _s=store: orig_pos(400, _s)
             msg = mb.build_message()
@@ -280,8 +282,19 @@ def _check_morning(verbose: bool) -> list[str]:
                 print("----- (보유 없음) -----")
                 print(msg2)
         finally:
-            mb._is_pre_open, mb._us_section = orig_pre, orig_us
+            mb._is_pre_open, mb._us_section, mb._gap_extra = orig_pre, orig_us, orig_extra
             mb.ts.open_positions = orig_pos
+        from datetime import datetime
+        from scripts.morning_card import build as build_morning
+        out = Path(tempfile.mkdtemp())
+        full = {"now": datetime(2026, 11, 5, 7, 40), "pre_open": True, "macro_failed": True,
+                "night": {"last": 883.4, "pct": -3.84, "day_close": 918.65}, "nq_fut": 1.1, "sox": -3.37, "MU": -5.78,
+                "SKHY": -1.01, "EWY": 2.27, "nasdaq": 0.8, "sp500": 0.3, "dow": -0.4, "SNDK": 4.8, "wti": 88.11, "wti_pct": -8.3,
+                "usdkrw": 1342.0, "usdkrw_pct": -0.3, "vix": 16.6, "vix_pct": -20.4,
+                "done": ["AMD EPS 2.09 / 예상 1.94 · 시간외 +3.00%"], "sched": ["11/06(금) 22:30 [미국] 비농업 고용 변화 예상 6.5만 · 이전 2.9만"],
+                "pos": [{"head": "하이닉스  매수가 1,479,000 · 2주", "lines": ["손절가 1,449,420 (매수가 대비 -2.0%)"]}]}
+        for v in (full, {"now": full["now"], "pre_open": True}):     # 값이 다 비어도 그려져야 한다
+            assert build_morning(v, out / "m.png").exists(), "아침 카드 없음"
     except Exception as e:
         fails.append(f"[아침] {e}")
         if verbose:
