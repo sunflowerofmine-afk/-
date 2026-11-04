@@ -1,0 +1,48 @@
+{
+  "date": "2026-11-04",
+  "generated": "2026-11-05",
+  "stocks": {
+    "010060": {
+      "name": "OCI홀딩스",
+      "signal_price": 200000,
+      "is_nxt": true,
+      "nxt_dominant": false,
+      "change_pct": 16.17,
+      "sector": "태양광에너지",
+      "total_score": 12,
+      "52w_high": 414000,
+      "52w_low": 97800,
+      "pct_from_52w_high": -51.69,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 108
+    },
+    "009830": {
+      "name": "한화솔루션",
+      "signal_price": 28000,
+      "is_nxt": false,
+      "nxt_dominant": false,
+      "change_pct": 21.82,
+      "sector": "우주태양광(페로브스카이트 등)",
+      "total_score": 11,
+      "52w_high": 55934,
+      "52w_low": 21100,
+      "pct_from_52w_high": -49.94,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 173
+    },
+    "006400": {
+      "name": "삼성SDI",
+      "signal_price": 545000,
+      "is_nxt": true,
+      "nxt_dominant": true,
+      "change_pct": 10.34,
+      "sector": "2차전지(나트륨이온)",
+      "total_score": 11,
+      "52w_high": 723000,
+      "52w_low": 259000,
+      "pct_from_52w_high": -24.62,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 124
+    }
+  }
+}
