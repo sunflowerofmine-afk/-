@@ -105,6 +105,8 @@ def harvest(store: Path, ack: bool = True) -> list[dict]:
             continue
         ts_utc = int(msg.get("edit_date") or msg.get("date") or 0)
         row = ts.record(uid, int(msg.get("message_id", 0)), ts_utc, text, edited=edited, store=store)
+        if row.get("side") == "매도" and not row.get("practice"):
+            row["warn"] = ts.sell_warning(row, store)
         saved.append(row)
         logger.info(f"기록: {ts.format_ack(row)}")
     if max_id > last:

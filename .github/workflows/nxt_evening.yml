@@ -83,6 +83,8 @@ jobs:
           TZ: Asia/Seoul
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
+          KIS_APP_KEY:    ${{ secrets.KIS_APP_KEY }}
+          KIS_APP_SECRET: ${{ secrets.KIS_APP_SECRET }}
         run: python -m scripts.nxt_evening
 
       - name: Commit market history
@@ -92,5 +94,6 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add data/market_history.csv 2>/dev/null || true
           git diff --cached --quiet && echo "No changes" || git commit -m "chore: market history 19:30 [skip ci]"
-          git pull --rebase --autostash origin main
-          git push
+          # 2026-11-04 GitHub 쪽 일시 오류(commit_refs)로 push가 거절돼 19:30 행이 사라졌다 — 다시 시도
+          for i in 1 2 3; do git pull --rebase --autostash origin main && git push && exit 0; sleep 10; done
+          exit 1

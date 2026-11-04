@@ -602,6 +602,9 @@ def send(d: dict) -> bool:
     attach(d)
     card = build_card(d, REPORTS_DIR / "market_card")
     prompt = {"1420": VIEW_PROMPT_1420, "1930": VIEW_PROMPT_1930}.get(slot, "")
+    if slot == "1930":
+        from scripts.fetch_events import evening_line
+        prompt = evening_line() + prompt
     ok = as_card = bool(card) and ntf.send_photo(card, caption=prompt)
     if not ok:
         ok = ntf.send_message(text + (chr(10) * 2 + prompt if prompt else ""))

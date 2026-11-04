@@ -47,6 +47,7 @@ _BARE = re.compile(
     r"^\s*(?P<name>[^\s\d/:：][^\s/]*)\s+(?P<price>[\d,]{4,}(?:\.\d+)?)\s*(?:원)?"
     r"\s*(?:(?:수량\s*[:：]?\s*)?(?P<qty>[\d,]+)\s*주?)?"
 )
+_NAME_SIDE = re.compile(r"^\s*(?P<name>[^\s\d/:：]+)\s+(?P<side>매수|매도)\s+(?=[\d,]{4,})")
 _NOT_STOCK = ("코스피", "코스닥", "나스닥", "지수", "선물", "환율", "달러", "유가", "비트")   # 시장 메모에 흔한 첫 단어
 # "10주씩 두번" · "10주씩 2회" → 20주 (09-22 분할 매도 입력 습관). 한글 횟수는 열 번까지.
 _SPLIT = re.compile(r"([\d,]+)\s*주\s*씩\s*(?:(\d+)|([한두세네다섯여섯일곱여덟아홉열]+))\s*(?:번|회|차례)")
@@ -126,6 +127,9 @@ def _parse_one(text: str) -> dict:
     first = lines[0] if lines else ""
     if re.match(r"^\s*(매수|매도)\s*/", first):
         first = first.replace("/", " ")   # "매수/종목/가격/수량" 입력 습관(2026-10-25)
+    ms = _NAME_SIDE.match(first)
+    if ms and not ms.group("name").startswith(_NOT_STOCK):
+        first = f"{ms.group('side')} {ms.group('name')} {first[ms.end():]}"   # "하이닉스 매도 1423000 2주" 어순(2026-11-03 입력이 메모로 저장됨)
     rest = "\n".join(lines[1:])
     out: dict = {"side": None, "name": None, "price": None, "qty": None, "raw": raw_text.strip()}
     mc = _CAND.match(first)
@@ -231,16 +235,40 @@ def load_recent(days: int = 15, store: Path | None = None, until: date | None = 
 
 def open_positions(days: int = 15, store: Path | None = None) -> list[dict]:
     """종목별로 마지막 매도 이후의 매수만 남긴다. 반환은 매수 행(가장 최근 것) 목록."""
+    return _positions(load_recent(days, store))
+
+
+def _same_name(a: str, b: str) -> bool:
+    """"하이닉스"와 "SK하이닉스"는 같은 종목. 끝이 같을 때만 — 삼성전자우는 삼성전자가 아니고, 오타는 합치지 않는다(삼성전기·삼성전자)."""
+    return a.endswith(b) or b.endswith(a)
+
+
+def _positions(rows: list[dict]) -> list[dict]:
     pos: dict[str, dict] = {}
-    for r in load_recent(days, store):
+    for r in rows:
         name = r.get("name")
         if not name or r.get("practice"):
             continue
         if r.get("side") == "매수":
             pos[name] = r
         elif r.get("side") == "매도":
-            pos.pop(name, None)
+            for k in [k for k in pos if _same_name(k, name)]:
+                del pos[k]
     return list(pos.values())
+
+
+def sell_warning(row: dict, store: Path | None = None) -> str:
+    """매도 입력이 보유 종목과 안 맞으면 회신에 붙일 경고. 2026-11-03 "히이닉스 매도 142300원"이 보유 종목에 남아 있던 일."""
+    t = row.get("time", "")
+    pos = _positions([r for r in load_recent(15, store) if r.get("time", "") <= t and r.get("update_id") != row.get("update_id")])
+    hit = next((p for p in pos if _same_name(p["name"], row.get("name") or "")), None)
+    if not hit:
+        held = " · ".join(p["name"] for p in pos) or "없음"
+        return f"⚠ 보유 목록에 없는 종목 — 입력된 보유: {held}. 종목명 확인"
+    entry, px = hit.get("price"), row.get("price")
+    if entry and px and not 0.5 <= px / entry <= 1.5:
+        return f"⚠ 매수가 {entry:,.0f}와 {(px / entry - 1) * 100:+.0f}% 차이 — 가격 확인"
+    return ""
 
 
 def format_ack(row: dict) -> str:
@@ -256,6 +284,8 @@ def format_ack(row: dict) -> str:
             extra.append(f"비중 {row['비중']:,.0f}만")
         if row.get("side") == "매수" and not row.get("깨는가"):
             extra.append("⚠ 손절가 없음 — 규칙 ① 예: 손절 1240000")
+        if row.get("warn"):
+            extra.append(row["warn"])
         tail = f" · {' · '.join(extra)}" if extra else ""
         side = "매수(첫 단어 없어 매수로 기록 — 매도면 '매도'를 앞에)" if row.get("side_inferred") else row["side"]
         return f"{t} {side} {row.get('name') or '?'}{px}{q}{tail}" + (" (문맥으로 읽음)" if row.get("from_context") else "")

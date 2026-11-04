@@ -174,7 +174,7 @@ def _positions_section(pre_open: bool) -> str:
         lines.append(head)
         if p.get("깨는가") and entry:
             k = p["깨는가"]
-            lines.append(f"  깨는가 {k:,.0f} (매수가 대비 {(k / entry - 1) * 100:+.1f}%)")
+            lines.append(f"  손절가 {k:,.0f} (매수가 대비 {(k / entry - 1) * 100:+.1f}%)")
         if p.get("이유"):
             lines.append(f"  이유 {p['이유']}")
         if not pre_open and entry and codes.get(name):

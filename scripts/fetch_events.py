@@ -20,10 +20,12 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 logger = logging.getLogger(__name__)
 
 KST = timezone(timedelta(hours=9))
+ET = ZoneInfo("America/New_York")
 _KIS = "https://openapi.koreainvestment.com:9443"
 _TOKEN_CACHE = Path(os.environ.get("RUNNER_TEMP") or os.environ.get("TEMP") or "/tmp") / "kis_token.json"
 
@@ -36,8 +38,7 @@ EARNINGS_WATCH = {
 }
 # 지표 일정에서 볼 나라. 한국 원화는 ForexFactory에 없다
 _FF_COUNTRIES = {"USD", "CNY", "JPY", "EUR"}
-_FF_FEEDS = ("https://nfs.faireconomy.media/ff_calendar_thisweek.json",
-             "https://nfs.faireconomy.media/ff_calendar_nextweek.json")
+_FF_FEED = "https://nfs.faireconomy.media/ff_calendar_thisweek.json"
 
 # 지표 이름 한글화(2026-11-03 사용자 "한글로 해야지"). 정확히 맞는 이름 → 아래 규칙 → 그래도 없으면 영어 그대로
 _COUNTRY_KO = {"USD": "미국", "CNY": "중국", "JPY": "일본", "EUR": "유로"}
@@ -171,6 +172,25 @@ def night_futures(today: date | None = None) -> dict | None:
         return None
 
 
+def evening_line() -> str:
+    """19:30 카드 설명글 맨 위 한 줄 — 저녁 매수 전에 볼 야간선물·SKHY 시간외(2026-11-02 사용자 메모
+    "미장 skhy 상승과 야간선물 확인 안한건 미스"). 둘 다 실패하면 빈 문자열."""
+    parts = []
+    nf = night_futures()
+    if nf:
+        parts.append(f"코스피200 야간선물 {nf['last']:,.2f} ({nf['pct']:+.2f}%)")
+    try:
+        import yfinance as yf
+        t = yf.Ticker("SKHY")
+        close = float(t.history(period="5d")["Close"].dropna().iloc[-1])
+        intr = t.history(period="1d", interval="5m", prepost=True)["Close"].dropna()
+        if not intr.empty:
+            parts.append(f"SKHY 시간외 {(float(intr.iloc[-1]) / close - 1) * 100:+.2f}%")
+    except Exception as e:
+        logger.warning(f"SKHY 시간외 조회 실패 (무시): {e}")
+    return "🌙 " + " · ".join(parts) + "\n\n" if parts else ""
+
+
 # ── 실적 ────────────────────────────────────────────────
 
 def _one_earnings(sym: str, since: datetime, until: datetime) -> dict | None:
@@ -199,7 +219,7 @@ def _reaction(e: dict) -> tuple[float | None, str]:
         t = yf.Ticker(e["sym"])
         d = t.history(period="10d")["Close"].dropna()
         d.index = [x.date() for x in d.index]
-        rd = e["when"].astimezone(timezone(timedelta(hours=-5))).date()   # 미국 날짜(서머타임 하루 경계는 영향 없음)
+        rd = e["when"].astimezone(ET).date()
         days = list(d.index)
         if e["bmo"]:
             if rd in days and days.index(rd) > 0:
@@ -221,6 +241,32 @@ def _reaction(e: dict) -> tuple[float | None, str]:
         return None, ""
 
 
+def _nasdaq_hits(since: datetime, until: datetime, have: set[str]) -> list[dict]:
+    """yfinance가 놓친 종목을 나스닥 실적 달력으로 채운다. 2026-11-04 브리핑에서 AMD(11-03 장 마감 후)가 빠졌다."""
+    import requests
+    out, d = [], since.astimezone(ET).date()
+    while d <= until.astimezone(ET).date():
+        if d.weekday() < 5:
+            try:
+                rows = requests.get("https://api.nasdaq.com/api/calendar/earnings", params={"date": d.isoformat()}, timeout=6,
+                                    headers={"User-Agent": "Mozilla/5.0", "Accept": "application/json"}).json()["data"]["rows"] or []
+            except Exception as ex:
+                logger.warning(f"나스닥 실적 달력 조회 실패 (무시): {ex}")
+                return out
+            for r in rows:
+                sym = r.get("symbol")
+                if sym not in EARNINGS_WATCH or sym in have:
+                    continue
+                bmo = "pre-market" in (r.get("time") or "")
+                when = datetime(d.year, d.month, d.day, 8 if bmo else 16, tzinfo=ET).astimezone(KST)
+                if since <= when < until:
+                    est = (r.get("epsForecast") or "").replace("$", "").replace("(", "-").replace(")", "")
+                    out.append({"sym": sym, "name": EARNINGS_WATCH[sym], "when": when, "rep": None, "bmo": bmo,
+                                "est": float(est) if est else None})
+        d += timedelta(days=1)
+    return out
+
+
 def earnings(since: datetime, until: datetime) -> tuple[list[dict], list[dict]]:
     """(발표된 것, 예정인 것). since부터 지금까지 발표 = 결과, 지금부터 until까지 = 예정."""
     now = datetime.now(KST)
@@ -229,10 +275,11 @@ def earnings(since: datetime, until: datetime) -> tuple[list[dict], list[dict]]:
         try:
             return _one_earnings(sym, since, until)
         except Exception as ex:
-            logger.debug(f"{sym} 실적 일정 실패: {ex}")
+            logger.warning(f"{sym} 실적 일정 실패: {ex}")
             return None
     with ThreadPoolExecutor(max_workers=6) as ex:
         hits = [h for h in ex.map(job, EARNINGS_WATCH) if h]
+    hits += _nasdaq_hits(since, until, {h["sym"] for h in hits})
     done = sorted((h for h in hits if h["when"] <= now), key=lambda h: h["when"])
     for h in done:
         h["move"], h["move_label"] = _reaction(h)
@@ -246,22 +293,18 @@ def macro_events(until: datetime) -> list[dict] | None:
     """지금부터 until까지 영향도 High 일정. 이번 주 일정을 못 받으면 None(1시간에 여러 번 부르면 429로 막힌다)."""
     import requests
     now = datetime.now(KST)
-    out, seen = [], set()
-    for url in _FF_FEEDS:
-        try:
-            for e in requests.get(url, timeout=10, headers={"User-Agent": "Mozilla/5.0"}).json():
-                if e.get("impact") != "High" or e.get("country") not in _FF_COUNTRIES:
-                    continue
-                when = datetime.fromisoformat(e["date"]).astimezone(KST)
-                k = (e["country"], e["title"], when)
-                if now <= when < until and k not in seen:
-                    seen.add(k)
-                    out.append({"when": when, "country": e["country"], "title": e["title"],
-                                "forecast": e.get("forecast") or "", "previous": e.get("previous") or ""})
-        except Exception as ex:
-            logger.warning(f"지표 일정 조회 실패 ({url}): {ex}")
-            if url == _FF_FEEDS[0]:
-                return None
+    out = []
+    try:
+        for e in requests.get(_FF_FEED, timeout=10, headers={"User-Agent": "Mozilla/5.0"}).json():
+            if e.get("impact") != "High" or e.get("country") not in _FF_COUNTRIES:
+                continue
+            when = datetime.fromisoformat(e["date"]).astimezone(KST)
+            if now <= when < until:
+                out.append({"when": when, "country": e["country"], "title": e["title"],
+                            "forecast": e.get("forecast") or "", "previous": e.get("previous") or ""})
+    except Exception as ex:
+        logger.warning(f"지표 일정 조회 실패: {ex}")
+        return None
     return sorted(out, key=lambda x: x["when"])
 
 
