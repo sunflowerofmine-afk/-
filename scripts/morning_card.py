@@ -39,7 +39,7 @@ def build(d: dict, out: Path) -> Path:
     c.text(97, 5, f"{now:%H:%M} 기준", size=11, color="#c9d1e0", ha="right")
 
     y = 15
-    c.section(y, "갭 방향")
+    c.section(y, "밤사이 시황")
     y += 5
     nf = d.get("night") or {}
     tiles = [("코스피200 야간선물", nf.get("pct")), ("나스닥 선물", d.get("nq_fut")), ("필라 반도체", d.get("sox")),
