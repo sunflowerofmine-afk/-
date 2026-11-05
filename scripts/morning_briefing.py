@@ -25,7 +25,8 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 logger = logging.getLogger(__name__)
 
 _DAY_KO = ["월", "화", "수", "목", "금", "토", "일"]
-_SEMI = {"마이크론": "MU", "샌디스크": "SNDK", "SKHY(ADR)": "SKHY", "EWY": "EWY"}
+_SEMI = {"마이크론": "MU", "샌디스크": "SNDK", "SKHY": "SKHY", "엔비디아": "NVDA", "TSMC": "TSM", "AMD": "AMD",
+         "테슬라": "TSLA", "이튼": "ETN", "EWY": "EWY"}
 
 
 def _sign(v: float) -> str:
@@ -48,7 +49,7 @@ def _us_section() -> str:
         parts = [f"<b>🌏 미국장</b>\n<pre>{_index_table(indices)}</pre>"]
         semi = _semi_moves()
         if semi:
-            parts.append("반도체(미국 전일 등락) " + " · ".join(f"{k} {_sign(v)}" for k, v in semi.items()))
+            parts.append("주요 종목(미국 전일 등락) " + " · ".join(f"{k} {_sign(v)}" for k, v in semi.items()))
         return "\n".join(parts)
     except Exception as e:
         logger.warning(f"미국장 블록 생성 실패 (무시): {e}")
@@ -262,7 +263,8 @@ def collect() -> dict:
     for key, name in (("nasdaq", "나스닥"), ("sp500", "S&P500"), ("dow", "다우"), ("sox", "필라델피아반도체")):
         d[key] = (idx.get(name) or {}).get("chg_pct")
     semi = _semi_moves()
-    d.update({"MU": semi.get("마이크론"), "SNDK": semi.get("샌디스크"), "SKHY": semi.get("SKHY(ADR)"), "EWY": semi.get("EWY")})
+    d["EWY"] = semi.get("EWY")
+    d["stocks"] = [(k, semi.get(k)) for k in _SEMI if k != "EWY"]
     done, sched, failed = _events_data() or ([], [], True)
     d["done"] = [f"{e['name']} {_eps_txt(e)}" + (f" · {e['move_label']} {_sign(e['move'])}" if e.get("move") is not None else "")
                  for e in done]

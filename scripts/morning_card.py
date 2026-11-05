@@ -1,8 +1,10 @@
 # scripts/morning_card.py
-"""아침 브리핑 카드 한 장 — 위에서 아래로 판단 순서(갭 방향 → 미국 지수 → 유가·환율 → 이벤트 → 보유).
+"""아침 브리핑 카드 한 장 — 위에서 아래로 판단 순서(밤사이 시황 → 미국 지수 → 주요 종목 → 유가·환율 → 이벤트 → 보유).
 
 2026-11-05 사용자: "가독성이 좀 더 좋았으면 좋겠어. 화려한 이미지는 필요 없어. 다만 가독성이 최대한 좋게 시간을 아낄 수 있도록".
-갭 칸 순서는 하이닉스 시초 갭과의 순위상관 기준(필라 반도체 0.62, 마이크론 0.60, EWY 0.49, n=484) + 준돌 장전 4대 매크로.
+칸 구성은 하이닉스 시초 갭과의 순위상관(필라 반도체 0.62, 마이크론 0.60, TSMC 0.51, 2년) + 준돌 장전 4대 매크로.
+주요 종목은 2026-11-05 측정 기준: 애플·마이크로소프트·메타·알파벳·아마존은 최근 120일 상관이 0 근처라 뺐다(실적은 이벤트 칸에 나온다).
+테슬라는 LG에너지솔루션 갭, 이튼은 전력망 테마 쪽으로 넣었다.
 해석 문구 없이 숫자만. 그리는 데 실패하면 morning_briefing이 텍스트로 대신 보낸다.
 """
 from __future__ import annotations
@@ -42,23 +44,30 @@ def build(d: dict, out: Path) -> Path:
     c.section(y, "밤사이 시황")
     y += 5
     nf = d.get("night") or {}
-    tiles = [("코스피200 야간선물", nf.get("pct")), ("나스닥 선물", d.get("nq_fut")), ("필라 반도체", d.get("sox")),
-             ("마이크론", d.get("MU")), ("SKHY", d.get("SKHY")), ("EWY", d.get("EWY"))]
+    tiles = [("코스피200 야간선물", nf.get("pct")), ("나스닥 선물", d.get("nq_fut")), ("EWY", d.get("EWY"))]
     for i, (label, v) in enumerate(tiles):
-        _pct_tile(c, 3 + 32 * (i % 3), y + 16 * (i // 3), 30, 14.5, label, v)
-    y += 33
+        _pct_tile(c, 3 + 32 * i, y, 30, 14.5, label, v)
+    y += 17
     if nf:
         c.text(3, y, f"야간선물 {nf['last']:,.2f} · 정규장 종가 {nf['day_close']:,.2f} 대비", size=9.5, color=SUB)
     else:
         c.text(3, y, "야간선물 조회 실패", size=9.5, color=SUB)
 
     y += 6
-    c.section(y, "미국 전일 종가")
+    c.section(y, "미국 지수 · 전일 종가")
     y += 5
     for i, (label, v) in enumerate((("나스닥", d.get("nasdaq")), ("S&P500", d.get("sp500")),
-                                    ("다우", d.get("dow")), ("샌디스크", d.get("SNDK")))):
+                                    ("다우", d.get("dow")), ("필라 반도체", d.get("sox")))):
         _pct_tile(c, 3 + 23.67 * i, y, 23, 11.5, label, v, size=14)
     y += 16
+
+    stocks = d.get("stocks") or []
+    if stocks:
+        c.section(y, "주요 종목 · 전일 종가")
+        y += 5
+        for i, (label, v) in enumerate(stocks):
+            _pct_tile(c, 3 + 23.67 * (i % 4), y + 12.5 * (i // 4), 23, 11.5, label, v, size=14)
+        y += 12.5 * ((len(stocks) + 3) // 4) + 3.5
 
     c.section(y, "유가 · 환율 · 변동성")
     y += 5

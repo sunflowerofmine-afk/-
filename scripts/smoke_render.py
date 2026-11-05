@@ -288,8 +288,8 @@ def _check_morning(verbose: bool) -> list[str]:
         from scripts.morning_card import build as build_morning
         out = Path(tempfile.mkdtemp())
         full = {"now": datetime(2026, 11, 5, 7, 40), "pre_open": True, "macro_failed": True,
-                "night": {"last": 883.4, "pct": -3.84, "day_close": 918.65}, "nq_fut": 1.1, "sox": -3.37, "MU": -5.78,
-                "SKHY": -1.01, "EWY": 2.27, "nasdaq": 0.8, "sp500": 0.3, "dow": -0.4, "SNDK": 4.8, "wti": 88.11, "wti_pct": -8.3,
+                "night": {"last": 883.4, "pct": -3.84, "day_close": 918.65}, "nq_fut": 1.1, "sox": -3.37, "stocks": [("마이크론", -5.78), ("샌디스크", None), ("SKHY", -1.01)],
+                "EWY": 2.27, "nasdaq": 0.8, "sp500": 0.3, "dow": -0.4, "wti": 88.11, "wti_pct": -8.3,
                 "usdkrw": 1342.0, "usdkrw_pct": -0.3, "vix": 16.6, "vix_pct": -20.4,
                 "done": ["AMD EPS 2.09 / 예상 1.94 · 시간외 +3.00%"], "sched": ["11/06(금) 22:30 [미국] 비농업 고용 변화 예상 6.5만 · 이전 2.9만"],
                 "pos": [{"head": "하이닉스  매수가 1,479,000 · 2주", "lines": ["손절가 1,449,420 (매수가 대비 -2.0%)"]}]}
