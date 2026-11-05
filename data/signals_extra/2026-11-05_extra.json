@@ -1,0 +1,20 @@
+{
+  "date": "2026-11-05",
+  "generated": "2026-11-06",
+  "stocks": {
+    "035720": {
+      "name": "카카오",
+      "signal_price": 32200,
+      "is_nxt": false,
+      "nxt_dominant": false,
+      "change_pct": 10.48,
+      "sector": "nan",
+      "total_score": 6,
+      "52w_high": 69700,
+      "52w_low": 28400,
+      "pct_from_52w_high": -53.8,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 249
+    }
+  }
+}
