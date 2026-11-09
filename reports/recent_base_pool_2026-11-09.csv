@@ -1,4 +1,4 @@
 ﻿종목명,종목코드,시장,등락률,거래대금,signal_price,sector,source_pool,observation_only,pattern_type_label,is_htc_candidate,is_high_range_candidate,base_candle_date,base_candle_offset,today_tv_ratio,close_from_base_high_pct,supply_label,note
-롯데렌탈,089860,KOSPI,0.0,48947000000.0,58400.0,,recent_base_pool,True,고가수축형,True,True,2026-11-06,1,0.3493049861983318,-0.17094017094017094,,최근 기준봉 이후 관찰 후보 (매수 신호 아님)
-카카오,035720,KOSPI,-0.62,66307000000.0,32100.0,,recent_base_pool,True,고가수축형,True,True,2026-11-05,2,0.43441446328836336,-1.078582434514638,,최근 기준봉 이후 관찰 후보 (매수 신호 아님)
-OCI홀딩스,010060,KOSPI,-1.95,104120000000.0,196000.0,,recent_base_pool,True,고가횡보형,False,True,2026-11-04,3,0.517717349796334,-3.9215686274509802,,최근 기준봉 이후 관찰 후보 (매수 신호 아님)
+롯데렌탈,089860,KOSPI,0.0,51109000000.0,58400.0,,recent_base_pool,True,고가수축형,True,True,2026-11-06,1,0.3647338660103896,-0.17094017094017094,,최근 기준봉 이후 관찰 후보 (매수 신호 아님)
+카카오,035720,KOSPI,-2.01,68107000000.0,31650.0,,recent_base_pool,True,고가수축형,True,True,2026-11-05,2,0.4462072760218463,-2.465331278890601,,최근 기준봉 이후 관찰 후보 (매수 신호 아님)
+OCI홀딩스,010060,KOSPI,-3.35,111963000000.0,193300.0,,recent_base_pool,True,고가횡보형,False,True,2026-11-04,3,0.5567152097123218,-5.245098039215686,,최근 기준봉 이후 관찰 후보 (매수 신호 아님)
