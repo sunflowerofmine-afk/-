@@ -1,0 +1,62 @@
+{
+  "date": "2026-11-10",
+  "generated": "2026-11-11",
+  "stocks": {
+    "180640": {
+      "name": "한진칼",
+      "signal_price": 239000,
+      "is_nxt": true,
+      "nxt_dominant": true,
+      "change_pct": 13.25,
+      "sector": "nan",
+      "total_score": 7,
+      "52w_high": 245000,
+      "52w_low": 93100,
+      "pct_from_52w_high": -2.45,
+      "is_near_52w_high": true,
+      "days_since_52w_high": 0
+    },
+    "003490": {
+      "name": "대한항공",
+      "signal_price": 32450,
+      "is_nxt": false,
+      "nxt_dominant": false,
+      "change_pct": 11.68,
+      "sector": "nan",
+      "total_score": 8,
+      "52w_high": 32800,
+      "52w_low": 21000,
+      "pct_from_52w_high": -1.07,
+      "is_near_52w_high": true,
+      "days_since_52w_high": 0
+    },
+    "035720": {
+      "name": "카카오",
+      "signal_price": 32050,
+      "is_nxt": false,
+      "nxt_dominant": false,
+      "change_pct": -0.16,
+      "sector": "nan",
+      "total_score": 6,
+      "52w_high": 68100,
+      "52w_low": 28400,
+      "pct_from_52w_high": -52.94,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 251
+    },
+    "089860": {
+      "name": "롯데렌탈",
+      "signal_price": 58400,
+      "is_nxt": true,
+      "nxt_dominant": false,
+      "change_pct": 0.0,
+      "sector": "nan",
+      "total_score": 2,
+      "52w_high": 58500,
+      "52w_low": 26650,
+      "pct_from_52w_high": -0.17,
+      "is_near_52w_high": true,
+      "days_since_52w_high": 2
+    }
+  }
+}
