@@ -1,4 +1,4 @@
 ﻿종목명,종목코드,시장,등락률,거래대금,signal_price,sector,source_pool,observation_only,pattern_type_label,is_htc_candidate,is_high_range_candidate,base_candle_date,base_candle_offset,today_tv_ratio,close_from_base_high_pct,supply_label,note
-대한항공,003490,KOSPI,-2.93,120257000000.0,31500.0,,recent_base_pool,True,고가수축형,True,True,2026-11-10,1,0.4385846717096757,-3.9634146341463414,,최근 기준봉 이후 관찰 후보 (매수 신호 아님)
-카카오,035720,KOSPI,-0.16,52411000000.0,32000.0,,recent_base_pool,True,고가수축형,True,True,2026-11-05,4,0.343373948985875,-1.386748844375963,,최근 기준봉 이후 관찰 후보 (매수 신호 아님)
-OCI홀딩스,010060,KOSPI,4.96,126495000000.0,207500.0,,recent_base_pool,True,고가횡보형,False,True,2026-11-04,5,0.6289728790096741,1.715686274509804,,최근 기준봉 이후 관찰 후보 (매수 신호 아님)
+대한항공,003490,KOSPI,-2.93,122158000000.0,31500.0,,recent_base_pool,True,고가수축형,True,True,2026-11-10,1,0.4455177355722375,-3.9634146341463414,,최근 기준봉 이후 관찰 후보 (매수 신호 아님)
+카카오,035720,KOSPI,-0.31,52817000000.0,31950.0,,recent_base_pool,True,고가수축형,True,True,2026-11-05,4,0.34603388341353836,-1.5408320493066257,,최근 기준봉 이후 관찰 후보 (매수 신호 아님)
+OCI홀딩스,010060,KOSPI,4.96,131727000000.0,207500.0,,recent_base_pool,True,고가횡보형,False,True,2026-11-04,5,0.6549880266675153,1.715686274509804,,최근 기준봉 이후 관찰 후보 (매수 신호 아님)
