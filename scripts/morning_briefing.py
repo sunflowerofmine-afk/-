@@ -104,12 +104,12 @@ def _gap_line(x: dict) -> str:
 
 def _night_section() -> str:
     """코스피200 야간선물. 실패도 한 줄로 알린다(빈칸이면 하락인지 조회 실패인지 구분이 안 된다)."""
-    from scripts.fetch_events import night_futures
+    from scripts.fetch_events import night_futures, night_label
     nf = night_futures()
     if not nf:
         return "<b>🌙 코스피200 야간선물</b> 조회 실패"
     return (f"<b>🌙 코스피200 야간선물</b> {nf['last']:,.2f} (<b>{_sign(nf['pct'])}</b>)\n"
-            f"정규장 종가 {nf['day_close']:,.2f} 대비 · 거래량 {nf['vol']:,}계약")
+            f"{night_label(nf)} · 거래량 {nf['vol']:,}계약")
 
 
 def _kst_txt(t) -> str:
@@ -277,7 +277,7 @@ def collect() -> dict:
 def caption(d: dict) -> str:
     """알림 미리보기에 뜨는 한 줄 — 사진을 열기 전에 갭 방향과 보유 여부를 본다."""
     nf = d.get("night")
-    parts = [f"야간선물 {_sign(nf['pct'])}" if nf else "야간선물 조회 실패"]
+    parts = [(f"야간선물 {_sign(nf['pct'])}" + (" 확인 필요" if nf.get("warn") else "")) if nf else "야간선물 조회 실패"]
     if d.get("nq_fut") is not None:
         parts.append(f"나스닥 선물 {_sign(d['nq_fut'])}")
     if d.get("wti_pct") is not None:

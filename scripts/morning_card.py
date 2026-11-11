@@ -48,10 +48,12 @@ def build(d: dict, out: Path) -> Path:
     for i, (label, v) in enumerate(tiles):
         _pct_tile(c, 3 + 32 * i, y, 30, 14.5, label, v)
     y += 17
+    from scripts.fetch_events import night_label
     if nf:
-        c.text(3, y, f"야간선물 {nf['last']:,.2f} · 정규장 종가 {nf['day_close']:,.2f} 대비", size=9.5, color=SUB)
+        c.text(3, y, f"야간선물 {nf['last']:,.2f} · {night_label(nf)}", size=9.5,
+               color="#c0392b" if nf.get("warn") else SUB)
     else:
-        c.text(3, y, "야간선물 조회 실패", size=9.5, color=SUB)
+        c.text(3, y, night_label(None), size=9.5, color=SUB)
 
     y += 6
     c.section(y, "미국 지수 · 전일 종가")

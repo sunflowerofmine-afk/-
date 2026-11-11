@@ -143,8 +143,39 @@ def _kis_token(key: str, secret: str) -> str | None:
     return tok
 
 
+def _night_check(o: dict) -> tuple[dict | None, list[str]]:
+    """KIS 응답 검증(2026-11-12 사용자 "검증 추가해줘").
+    필수 값이 없으면 (None, 사유) — 0으로 채워 '보합'처럼 보이는 일을 막는다.
+    값끼리 맞지 않으면 값은 돌려주되 사유를 붙인다 → 화면에 '확인 필요'."""
+    def num(k):
+        v = str(o.get(k) or "").strip()
+        try:
+            return float(v) if v else None
+        except ValueError:
+            return None
+    last, chg, pct, base = num("futs_prpr"), num("futs_prdy_vrss"), num("futs_prdy_ctrt"), num("futs_sdpr")
+    if not last or chg is None or pct is None or not base:
+        return None, ["필수 값 없음"]
+    # 하락이면 등락·등락률 부호가 응답에 따라 양수로 올 수 있어 부호 필드로 맞춘다(4·5 = 하락)
+    if str(o.get("prdy_vrss_sign")) in ("4", "5"):
+        chg, pct = -abs(chg), -abs(pct)
+    warn = []
+    if abs((last - base) - chg) > 0.06:
+        warn.append("등락폭 불일치")
+    if abs(chg / base * 100 - pct) > 0.03:
+        warn.append("등락률 불일치")
+    hi, lo = num("futs_mxpr"), num("futs_llam")
+    if hi and lo and not (lo <= last <= hi):
+        warn.append("가격제한폭 밖")
+    vol = int(num("acml_vol") or 0)
+    if vol == 0:
+        warn.append("체결 없음")
+    return {"last": last, "chg": chg, "pct": pct, "day_close": base, "vol": vol}, warn
+
+
 def night_futures(today: date | None = None) -> dict | None:
-    """{last, chg, pct, day_close, vol, code} — 정규장 종가 대비. 키가 없거나 실패하면 None."""
+    """{last, chg, pct, day_close, vol, code, asof, warn} — 정규장 종가(기준가) 대비. 키가 없거나 실패하면 None.
+    KIS 응답엔 체결 시각이 없다 → asof는 조회 시각과 세션 구분(06:00부터 18:00 사이 조회면 직전 야간장 마감값)."""
     import requests
     key, secret = os.environ.get("KIS_APP_KEY", "").strip(), os.environ.get("KIS_APP_SECRET", "").strip()
     if not key or not secret:
@@ -156,20 +187,36 @@ def night_futures(today: date | None = None) -> dict | None:
             return None
         h = {"authorization": f"Bearer {tok}", "appkey": key, "appsecret": secret,
              "tr_id": "FHMIF10000000", "custtype": "P"}
-        code = front_month_code(today or datetime.now(KST).date())
+        now = datetime.now(KST)
+        code = front_month_code(today or now.date())
         r = requests.get(f"{_KIS}/uapi/domestic-futureoption/v1/quotations/inquire-price", headers=h, timeout=10,
                          params={"FID_COND_MRKT_DIV_CODE": "CM", "FID_INPUT_ISCD": code})
-        o = r.json().get("output1") or {}
-        last, chg = float(o.get("futs_prpr") or 0), float(o.get("futs_prdy_vrss") or 0)
-        if not last:
-            logger.warning(f"야간선물 응답 비어 있음 ({code})")
+        j = r.json()
+        if str(j.get("rt_cd")) != "0":
+            logger.warning(f"야간선물 응답 오류 ({code}): {j.get('msg1')}")
             return None
-        # 등락은 정규장 종가 기준(응답의 전일종가 필드는 정규장 종가와 다른 값이 와서 쓰지 않는다)
-        return {"code": code, "last": last, "chg": chg, "pct": float(o.get("futs_prdy_ctrt") or 0),
-                "day_close": round(last - chg, 2), "vol": int(float(o.get("acml_vol") or 0))}
+        v, warn = _night_check(j.get("output1") or {})
+        if v is None:
+            logger.warning(f"야간선물 응답 검증 실패 ({code}): {warn}")
+            return None
+        if warn:
+            logger.warning(f"야간선물 확인 필요 ({code}): {warn}")
+        closed = 6 <= now.hour < 18
+        asof = f"{now:%H:%M} 조회 · " + ("직전 야간장 마감값" if closed else "야간장 진행 중")
+        return {"code": code, **v, "asof": asof, "warn": warn}
     except Exception as e:
         logger.warning(f"야간선물 조회 실패 (무시): {e}")
         return None
+
+
+def night_label(nf: dict | None) -> str:
+    """화면용 보조 한 줄 — 기준·조회 시각·확인 필요. 조회 실패면 그렇게 적는다(빈칸 금지)."""
+    if not nf:
+        return "야간선물 조회 실패"
+    s = f"정규장 종가 {nf['day_close']:,.2f} 대비 · {nf.get('asof', '')}".rstrip(" ·")
+    if nf.get("warn"):
+        s += f" · 확인 필요({', '.join(nf['warn'])})"
+    return s
 
 
 def evening_line() -> str:
@@ -178,7 +225,10 @@ def evening_line() -> str:
     parts = []
     nf = night_futures()
     if nf:
-        parts.append(f"코스피200 야간선물 {nf['last']:,.2f} ({nf['pct']:+.2f}%)")
+        parts.append(f"코스피200 야간선물 {nf['last']:,.2f} ({nf['pct']:+.2f}%)"
+                     + (f" 확인 필요({', '.join(nf['warn'])})" if nf.get("warn") else ""))
+    else:
+        parts.append("야간선물 조회 실패")
     try:
         import yfinance as yf
         t = yf.Ticker("SKHY")
