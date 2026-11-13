@@ -35,12 +35,13 @@ JSON_HEADERS = {
 MARKET_LIST_URL   = "https://m.stock.naver.com/api/stocks/marketValue/{market}"
 STOCK_DEFAULT_URL = "https://stock.naver.com/api/domestic/market/stock/default"
 STOCK_TREND_URL   = "https://m.stock.naver.com/api/stock/{code}/trend"
-GROUP_LIST_URL    = "https://stock.naver.com/api/domestic/market/{group}/list"
+GROUP_LIST_URL    = "https://m.stock.naver.com/api/stocks/{group}"   # 2026-11-13 이전: stock.naver.com/api/domestic/market/{group}/list (11-06 폐지)
 GROUP_STOCKS_URL  = "https://stock.naver.com/api/domestic/market/{group}/{no}/stocklist"
 MARKET_INDEX_URL  = "https://m.stock.naver.com/front-api/marketIndex/productDetail"
 
 MARKET_LIST_PAGE_SIZE = 100   # marketValue API 상한 (101 이상은 400)
 GROUP_PAGE_SIZE       = 200   # list/stocklist 상한 (201 이상은 400)
+GROUP_LIST_PAGE_SIZE  = 100   # 모바일 테마·업종 목록 상한 (200은 400, 2026-11-13 확인)
 
 
 def get_json(url: str, params: dict | None = None, timeout: int = REQUEST_TIMEOUT):
@@ -95,15 +96,27 @@ def fetch_stock_default(trade_type: str = "KRX", market_type: str = "ALL",
 
 
 def fetch_group_list(group: str) -> list[dict]:
-    """업종('upjong') / 테마('theme') 목록. 등락률순, 페이지 끝까지."""
+    """업종('upjong') / 테마('theme') 목록. 등락률순, 페이지 끝까지.
+
+    2026-11-06 stock.naver.com/api/domestic/market/{group}/list 가 404로 폐지됐다(시뮬레이터 스냅샷·테마 구성·
+    주도 섹터가 그날부터 실패, 2026-11-13 발견). 모바일 목록(m.stock.naver.com/api/stocks/{theme|industry})으로 옮겼다.
+    필드 이름이 바뀌어 기존 호출부가 읽는 이름(totalCnt·riseCnt·fallCnt)을 같이 채운다.
+    ★ 새 목록엔 테마 거래대금(totalAccAmount)이 없다 — 필요한 곳은 구성 종목 거래대금 합으로 따로 잰다.
+    업종 번호는 예전과 같아 구성 종목 주소(GROUP_STOCKS_URL)는 그대로 쓴다(2026-11-13 277 창업투자로 확인)."""
+    kind = {"upjong": "industry"}.get(group, group)
     rows: list[dict] = []
-    for page in range(0, 20):
-        data = get_json(GROUP_LIST_URL.format(group=group),
-                        {"startIdx": page, "pageSize": GROUP_PAGE_SIZE, "sortType": "changeRate"})
-        if not isinstance(data, list) or not data:
+    for page in range(1, 20):
+        data = get_json(GROUP_LIST_URL.format(group=kind), {"page": page, "pageSize": GROUP_LIST_PAGE_SIZE})
+        groups = data.get("groups") if isinstance(data, dict) else None
+        if not isinstance(groups, list) or not groups:
             break
-        rows.extend(data)
-        if len(data) < GROUP_PAGE_SIZE:
+        for g in groups:
+            g.setdefault("totalCnt", g.get("totalCount"))
+            g.setdefault("riseCnt", g.get("riseCount"))
+            g.setdefault("fallCnt", g.get("fallCount"))
+            g.setdefault("steadyCnt", g.get("steadyCount"))
+        rows.extend(groups)
+        if len(rows) >= int(data.get("totalCount") or 0) or len(groups) < GROUP_LIST_PAGE_SIZE:
             break
     return rows
 

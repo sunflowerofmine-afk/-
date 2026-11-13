@@ -641,15 +641,24 @@ def save_sim_snapshot(d: dict) -> Path | None:
                     "krx_eok": round(x["krx_eok"], 1), "nxt_eok": round(x["nxt_eok"], 1)}
 
         raw = fetch_group_list("theme")
+        # 2026-11-13: 새 네이버 목록엔 테마 거래대금이 없다 → 07:40에 저장한 구성 종목(theme_members.json)의
+        # 이 시각 거래대금(KRX+NXT) 합으로 잰다. 구성 파일에 없는 테마는 빈 값.
+        from scripts.theme_members import load as _load_members
+        tv_by_code = {x["code"]: x.get("total_eok") or 0 for x in rows}
+        mem_saved = {str(t["no"]): t["codes"] for t in (_load_members() or {}).get("themes", [])}
+        for t in raw:
+            if t.get("totalAccAmount") is None and str(t.get("no")) in mem_saved:
+                t["tv_eok"] = round(sum(tv_by_code.get(c, 0) for c in dict.fromkeys(mem_saved[str(t.get("no"))])), 1)
         themes = [{"no": int(to_float(t.get("no"), 0) or 0), "name": str(t.get("name") or "").strip(),
                    "chg": to_float(t.get("changeRate")),
-                   "tv_eok": round((to_float(t.get("totalAccAmount"), 0) or 0) * 1000 / 1e8, 1),
+                   "tv_eok": (round((to_float(t.get("totalAccAmount"), 0) or 0) * 1000 / 1e8, 1)
+                              if t.get("totalAccAmount") is not None else t.get("tv_eok")),
                    "n": int(to_float(t.get("totalCnt"), 0) or 0),
                    "rise": int(to_float(t.get("riseCnt"), 0) or 0),
                    "fall": int(to_float(t.get("fallCnt"), 0) or 0)} for t in raw]
         # 구성 종목: 테마 맵에 오른 20개(같은 거름) + 내린 종목이 더 많은 테마 중 등락률 아래 10개
         weak = sorted((t for t in themes if t["chg"] is not None and t["n"] >= MIN_STOCKS
-                       and t["tv_eok"] >= MIN_TV_EOK and t["fall"] > t["rise"]
+                       and (t["tv_eok"] is None or t["tv_eok"] >= MIN_TV_EOK) and t["fall"] > t["rise"]
                        and not any(k in t["name"].lower() for k in _INDEX_LIKE)), key=lambda t: t["chg"])[:10]
         no_by_name = {t["name"]: t["no"] for t in themes}
         members: dict[str, list[str]] = {}

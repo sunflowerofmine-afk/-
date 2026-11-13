@@ -692,7 +692,11 @@ def run(preview: bool = False):
         _brief = _mb.collect(now, run_type, raw_data=raw_data, merged_df=all_df,
                              index_levels=index_levels)
         _mb.send(_brief)
-        _mb.save_sim_snapshot(_brief)   # 15:35만 — 종베 시뮬레이터 문제지 재료(2026-09-27). 알림 뒤라 발송 시각과 무관
+        # 15:35만 — 종베 시뮬레이터 문제지 재료(2026-09-27). 알림 뒤라 발송 시각과 무관.
+        # 실패하면 소리 없이 한 줄 알린다 — 11-06부터 경고 로그만 남고 6거래일 동안 몰랐다(2026-11-13)
+        if _mb.save_sim_snapshot(_brief) is None and _brief.get("slot") == "1535":
+            from scripts.notifier import send_private
+            send_private("⚠ 15:35 시뮬레이터 스냅샷 저장 실패 — 실행 로그의 '시뮬레이터 스냅샷 저장 실패' 줄 확인", silent=True)
     except Exception as e:
         logger.error(f"시황 알림 실패: {e}")
 

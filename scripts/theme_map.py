@@ -51,9 +51,13 @@ def select_themes(themes: list[dict], top_n: int = TOP_N) -> list[dict]:
     for t in themes:
         name = str(t.get("name") or "").strip()
         n    = int(to_float(t.get("totalCnt"), 0) or 0)
-        tv   = (to_float(t.get("totalAccAmount"), 0) or 0) * 1000 / 1e8   # 천원 → 억
+        # 2026-11-13: 새 네이버 목록엔 테마 거래대금이 없다 — 있으면(옛 응답·미리 잰 tv_eok) 쓰고, 없으면 거래대금 거름을 건너뛴다
+        if t.get("totalAccAmount") is not None:
+            tv = (to_float(t.get("totalAccAmount"), 0) or 0) * 1000 / 1e8   # 천원 → 억
+        else:
+            tv = to_float(t.get("tv_eok"))
         chg  = to_float(t.get("changeRate"))
-        if not name or chg is None or n < MIN_STOCKS or tv < MIN_TV_EOK:
+        if not name or chg is None or n < MIN_STOCKS or (tv is not None and tv < MIN_TV_EOK):
             continue
         if any(k in name.lower() for k in _INDEX_LIKE):
             continue
@@ -92,7 +96,9 @@ def render(themes: list[dict], out_path: Path, title: str) -> Path | None:
     import squarify
 
     fp = _font()
-    sizes = [r["tv_eok"] for r in rows]
+    # 거래대금이 없으면(2026-11-13 네이버 목록 변경) 크기는 구성 종목 수로 대신한다
+    no_tv = any(r["tv_eok"] is None for r in rows)
+    sizes = [r["n"] if no_tv else r["tv_eok"] for r in rows]
     fig, ax = plt.subplots(figsize=(10, 6.2), dpi=130)
     rects = squarify.normalize_sizes(sizes, 100, 100)
     rects = squarify.squarify(rects, 0, 0, 100, 100)
@@ -105,9 +111,10 @@ def render(themes: list[dict], out_path: Path, title: str) -> Path | None:
         name = r["name"] if len(r["name"]) <= max_chars else r["name"][:max_chars - 1] + "…"
         nl = chr(10)
         if dy >= 14 and dx >= 18:
-            label = f"{name}{nl}{r['chg']:+.1f}%  {_fmt_tv(r['tv_eok'])}{nl}{r['rise']}↑ {r['fall']}↓ / {r['n']}"
+            tvs = "" if no_tv else f"  {_fmt_tv(r['tv_eok'])}"
+            label = f"{name}{nl}{r['chg']:+.1f}%{tvs}{nl}{r['rise']}↑ {r['fall']}↓ / {r['n']}"
         elif dy >= 8:
-            label = f"{name}{nl}{r['chg']:+.1f}%  {_fmt_tv(r['tv_eok'])}"
+            label = f"{name}{nl}{r['chg']:+.1f}%" + ("" if no_tv else f"  {_fmt_tv(r['tv_eok'])}")
         else:
             label = f"{name} {r['chg']:+.1f}%"
         short = min(dx, dy)
@@ -118,7 +125,8 @@ def render(themes: list[dict], out_path: Path, title: str) -> Path | None:
     ax.set_xlim(0, 100); ax.set_ylim(0, 100); ax.axis("off")
     ax.set_title(title, fontproperties=fp, fontsize=13, loc="left")
     # 범례는 지도 밖(아래)에 — 지도 위에 겹치면 박스 글자를 가린다. bbox_inches="tight"가 잘라내지 않고 포함한다
-    ax.text(100, -1.5, "크기 = 거래대금 · 색 = 등락률 · 오른 종목이 더 많은 테마 중 등락률 상위 20 (거래대금 300억↑)",
+    ax.text(100, -1.5, ("크기 = 구성 종목 수(테마 거래대금 미제공) · 색 = 등락률 · 오른 종목이 더 많은 테마 중 등락률 상위 20" if no_tv else
+                      "크기 = 거래대금 · 색 = 등락률 · 오른 종목이 더 많은 테마 중 등락률 상위 20 (거래대금 300억↑)"),
             ha="right", va="top", fontsize=8, fontproperties=fp, color="#555", clip_on=False)
     ax.text(100, -5, "2↑ 1↓ / 3 = 오른 종목 2 · 내린 종목 1 / 테마 전체 3종목 (나머지는 보합)",
             ha="right", va="top", fontsize=8, fontproperties=fp, color="#555", clip_on=False)
