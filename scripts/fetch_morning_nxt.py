@@ -1,11 +1,20 @@
 # scripts/fetch_morning_nxt.py
 """
-D+1 NXT 장전 단일가 수집 — 매일 08:52 KST 실행.
+아침 NXT 프리장 가격 수집 — 매일 08:52 KST 실행(cron-job.org workflow_dispatch).
 
-GitHub Actions cron: "52 23 * * 0-4"  (23:52 UTC = 08:52 KST 월~금)
+★ 2026-11-17 개편(사용자 요청 "고쳐줘"):
+   대상 = ① 텔레그램에 입력한 보유 종목(trades_store.open_positions)
+          ② 투탑(삼성전자·SK하이닉스) — 항상 NXT 대상이라 수집 성공 여부의 기준이 된다
+          ③ 전일 2차 신호 종목(있으면 덧붙임, 없어도 실패 아님)
+   전에는 ③만 대상이었고, 신호 종목이 전부 NXT 미대상이면 exit 1로 끝나
+   파일이 안 남았다(10월 중순부터 11-17까지 실패 다수).
+   08:52 한 번 조회로 프리장 시가·고가·저가·현재가를 함께 저장한다
+   (`overMarketPriceInfo`의 open/high/low는 진행 중 세션 값, 2026-11-17 저녁장에서 관측).
+   보유 종목은 매수가·손절가 대비 %와 "프리장 저가가 손절가를 건드렸는지"를 적는다.
+   파일 이름은 이제 **수집한 날짜** 기준: nxt_morning_{오늘}.json (전에는 신호 날짜였다).
+   TRADES_DIR  텔레그램 입력 저장소 (워크플로에서 백업 레포 data/trades)
 
-어제 신호 종목들의 08:50 장전 단일가(또는 형성 중인 가격)를 수집해
-nxt_morning_{YYYY-MM-DD}.json 으로 저장.
+(아래는 옛 설명 — 신호 종목 수집 시절 기록)
 
 ⚠ 2026-09-09까지 이 스크립트는 **한 번도 파일을 만든 적이 없다.**
    `data/signals/`를 봇 레포에서 읽었는데 거기엔 신호 CSV가 커밋되지 않는다
@@ -149,97 +158,93 @@ def _load_signal_prices(sig_date: str) -> dict[str, float]:
         return {}
 
 
+TWO_TOP = {"005930": "삼성전자", "000660": "SK하이닉스"}
+
+
+def _session_ohlc(code: str) -> dict:
+    """진행 중인 NXT 세션의 시가·고가·저가·현재가. 블록이 없으면 전부 None."""
+    out = {"open": None, "high": None, "low": None, "last": None, "session": None}
+    try:
+        r = requests.get(_POLL_URL.format(code=code), headers=HEADERS, timeout=10)
+        d = (r.json().get("datas") or [{}])[0] if r.ok else {}
+        om = d.get("overMarketPriceInfo") or {}
+        if om:
+            out.update(open=_to_int(om.get("openPrice")), high=_to_int(om.get("highPrice")),
+                       low=_to_int(om.get("lowPrice")), last=_to_int(om.get("overPrice")),
+                       session=f'{om.get("tradingSessionType")}/{om.get("overMarketStatus")}')
+    except Exception as e:
+        logger.warning(f"[{code}] 세션 시세 실패: {e}")
+    return out
+
+
+def _pct(a, b):
+    return round((a / b - 1) * 100, 2) if a and b else None
+
+
 def main() -> int:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
-    logger.info(f"신호 경로: {_SIGNALS_DIR}  (존재={_SIGNALS_DIR.exists()})")
-    logger.info(f"저장 경로: {_OUT_DIR}")
-
     from scripts.market_calendar import is_trading_day, get_now_kst
-    today = get_now_kst().date()
+    from scripts import trades_store as ts
+    now = get_now_kst()
+    today = now.date()
     if not is_trading_day(today):
         logger.info("비거래일 — 수집 생략")
         return 0
-
-    sig_date, stocks = _find_yesterday_signals()
-    if not stocks:
-        # 조용히 넘어가면 안 된다. 이 스크립트는 이 분기에서 3개월간 아무것도
-        # 만들지 않으면서 워크플로는 초록불이었다(2026-09-09 발견).
-        logger.error(
-            f"신호 파일을 못 찾았다 — {_SIGNALS_DIR} 안에 최근 4일치 2차 CSV가 없다. "
-            "SIGNALS_DIR가 백업 레포를 가리키는지 확인할 것."
-        )
-        return 1
-
-    out_path = _OUT_DIR / f"nxt_morning_{sig_date}.json"
+    out_path = _OUT_DIR / f"nxt_morning_{today.isoformat()}.json"
     if out_path.exists():
         logger.info(f"이미 존재: {out_path} → skip")
         return 0
 
-    signal_prices = _load_signal_prices(sig_date)
-    now_str = __import__("datetime").datetime.now().strftime("%H:%M")
+    # ① 보유 종목 — 이름으로 입력되므로 코드를 찾는다
+    try:
+        pos = ts.open_positions(days=15)
+    except Exception as e:   # 입력 파일이 깨져도 투탑·신호는 남긴다
+        logger.error(f"보유 입력 읽기 실패: {e}")
+        pos = []
+    logger.info(f"보유 입력 {len(pos)}건 (TRADES_DIR={ts.trades_dir()})")
+    codes = {}
+    if pos:
+        from scripts.morning_briefing import _code_by_name
+        codes = _code_by_name([p["name"] for p in pos])
+
+    targets: dict[str, dict] = {}
+    for p in pos:
+        code = codes.get(p["name"])
+        if not code:
+            logger.warning(f"보유 '{p['name']}' 종목코드를 못 찾음 — 건너뜀")
+            continue
+        targets[code] = {"name": p["name"], "role": "보유", "buy_price": p.get("price"),
+                         "stop": p.get("깨는가"), "qty": p.get("qty"), "input_time": p.get("time")}
+    for code, name in TWO_TOP.items():
+        targets.setdefault(code, {"name": name, "role": "투탑"})
+    sig_date, sigs = _find_yesterday_signals()
+    sig_prices = _load_signal_prices(sig_date) if sig_date else {}
+    for code, name in sigs.items():
+        targets.setdefault(code, {"name": name, "role": "신호", "signal_price": sig_prices.get(code)})
 
     prices: dict[str, dict] = {}
-    sessions: set[str] = set()
-    for code, name in stocks.items():
-        q = _fetch_quote(code)
-        sig_price = signal_prices.get(code)
-        nxt = q["nxt_price"]
-        pct = None
-        if nxt and sig_price and sig_price > 0:
-            pct = round((nxt - sig_price) / sig_price * 100, 2)
-        prices[code] = {
-            "name":            name,
-            "nxt_price":       nxt,
-            "nxt_eligible":    q["nxt_eligible"],
-            "session":         q["session"],
-            "krx_close":       q["krx_close"],
-            "integrated_open": q["integrated_open"],
-            "signal_price":    sig_price,
-            "pct":             pct,
-        }
-        if q["session"]:
-            sessions.add(q["session"])
-        tag = q["session"] or ("NXT 미대상" if not q["nxt_eligible"] else "-")
-        logger.info(f"  [{code}] {name}: NXT={nxt} KRX={q['krx_close']} "
-                    f"pct={pct} ({tag})")
+    for code, t in targets.items():
+        q = _session_ohlc(code)
+        row = {**t, **{f"nxt_{k}": v for k, v in q.items() if k != "session"}, "session": q["session"]}
+        base = t.get("buy_price") or t.get("signal_price")
+        if base:
+            row["low_pct"] = _pct(q["low"], base)
+            row["last_pct"] = _pct(q["last"], base)
+        if t.get("stop") and q["low"]:
+            row["stop_touched"] = q["low"] <= t["stop"]
+        prices[code] = row
+        logger.info(f"  [{t['role']}] {t['name']}({code}) 시{q['open']} 고{q['high']} 저{q['low']} 현{q['last']} {q['session']}")
         time.sleep(REQUEST_DELAY)
 
-    result = {
-        "date":        sig_date,
-        "fetched_at":  now_str,
-        "sessions":    sorted(sessions),
-        "prices":      prices,
-    }
+    result = {"date": today.isoformat(), "fetched_at": now.strftime("%H:%M"),
+              "signal_date": sig_date, "prices": prices}
     _OUT_DIR.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
-    logger.info(f"저장: {out_path}  (세션 상태: {sorted(sessions) or '없음'})")
+    logger.info(f"저장: {out_path}")
 
-    valid = [(c, v) for c, v in prices.items() if v["pct"] is not None]
-    if valid:
-        avg = sum(v["pct"] for _, v in valid) / len(valid)
-        win = sum(1 for _, v in valid if v["pct"] > 0)
-        logger.info(f"장전 단가 요약: {len(valid)}개 / 평균 {avg:+.2f}% / 양봉 {win}개")
-
-    eligible = [v for v in prices.values() if v["nxt_eligible"]]
-    if not eligible:
-        logger.error(
-            f"{len(prices)}개 종목 전부 NXT 미대상 — overMarketPriceInfo가 없다. "
-            "신호 종목이 실제로 전부 NXT 밖일 수도 있고, 08:52에는 이 블록이 "
-            "사라지는 것일 수도 있다. 저장된 session 값으로 판별할 것."
-        )
-        return 1
-    if not any(v["nxt_price"] for v in eligible):
-        logger.error(f"NXT 대상 {len(eligible)}개인데 가격을 하나도 못 받았다 — 내용이 비었다")
-        return 1
-
-    # 전일 종가를 그대로 받아오던 옛 버그의 지문. 다시 나오면 즉시 드러나야 한다.
-    pairs = [v for v in eligible if v["nxt_price"] and v["signal_price"]]
-    echo = [v for v in pairs if v["nxt_price"] == v["signal_price"]]
-    if pairs and len(echo) == len(pairs):
-        logger.error(
-            "NXT 가격이 기준가와 전부 정확히 일치한다 — 2026-09-10에 고친 "
-            "'전일 종가 되읽기' 버그가 재발했을 수 있다."
-        )
+    # 투탑은 항상 NXT 대상 — 둘 다 값이 없으면 조회 자체가 망가진 것
+    if not any(prices.get(c, {}).get("nxt_last") for c in TWO_TOP):
+        logger.error("투탑 NXT 가격을 하나도 못 받았다 — overMarketPriceInfo 구조나 조회를 확인할 것")
         return 1
     return 0
 

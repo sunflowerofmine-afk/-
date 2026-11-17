@@ -59,6 +59,7 @@ jobs:
           TZ: Asia/Seoul
           SIGNALS_DIR: /tmp/backup/data/signals
           NXT_MORNING_DIR: /tmp/backup/data/nxt_morning
+          TRADES_DIR: /tmp/backup/data/trades   # 보유 종목(텔레그램 입력) — 2026-11-17부터 수집 대상
         run: python -m scripts.fetch_morning_nxt
 
       - name: Commit to backup repo
@@ -74,5 +75,5 @@ jobs:
             echo "::error::수집은 끝났는데 새 파일이 없습니다 — 저장 경로를 확인하세요."
             exit 1
           fi
-          git commit -m "nxt_morning: $(TZ=Asia/Seoul date +%Y-%m-%d) 장전 단일가"
+          git commit -m "nxt_morning: $(TZ=Asia/Seoul date +%Y-%m-%d) 프리장 가격(보유·투탑·신호)"
           git push
