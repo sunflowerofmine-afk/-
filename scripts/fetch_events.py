@@ -1,33 +1,24 @@
 # scripts/fetch_events.py
-"""아침 브리핑용 — 코스피200 야간선물 + 굵직한 이벤트(빅테크·반도체 실적, 미국 주요 지표).
+"""아침 브리핑용 — 굵직한 이벤트(빅테크·반도체 실적, 미국 주요 지표) + 19:30 SKHY 시간외 한 줄.
 
 2026-11-03 사용자: "아침 브리핑에 야간선물 나오도록 해주고 굵직한 이벤트가 있으면 같이 출력해줘
-예를들어 빅테크 실적 결과라든지".
-
-야간선물: KRX 야간시장(18:00부터 다음 날 06:00, 2025-06부터 KRX 자체 운영). 네이버는 정규장 값만 준다
-(2026-11-03 06:40 조회 — 15:34 값 그대로, 관측). KIS 국내선물 시세(FHMIF10000000)에 시장구분 CM(야간선물)을
-넣으면 야간 현재가와 정규장 종가 대비 등락이 나온다(같은 시각 883.40 / -35.25 / -3.84%, 정규장 종가 918.65, 재현).
+예를들어 빅테크 실적 결과라든지". 코스피200 야간선물(KIS 국내선물 시세, 시장구분 CM)은 2026-11-17 사용자 요청으로
+아침 카드·19:30 줄에서 모두 뺐다("이제 필요 없어. 내가 직접 확인하는게 나을거같애") — 조회 코드도 지웠다.
 실적: yfinance 실적 일정(발표 시각·예상 EPS·발표 EPS). 발표 직후엔 발표 EPS가 비어 있을 수 있다 — 그땐 주가 반응만 쓴다.
 지표: ForexFactory 주간 일정(JSON), 영향도 High만. 일정만 있고 발표치는 없다.
 모두 실패해도 예외를 던지지 않는다 — 브리핑은 나가야 한다.
 """
 from __future__ import annotations
 
-import json
 import logging
-import os
-import time
 from concurrent.futures import ThreadPoolExecutor
-from datetime import date, datetime, timedelta, timezone
-from pathlib import Path
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 logger = logging.getLogger(__name__)
 
 KST = timezone(timedelta(hours=9))
 ET = ZoneInfo("America/New_York")
-_KIS = "https://openapi.koreainvestment.com:9443"
-_TOKEN_CACHE = Path(os.environ.get("RUNNER_TEMP") or os.environ.get("TEMP") or "/tmp") / "kis_token.json"
 
 # 투톱 갭에 직결되는 미국 빅테크·반도체. 이름은 브리핑 표기용
 EARNINGS_WATCH = {
@@ -103,132 +94,11 @@ def ko_title(title: str) -> str:
     return title
 
 
-# ── 야간선물 ─────────────────────────────────────────────
-
-def _second_thursday(y: int, m: int) -> date:
-    d = date(y, m, 1)
-    d += timedelta(days=(3 - d.weekday()) % 7)
-    return d + timedelta(days=7)
-
-
-def front_month_code(today: date) -> str:
-    """코스피200 선물 최근월물 코드(A01 + 연도 끝자리 + 월). 만기(분기 둘째 목요일)가 지나면 다음 분기물."""
-    y, m = today.year, today.month
-    q = ((m - 1) // 3 + 1) * 3
-    if m == q and today > _second_thursday(y, q):
-        q += 3
-    if q > 12:
-        y, q = y + 1, q - 12
-    return f"A01{y % 10}{q:02d}"
-
-
-def _kis_token(key: str, secret: str) -> str | None:
-    """접근 토큰. 발급은 1분에 1번만 되므로 같은 러너 안에서는 파일로 재사용한다."""
-    import requests
-    try:
-        if _TOKEN_CACHE.exists() and time.time() - _TOKEN_CACHE.stat().st_mtime < 20 * 3600:
-            tok = json.loads(_TOKEN_CACHE.read_text()).get("access_token")
-            if tok:
-                return tok
-    except Exception:
-        pass
-    r = requests.post(f"{_KIS}/oauth2/tokenP", timeout=10,
-                      json={"grant_type": "client_credentials", "appkey": key, "appsecret": secret})
-    tok = r.json().get("access_token")
-    if tok:
-        try:
-            _TOKEN_CACHE.write_text(r.text)
-        except Exception:
-            pass
-    return tok
-
-
-def _night_check(o: dict) -> tuple[dict | None, list[str]]:
-    """KIS 응답 검증(2026-11-12 사용자 "검증 추가해줘").
-    필수 값이 없으면 (None, 사유) — 0으로 채워 '보합'처럼 보이는 일을 막는다.
-    값끼리 맞지 않으면 값은 돌려주되 사유를 붙인다 → 화면에 '확인 필요'."""
-    def num(k):
-        v = str(o.get(k) or "").strip()
-        try:
-            return float(v) if v else None
-        except ValueError:
-            return None
-    last, chg, pct, base = num("futs_prpr"), num("futs_prdy_vrss"), num("futs_prdy_ctrt"), num("futs_sdpr")
-    if not last or chg is None or pct is None or not base:
-        return None, ["필수 값 없음"]
-    # 하락이면 등락·등락률 부호가 응답에 따라 양수로 올 수 있어 부호 필드로 맞춘다(4·5 = 하락)
-    if str(o.get("prdy_vrss_sign")) in ("4", "5"):
-        chg, pct = -abs(chg), -abs(pct)
-    warn = []
-    if abs((last - base) - chg) > 0.06:
-        warn.append("등락폭 불일치")
-    if abs(chg / base * 100 - pct) > 0.03:
-        warn.append("등락률 불일치")
-    hi, lo = num("futs_mxpr"), num("futs_llam")
-    if hi and lo and not (lo <= last <= hi):
-        warn.append("가격제한폭 밖")
-    vol = int(num("acml_vol") or 0)
-    if vol == 0:
-        warn.append("체결 없음")
-    return {"last": last, "chg": chg, "pct": pct, "day_close": base, "vol": vol}, warn
-
-
-def night_futures(today: date | None = None) -> dict | None:
-    """{last, chg, pct, day_close, vol, code, asof, warn} — 정규장 종가(기준가) 대비. 키가 없거나 실패하면 None.
-    KIS 응답엔 체결 시각이 없다 → asof는 조회 시각과 세션 구분(06:00부터 18:00 사이 조회면 직전 야간장 마감값)."""
-    import requests
-    key, secret = os.environ.get("KIS_APP_KEY", "").strip(), os.environ.get("KIS_APP_SECRET", "").strip()
-    if not key or not secret:
-        logger.info("KIS 키 없음 — 야간선물 생략")
-        return None
-    try:
-        tok = _kis_token(key, secret)
-        if not tok:
-            return None
-        h = {"authorization": f"Bearer {tok}", "appkey": key, "appsecret": secret,
-             "tr_id": "FHMIF10000000", "custtype": "P"}
-        now = datetime.now(KST)
-        code = front_month_code(today or now.date())
-        r = requests.get(f"{_KIS}/uapi/domestic-futureoption/v1/quotations/inquire-price", headers=h, timeout=10,
-                         params={"FID_COND_MRKT_DIV_CODE": "CM", "FID_INPUT_ISCD": code})
-        j = r.json()
-        if str(j.get("rt_cd")) != "0":
-            logger.warning(f"야간선물 응답 오류 ({code}): {j.get('msg1')}")
-            return None
-        v, warn = _night_check(j.get("output1") or {})
-        if v is None:
-            logger.warning(f"야간선물 응답 검증 실패 ({code}): {warn}")
-            return None
-        if warn:
-            logger.warning(f"야간선물 확인 필요 ({code}): {warn}")
-        closed = 6 <= now.hour < 18
-        asof = f"{now:%H:%M} 조회 · " + ("직전 야간장 마감값" if closed else "야간장 진행 중")
-        return {"code": code, **v, "asof": asof, "warn": warn}
-    except Exception as e:
-        logger.warning(f"야간선물 조회 실패 (무시): {e}")
-        return None
-
-
-def night_label(nf: dict | None) -> str:
-    """화면용 보조 한 줄 — 기준·조회 시각·확인 필요. 조회 실패면 그렇게 적는다(빈칸 금지)."""
-    if not nf:
-        return "야간선물 조회 실패"
-    s = f"정규장 종가 {nf['day_close']:,.2f} 대비 · {nf.get('asof', '')}".rstrip(" ·")
-    if nf.get("warn"):
-        s += f" · 확인 필요({', '.join(nf['warn'])})"
-    return s
-
-
 def evening_line() -> str:
     """19:30 카드 설명글 맨 위 한 줄 — 저녁 매수 전에 볼 야간선물·SKHY 시간외(2026-11-02 사용자 메모
     "미장 skhy 상승과 야간선물 확인 안한건 미스"). 둘 다 실패하면 빈 문자열."""
     parts = []
-    nf = night_futures()
-    if nf:
-        parts.append(f"코스피200 야간선물 {nf['last']:,.2f} ({nf['pct']:+.2f}%)"
-                     + (f" 확인 필요({', '.join(nf['warn'])})" if nf.get("warn") else ""))
-    else:
-        parts.append("야간선물 조회 실패")
+    # 코스피200 야간선물은 2026-11-17 사용자 요청으로 뺐다 — SKHY 시간외만 남긴다
     try:
         import yfinance as yf
         t = yf.Ticker("SKHY")
@@ -363,7 +233,6 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     sys.stdout.reconfigure(encoding="utf-8")
     now = datetime.now(KST)
-    print(night_futures())
     d, t = earnings(now - timedelta(days=1), now + timedelta(days=1))
     print(d, t, sep="\n")
     print(macro_events(now + timedelta(days=1)))

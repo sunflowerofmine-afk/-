@@ -5,7 +5,7 @@
   1. 미국장 지수 + 반도체(SOX·마이크론·샌디스크·SK하이닉스 ADR(SKHY)) — 투톱 갭의 선행 지표
   2. 보유 종목(매수 입력 중 매도 입력이 없는 것): 매수가 · 사용자가 적은 깨는가 · 비중
   3. 08:00 이후 실행이면 NXT 프리장 가격과 매수가 대비 %
-  4. 코스피200 야간선물(KIS) + 굵직한 이벤트 — 밤사이 빅테크·반도체 실적과 다음 브리핑 전까지의 실적·지표 일정(2026-11-03)
+  4. 굵직한 이벤트(코스피200 야간선물은 2026-11-17 사용자 요청으로 제거) — 밤사이 빅테크·반도체 실적과 다음 브리핑 전까지의 실적·지표 일정(2026-11-03)
   5. 나스닥 선물·WTI·EWY(2026-11-05). 2026-11-05부터 카드 한 장(`morning_card.py`)으로 보내고, 카드가 실패하면 아래 텍스트로 보낸다.
 "어제 복기하기" 구글폼 링크는 삭제했다 — 복기는 매매 입력 + 판단지로 한다.
 
@@ -100,16 +100,6 @@ def _gap_line(x: dict) -> str:
     if x.get("wti"):
         parts.append(f"WTI {x['wti']:,.2f} ({_sign(x['wti_pct'])})")
     return " · ".join(parts)
-
-
-def _night_section() -> str:
-    """코스피200 야간선물. 실패도 한 줄로 알린다(빈칸이면 하락인지 조회 실패인지 구분이 안 된다)."""
-    from scripts.fetch_events import night_futures, night_label
-    nf = night_futures()
-    if not nf:
-        return "<b>🌙 코스피200 야간선물</b> 조회 실패"
-    return (f"<b>🌙 코스피200 야간선물</b> {nf['last']:,.2f} (<b>{_sign(nf['pct'])}</b>)\n"
-            f"{night_label(nf)} · 거래량 {nf['vol']:,}계약")
 
 
 def _kst_txt(t) -> str:
@@ -254,10 +244,9 @@ def _card_positions(pre_open: bool) -> list[dict]:
 
 def collect() -> dict:
     """카드에 넣을 값 전부. 조회가 실패한 값은 비어 있고 카드에 '-'로 나온다."""
-    from scripts.fetch_events import night_futures
     from scripts.fetch_us_market import fetch_indices
     pre_open = _is_pre_open()
-    d: dict = {"now": datetime.now(), "pre_open": pre_open, "night": night_futures()}
+    d: dict = {"now": datetime.now(), "pre_open": pre_open}
     d.update(_gap_extra())
     idx = fetch_indices()
     for key, name in (("nasdaq", "나스닥"), ("sp500", "S&P500"), ("dow", "다우"), ("sox", "필라델피아반도체")):
@@ -276,8 +265,7 @@ def collect() -> dict:
 
 def caption(d: dict) -> str:
     """알림 미리보기에 뜨는 한 줄 — 사진을 열기 전에 갭 방향과 보유 여부를 본다."""
-    nf = d.get("night")
-    parts = [(f"야간선물 {_sign(nf['pct'])}" + (" 확인 필요" if nf.get("warn") else "")) if nf else "야간선물 조회 실패"]
+    parts = []
     if d.get("nq_fut") is not None:
         parts.append(f"나스닥 선물 {_sign(d['nq_fut'])}")
     if d.get("wti_pct") is not None:
@@ -294,7 +282,6 @@ def build_message() -> str:
     us = _us_section()
     if us:
         parts.append(us)
-    parts.append(_night_section())
     gl = _gap_line(_gap_extra())
     if gl:
         parts.append(gl)

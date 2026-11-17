@@ -43,19 +43,11 @@ def build(d: dict, out: Path) -> Path:
     y = 15
     c.section(y, "밤사이 시황")
     y += 5
-    nf = d.get("night") or {}
-    tiles = [("코스피200 야간선물", nf.get("pct")), ("나스닥 선물", d.get("nq_fut")), ("EWY", d.get("EWY"))]
+    # 코스피200 야간선물은 2026-11-17 사용자 요청으로 뺐다("내가 직접 확인하는게 나을거같애")
+    tiles = [("나스닥 선물", d.get("nq_fut")), ("EWY", d.get("EWY"))]
     for i, (label, v) in enumerate(tiles):
-        _pct_tile(c, 3 + 32 * i, y, 30, 14.5, label, v)
-    y += 17
-    from scripts.fetch_events import night_label
-    if nf:
-        c.text(3, y, f"야간선물 {nf['last']:,.2f} · {night_label(nf)}", size=9.5,
-               color="#c0392b" if nf.get("warn") else SUB)
-    else:
-        c.text(3, y, night_label(None), size=9.5, color=SUB)
-
-    y += 6
+        _pct_tile(c, 3 + 48 * i, y, 46, 14.5, label, v)
+    y += 20
     c.section(y, "미국 지수 · 전일 종가")
     y += 5
     for i, (label, v) in enumerate((("나스닥", d.get("nasdaq")), ("S&P500", d.get("sp500")),
