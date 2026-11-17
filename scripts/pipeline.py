@@ -954,14 +954,11 @@ def run(preview: bool = False):
     logger.info(f"후보 종목 {len(crawl_codes)}개 지표 수집 시작 (TV필터 후, 원본 {len(candidate_codes)}개) [{run_type}]...")
     enriched = _enrich_candidates(crawl_codes, filtered_df, run_type)
 
-    # ── 프로그램 수급 (2차/수동: 장후 확정치) ───────────────────────
+    # ── 프로그램 수급: 수집 중단(2026-11-17) ─────────────────────
+    # KRX 정보데이터시스템이 로그인 없이는 "LOGOUT"(400)만 돌려준다. 저장된 신호 파일에도
+    # 이 값이 채워진 적이 없다(09-04부터 11-06까지 전부 빈칸). 자동화할 무료 대체 경로가 없어 호출을 뺐다.
+    # 열(prog_net_eok)은 빈 값으로 남고 대시보드는 값이 없으면 표시하지 않는다.
     prog_data: dict = {}
-    if run_type != "1차":
-        try:
-            from scripts.fetch_program_data import fetch_program_data
-            prog_data = fetch_program_data(report_date.replace("-", ""))
-        except Exception as e:
-            logger.warning(f"프로그램 수급 수집 실패 (무시): {e}")
 
     for code in crawl_codes:
         row = filtered_df[filtered_df["종목코드"] == code]

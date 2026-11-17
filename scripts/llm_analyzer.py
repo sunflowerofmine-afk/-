@@ -29,7 +29,12 @@ def _get_client():
         return None
     try:
         from google import genai
-        _client = genai.Client(api_key=GEMINI_API_KEY)
+        from google.genai import types as _gtypes
+        # google-genai 3.x는 기본 API 버전이 v1이고, v1은 thinking_config를 거부한다
+        # ("Thinking is not enabled for api version v1", 2026-11-09 무렵 Actions가 3.4.0을 받으면서 시작).
+        # 1.65에서는 기본이 v1beta였다. 버전을 명시해 SDK 기본값 변화에 흔들리지 않게 한다.
+        _client = genai.Client(api_key=GEMINI_API_KEY,
+                               http_options=_gtypes.HttpOptions(api_version="v1beta"))
         logger.info(f"Gemini 클라이언트 초기화 완료: {GEMINI_MODEL}")
     except Exception as e:
         logger.warning(f"Gemini 초기화 실패: {e}")
