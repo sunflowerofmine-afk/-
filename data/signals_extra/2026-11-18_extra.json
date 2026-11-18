@@ -1,0 +1,76 @@
+{
+  "date": "2026-11-18",
+  "generated": "2026-11-19",
+  "stocks": {
+    "035900": {
+      "name": "JYP Ent.",
+      "signal_price": 46750,
+      "is_nxt": true,
+      "nxt_dominant": false,
+      "change_pct": 21.4,
+      "sector": "음원/음반",
+      "total_score": 13,
+      "52w_high": 79800,
+      "52w_low": 35850,
+      "pct_from_52w_high": -41.42,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 213
+    },
+    "277810": {
+      "name": "레인보우로보틱스",
+      "signal_price": 407000,
+      "is_nxt": true,
+      "nxt_dominant": false,
+      "change_pct": 19.17,
+      "sector": "피지컬 AI/휴머노이드 로봇",
+      "total_score": 13,
+      "52w_high": 979000,
+      "52w_low": 300500,
+      "pct_from_52w_high": -58.43,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 128
+    },
+    "030530": {
+      "name": "원익홀딩스",
+      "signal_price": 35350,
+      "is_nxt": false,
+      "nxt_dominant": false,
+      "change_pct": 10.94,
+      "sector": "반도체와반도체장비",
+      "total_score": 8,
+      "52w_high": 50600,
+      "52w_low": 13210,
+      "pct_from_52w_high": -30.14,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 215
+    },
+    "352820": {
+      "name": "하이브",
+      "signal_price": 166600,
+      "is_nxt": true,
+      "nxt_dominant": false,
+      "change_pct": 16.15,
+      "sector": "음원/음반",
+      "total_score": 10,
+      "52w_high": 405500,
+      "52w_low": 136500,
+      "pct_from_52w_high": -58.91,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 184
+    },
+    "108490": {
+      "name": "로보티즈",
+      "signal_price": 239500,
+      "is_nxt": true,
+      "nxt_dominant": false,
+      "change_pct": 13.48,
+      "sector": "피지컬 AI/휴머노이드 로봇",
+      "total_score": 7,
+      "52w_high": 464000,
+      "52w_low": 155000,
+      "pct_from_52w_high": -48.38,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 114
+    }
+  }
+}
