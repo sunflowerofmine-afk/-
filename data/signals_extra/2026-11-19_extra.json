@@ -1,0 +1,48 @@
+{
+  "date": "2026-11-19",
+  "generated": "2026-11-20",
+  "stocks": {
+    "352820": {
+      "name": "하이브",
+      "signal_price": 187600,
+      "is_nxt": true,
+      "nxt_dominant": true,
+      "change_pct": 12.55,
+      "sector": "음원/음반",
+      "total_score": 9,
+      "52w_high": 405500,
+      "52w_low": 136500,
+      "pct_from_52w_high": -53.74,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 185
+    },
+    "053800": {
+      "name": "안랩",
+      "signal_price": 116500,
+      "is_nxt": true,
+      "nxt_dominant": false,
+      "change_pct": 11.93,
+      "sector": "소프트웨어",
+      "total_score": 8,
+      "52w_high": 137300,
+      "52w_low": 50800,
+      "pct_from_52w_high": -15.15,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 12
+    },
+    "030530": {
+      "name": "원익홀딩스",
+      "signal_price": 34750,
+      "is_nxt": false,
+      "nxt_dominant": false,
+      "change_pct": -1.41,
+      "sector": "반도체와반도체장비",
+      "total_score": 7,
+      "52w_high": 50600,
+      "52w_low": 13210,
+      "pct_from_52w_high": -31.32,
+      "is_near_52w_high": false,
+      "days_since_52w_high": 216
+    }
+  }
+}
