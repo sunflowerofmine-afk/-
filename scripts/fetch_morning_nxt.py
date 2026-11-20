@@ -171,7 +171,12 @@ def _session_ohlc(code: str) -> dict:
         if om:
             out.update(open=_to_int(om.get("openPrice")), high=_to_int(om.get("highPrice")),
                        low=_to_int(om.get("lowPrice")), last=_to_int(om.get("overPrice")),
-                       session=f'{om.get("tradingSessionType")}/{om.get("overMarketStatus")}')
+                       session=f'{om.get("tradingSessionType") or ""}/{om.get("overMarketStatus") or ""}')
+            # 프리장이 아니면(예: 2026-11-19 수능일 "/PREOPEN") 시가·고가·저가·현재가가 전부
+            # 전일 정규장 종가와 같았다(관측) — 프리장 값으로 쓰면 안 되므로 비운다.
+            if om.get("tradingSessionType") != "PRE_MARKET":
+                out["prev_close_echo"] = out["last"]
+                out.update(open=None, high=None, low=None, last=None)
     except Exception as e:
         logger.warning(f"[{code}] 세션 시세 실패: {e}")
     return out
@@ -225,7 +230,10 @@ def main() -> int:
     prices: dict[str, dict] = {}
     for code, t in targets.items():
         q = _session_ohlc(code)
-        row = {**t, **{f"nxt_{k}": v for k, v in q.items() if k != "session"}, "session": q["session"]}
+        row = {**t, **{f"nxt_{k}": v for k, v in q.items() if k not in ("session", "prev_close_echo")},
+               "session": q["session"]}
+        if q.get("prev_close_echo"):
+            row["not_premarket_price"] = q["prev_close_echo"]
         base = t.get("buy_price") or t.get("signal_price")
         if base:
             row["low_pct"] = _pct(q["low"], base)
@@ -236,13 +244,20 @@ def main() -> int:
         logger.info(f"  [{t['role']}] {t['name']}({code}) 시{q['open']} 고{q['high']} 저{q['low']} 현{q['last']} {q['session']}")
         time.sleep(REQUEST_DELAY)
 
+    sessions = sorted({v["session"] for v in prices.values() if v.get("session")})
+    premarket_ok = any(x.startswith("PRE_MARKET/") for x in sessions)
+    if not premarket_ok:
+        logger.error(f"08:52에 프리장 세션이 아니다 {sessions} — 프리장 시각이 바뀐 날(수능 등)일 수 있다. 값은 비워 저장한다")
     result = {"date": today.isoformat(), "fetched_at": now.strftime("%H:%M"),
+              "premarket_ok": premarket_ok, "sessions": sessions,
               "signal_date": sig_date, "prices": prices}
     _OUT_DIR.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
     logger.info(f"저장: {out_path}")
 
     # 투탑은 항상 NXT 대상 — 둘 다 값이 없으면 조회 자체가 망가진 것
+    if not premarket_ok:
+        return 0   # 파일은 남기고(프리장 아님 표시) 실패로 치지 않는다
     if not any(prices.get(c, {}).get("nxt_last") for c in TWO_TOP):
         logger.error("투탑 NXT 가격을 하나도 못 받았다 — overMarketPriceInfo 구조나 조회를 확인할 것")
         return 1
