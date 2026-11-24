@@ -95,3 +95,27 @@ jobs:
           # 2026-11-04 GitHub 쪽 일시 오류(commit_refs)로 push가 거절돼 19:30 행이 사라졌다 — 다시 시도
           for i in 1 2 3; do git pull --rebase --autostash origin main && git push && exit 0; sleep 10; done
           exit 1
+
+  # ── NXT 종목별 하루치 저장(20:00 마감 뒤) ─────────────────────────────
+  # 19:30 트리거는 정시에 오므로 여기서 20:03까지 기다렸다가 nxt_save.yml을 부른다(2026-11-24).
+  # 알림 잡과 따로 돌아 알림을 늦추지 않는다.
+  wait-nxt-close:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait until 20:03 KST
+        env:
+          TZ: Asia/Seoul
+        run: |
+          now=$(date +%s); target=$(date -d "today 20:03" +%s)
+          wait=$(( target - now ))
+          echo "지금 $(date +%H:%M:%S), ${wait}초 대기"
+          if [ "$wait" -gt 3600 ]; then echo "::error::20:03까지 1시간 넘게 남음 — 수동 실행으로 보고 중단"; exit 1; fi
+          if [ "$wait" -gt 0 ]; then sleep "$wait"; fi
+
+  nxt-save:
+    needs: wait-nxt-close
+    permissions:
+      contents: write
+    uses: ./.github/workflows/nxt_save.yml
+    secrets: inherit
+

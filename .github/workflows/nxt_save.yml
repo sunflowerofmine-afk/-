@@ -1,9 +1,13 @@
 name: NXT 거래대금 저장
 
 # NXT 종료(20:00 KST) 이후 실행.
-# 매 거래일 20:10 KST 자동 실행 + GitHub UI "Run workflow" 수동 실행 병행.
+# ★ 주 경로(2026-11-24부터): nxt_evening.yml(cron-job.org 19:30 트리거)이 20:03까지 기다렸다가
+#   이 워크플로를 workflow_call로 부른다. GitHub schedule은 20:10 예약이 8~11시간씩 밀려
+#   11-23분이 11-24 07:34에 돌았고, 그때는 NXT 전날 자료가 이미 사라져 파일이 비었다(복구 불가).
+# 아래 schedule은 예비로만 남긴다 — 자료가 없으면 저장하지 않으므로 주 경로 파일을 덮어쓰지 않는다.
 on:
   workflow_dispatch:
+  workflow_call:
   schedule:
     - cron: "10 11 * * 1-5"   # 20:10 KST (= 11:10 UTC), 월-금
 
