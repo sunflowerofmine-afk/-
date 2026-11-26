@@ -1,0 +1,4 @@
+﻿종목명,종목코드,시장,등락률,거래대금,signal_price,sector,source_pool,observation_only,pattern_type_label,is_htc_candidate,is_high_range_candidate,base_candle_date,base_candle_offset,today_tv_ratio,close_from_base_high_pct,supply_label,note
+실리콘투,257720,KOSDAQ,2.42,82548395000.0,29550.0,인터넷과카탈로그소매,recent_base_pool,True,없음,False,False,2026-11-25,1,0.9270623496467675,-1.9900497512437811,,최근 기준봉 이후 관찰 후보 (매수 신호 아님)
+삼현,437730,KOSDAQ,-0.83,79167758000.0,60300.0,자동차부품,recent_base_pool,True,없음,False,False,2026-11-24,2,0.8054475516147839,-6.944444444444445,,최근 기준봉 이후 관찰 후보 (매수 신호 아님)
+에스피지,058610,KOSDAQ,-1.32,85593695000.0,89400.0,전기제품,recent_base_pool,True,없음,False,False,2026-11-24,2,1.050184477264538,-2.5081788440567068,,최근 기준봉 이후 관찰 후보 (매수 신호 아님)
