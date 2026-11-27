@@ -271,10 +271,10 @@
   },
   {
     "week_start": "2026-11-20",
-    "n": 11,
+    "n": 16,
     "d1_win_rate": 36.4,
     "d1_avg": -0.25,
-    "buy_review_n": 2,
+    "buy_review_n": 3,
     "buy_review_win_rate": 50.0,
     "buy_review_avg": -1.02
   }
