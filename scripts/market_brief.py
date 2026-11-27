@@ -685,7 +685,8 @@ def save_app_snapshot(d: dict) -> Path | None:
                 from scripts import app_extras as ax
                 from scripts.theme_members import load as _load_members
                 out["theme_flow"] = ax.theme_flow(d["day_rows"], _load_members() or {}, now.strftime("%Y%m%d"), d.get("quotes"))
-                out["new_highs"] = ax.new_highs(d["day_rows"], d.get("krx_live_price") or {}, out["date"])
+                out["stocks"] = ax.stock_table(d["day_rows"], d.get("krx_live_price") or {}, out["date"])
+                out["new_highs"] = ax.new_highs_from(out["stocks"])
             except Exception as e:
                 logger.warning(f"앱 스냅샷 테마 흐름·신고가 실패: {e}")
         # 5단계용 — 지금부터 다음 거래일 09:00까지 지표(영향도 High)·빅테크 실적. 14:20·19:30만(ForexFactory 429 회피)

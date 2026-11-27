@@ -98,7 +98,7 @@ def theme_flow(day_rows: list[dict], members: dict, day8: str, quotes: dict | No
         g = grid.setdefault(th, {})
         for b, v in per[c].items():
             g[b] = g.get(b, 0.0) + v
-        leaders.setdefault(th, []).append((day_tot[c], names.get(c, c)))
+        leaders.setdefault(th, []).append((day_tot[c], names.get(c, c), c))
     seen = [b for b in BUCKETS if any(b in g for g in grid.values())]
     totals = {th: sum(g.values()) for th, g in grid.items()}
     top_themes = sorted(totals, key=lambda x: -totals[x])[:8]
@@ -113,7 +113,8 @@ def theme_flow(day_rows: list[dict], members: dict, day8: str, quotes: dict | No
         "buckets": buckets,
         "themes": [{"theme": th, "eok": round(totals[th]),
                     "series": [round(grid[th].get(b, 0.0)) for b in seen],
-                    "leaders": [x[1] for x in sorted(leaders[th], reverse=True)[:3]]} for th in top_themes],
+                    "leaders": [x[1] for x in sorted(leaders[th], reverse=True)[:3]],
+                    "members": [x[2] for x in sorted(leaders[th], reverse=True)[:8]]} for th in top_themes],
         "times": [f"{b[:2]}:{b[2:]}" for b in seen],
     }
 
@@ -127,25 +128,39 @@ def _hist(code: str, today_s: str) -> dict | None:
     return {"hi250": max(hi[-250:]), "hi60": max(hi[-60:]), "n": len(rows), "avg20_eok": sum(tv) / len(tv)}
 
 
-def new_highs(day_rows: list[dict], price: dict, today_s: str, n: int = 100) -> list[dict]:
+def stock_table(day_rows: list[dict], price: dict, today_s: str, n: int = 150) -> dict[str, dict]:
+    """거래대금 상위 n종목의 카드용 숫자 — 카드에서 테마 → 종목을 고를 때 이 표를 쓴다.
+    rank = 거래대금(KRX+NXT) 순위, vs60·vs250 = 직전 60·250거래일 고가 대비, tv_x = 직전 20일 평균(종가×거래량 추정) 대비 KRX 배수."""
     rows = day_rows[:n]
     with ThreadPoolExecutor(max_workers=8) as ex:
         hs = list(ex.map(lambda r: _safe(_hist, r["code"], today_s), rows))
-    out = []
+    out: dict[str, dict] = {}
     for rank, (r, h) in enumerate(zip(rows, hs), 1):
         p = price.get(r["code"])
-        if not h or not p:
+        row = {"name": r["name"], "chg": round(r["chg"], 2), "price": p, "rank": rank,
+               "total_eok": round(r.get("total_eok") or r["krx_eok"]), "krx_eok": round(r["krx_eok"]),
+               "nxt_eok": round(r.get("nxt_eok") or 0)}
+        if h and p:
+            row.update({"vs250": round((p / h["hi250"] - 1) * 100, 1), "vs60": round((p / h["hi60"] - 1) * 100, 1),
+                        "tv_x": round(r["krx_eok"] / h["avg20_eok"], 1) if h["avg20_eok"] else None, "days": h["n"]})
+        out[r["code"]] = row
+    return out
+
+
+def new_highs_from(table: dict[str, dict], n: int = 100) -> list[dict]:
+    out = []
+    for code, x in table.items():
+        if x["rank"] > n or "vs60" not in x:
             continue
-        vs250 = (p / h["hi250"] - 1) * 100
-        vs60 = (p / h["hi60"] - 1) * 100
-        ratio = r["krx_eok"] / h["avg20_eok"] if h["avg20_eok"] else None
-        if vs60 >= -3 or vs250 >= -3:
-            out.append({"code": r["code"], "name": r["name"], "chg": round(r["chg"], 2), "krx_eok": round(r["krx_eok"]),
-                        "total_eok": round(r.get("total_eok") or r["krx_eok"]), "rank": rank,
-                        "vs250": round(vs250, 1), "vs60": round(vs60, 1), "tv_x": round(ratio, 1) if ratio else None,
-                        "new250": vs250 > 0, "new60": vs60 > 0, "days": h["n"]})
+        if x["vs60"] >= -3 or x["vs250"] >= -3:
+            out.append({"code": code, **{k: x.get(k) for k in ("name", "chg", "krx_eok", "total_eok", "rank", "vs250", "vs60", "tv_x", "days")},
+                        "new250": x["vs250"] > 0, "new60": x["vs60"] > 0})
     out.sort(key=lambda x: (-(x["new250"] + x["new60"]), -(x["tv_x"] or 0)))
     return out[:15]
+
+
+def new_highs(day_rows: list[dict], price: dict, today_s: str, n: int = 100) -> list[dict]:
+    return new_highs_from(stock_table(day_rows, price, today_s, n), n)
 
 
 def _safe(fn, *a):
