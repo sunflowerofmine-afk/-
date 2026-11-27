@@ -66,24 +66,6 @@ jobs:
           git add data/trades
           git diff --cached --quiet && echo "새 입력 없음" ||             (git commit -m "trades: $(date +%Y-%m-%d_%H%M) 텔레그램 입력 수거" && git push)
 
-      - name: Sync previous signals (review.py용)
-        # 직전 실행 artifact의 signals 파일을 복원 → review.py가 어제 신호 복기 가능
-        # GITHUB_TOKEN은 같은 레포 artifact 읽기 권한 보유
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          PREV_RUN=$(gh run list --workflow run_bot.yml --status success --limit 1 \
-            --json databaseId --jq '.[0].databaseId' 2>/dev/null || echo "")
-          if [ -n "$PREV_RUN" ]; then
-            echo "이전 run: $PREV_RUN"
-            mkdir -p data/signals
-            gh run download "$PREV_RUN" -n "bot-output-${PREV_RUN}" -D /tmp/prev_art 2>/dev/null && \
-              cp /tmp/prev_art/data/signals/* data/signals/ 2>/dev/null || true
-            echo "복원 완료: $(ls data/signals/ | wc -l)개 파일"
-          else
-            echo "이전 run 없음 → skip"
-          fi
-
       - name: Run pipeline
         env:
           TELEGRAM_BOT_TOKEN:    ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -95,79 +77,20 @@ jobs:
           TZ: Asia/Seoul
         run: python -m scripts.pipeline
 
-      - name: Run weekly backtest (매 거래일 갱신)
-        continue-on-error: true   # 신호 파일 없어도 대시보드 커밋 차단 방지
-        env:
-          TZ: Asia/Seoul
-        # 매 거래일 실행해 대시보드 백테스트를 항상 최신으로 유지.
-        # signals CSV(artifact)가 없어도 커밋되는 signals_extra 폴백으로 결과 산출.
-        # 직전 금요일~오늘 구간을 자동 집계(_period_start).
-        run: python -m scripts.weekly_backtest --no-notify
-
-      # ── 방식 A (권장): reports/ 를 main 브랜치에 자동 커밋 ──
-      # GitHub Pages 소스를 "main 브랜치 / (root)" 또는 "main 브랜치 / docs" 로
-      # 설정하면 커밋 즉시 Pages에 반영됩니다.
-      - name: Commit dashboard reports
-        if: always()   # weekly_backtest 실패와 무관하게 항상 실행
+      - name: Commit market data
+        if: always()
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add reports/ index.html
-          git add data/weekly_backtest/ reports/weekly_backtest/ 2>/dev/null || true
           git add data/market_history.csv 2>/dev/null || true
           git add data/krx_close/ 2>/dev/null || true
           git add data/evening_snapshot/ 2>/dev/null || true
           git add data/sim_snapshot/ 2>/dev/null || true
           git add data/app/ 2>/dev/null || true
           git diff --cached --quiet && echo "No changes to commit" || \
-            git commit -m "chore: update dashboard reports [skip ci]"
+            git commit -m "chore: market data [skip ci]"
           for i in 1 2 3; do git pull --rebase --autostash origin main && git push && exit 0; sleep 10; done
           exit 1
-
-      # ── 방식 B (대안): gh-pages 브랜치에만 배포하려면 아래 주석 해제 ──
-      # (방식 A 대신 사용, 방식 A steps는 제거할 것)
-      # - name: Deploy to gh-pages
-      #   uses: peaceiris/actions-gh-pages@v4
-      #   with:
-      #     github_token: ${{ secrets.GITHUB_TOKEN }}
-      #     publish_dir: ./reports
-      #     destination_dir: reports
-      #     keep_files: true
-
-      - name: Push public report to stock-report-site
-        if: false  # 프론트엔드 완성 후 재활성화
-        env:
-          STOCK_SITE_TOKEN: ${{ secrets.STOCK_SITE_TOKEN }}
-        run: |
-          if [ -z "$STOCK_SITE_TOKEN" ]; then
-            echo "STOCK_SITE_TOKEN not set, skipping"
-            exit 0
-          fi
-          REPO_URL="https://x-access-token:${STOCK_SITE_TOKEN}@github.com/sunflowerofmine-afk/stock-report-site.git"
-          if git clone --depth=1 "$REPO_URL" /tmp/stock-site 2>/dev/null; then
-            echo "Cloned existing repo"
-          else
-            mkdir -p /tmp/stock-site && cd /tmp/stock-site
-            git init && git remote add origin "$REPO_URL"
-            cd -
-          fi
-          mkdir -p /tmp/stock-site/reports
-          cp public_site/reports/*.html /tmp/stock-site/reports/ 2>/dev/null || true
-          python -c "
-          import sys; sys.path.insert(0,'.')
-          from scripts.public_report import generate_site_index
-          generate_site_index('/tmp/stock-site')
-          "
-          cd /tmp/stock-site
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -A
-          if git diff --cached --quiet; then
-            echo "No changes to push"
-          else
-            git commit -m "chore: update report $(date +%Y-%m-%d)"
-            git push origin main 2>/dev/null || git push --set-upstream origin main
-          fi
 
       - name: Upload artifacts
         if: always()
@@ -177,32 +100,4 @@ jobs:
           path: |
             data/
             logs/
-            reports/
           retention-days: 30
-
-      # 신호/복기 데이터 영구 백업 (비공개 레포 jongbe-data-backup)
-      # DATA_BACKUP_SSH_KEY 시크릿(deploy key 개인키) 미설정 시 자동 skip
-      - name: Backup signals to private repo
-        if: always()
-        env:
-          BACKUP_KEY: ${{ secrets.DATA_BACKUP_SSH_KEY }}
-        run: |
-          if [ -z "$BACKUP_KEY" ]; then
-            echo "DATA_BACKUP_SSH_KEY 미설정 — 백업 skip"
-            exit 0
-          fi
-          mkdir -p ~/.ssh
-          echo "$BACKUP_KEY" > ~/.ssh/backup_key
-          chmod 600 ~/.ssh/backup_key
-          export GIT_SSH_COMMAND="ssh -i ~/.ssh/backup_key -o StrictHostKeyChecking=accept-new"
-          git clone --depth 1 git@github.com:sunflowerofmine-afk/jongbe-data-backup.git /tmp/backup
-          mkdir -p /tmp/backup/data
-          cp -r data/signals /tmp/backup/data/ 2>/dev/null || true
-          cp -r data/pullback_observation /tmp/backup/data/ 2>/dev/null || true
-          cd /tmp/backup
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git diff --cached --quiet && echo "변경 없음" || \
-            git commit -m "backup: $(TZ=Asia/Seoul date +%Y-%m-%d_%H%M)"
-          git push || echo "백업 push 실패 (파이프라인은 정상)"

@@ -90,6 +90,10 @@ TV_SCORE_2_MIN_EOK                  = 5000   # 거래대금 2점 기준: 5천억
 TV_SCORE_1_MIN_EOK                  = 1000   # 거래대금 1점 기준: 1천억↑
 TOP_GAINERS_COUNT                   = 20
 TOP_TRADING_VALUE_COUNT             = 20
+# 2026-11-28 셀프 오딧: 시황 알림 뒤의 후보 계산(섹터·수급·뉴스·패턴·점수·대형주 관찰·대시보드·daily_summary)을 끈다.
+# 9-11 후보 알림 중단 뒤 소비처 없음(관측), 실행당 약 6분. 원자료와 카드 앱 스냅샷은 알림 단계에서 그대로 저장된다.
+# 다시 켜려면 True — 코드는 그대로 있다.
+ENABLE_CANDIDATE_PIPELINE           = False
 ENABLE_NEWS_FETCH                   = True
 ENABLE_SUPPLY_FETCH                 = True
 GEMINI_API_KEY                      = os.getenv("GEMINI_API_KEY", "")

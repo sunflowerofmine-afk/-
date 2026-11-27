@@ -1,927 +1,637 @@
 # scripts/weekly_review_dashboard.py
-"""주간 통합 리뷰 대시보드 — 시스템 후보 vs 실제 매매 비교 요약"""
+"""누적 복기 대시보드 — compliance_history.json + trade_history.json 기반.
+
+사용법:
+  python -m scripts.weekly_review_dashboard [--open] [--latest]
+
+  --open   : 생성 후 HTML을 기본 브라우저로 열기
+  --latest : trade_analyzer 호환용 (동작에 영향 없음)
+"""
 
 import argparse
 import json
-import re
 import webbrowser
-from datetime import date, datetime
+from datetime import datetime
 from pathlib import Path
 
-import pandas as pd
+_BASE        = Path(__file__).parent.parent
+_HISTORY_DIR = _BASE / "data"  / "trade_reviews"
+_REPORT_DIR  = _BASE / "reports" / "trade_reviews"
+_OUT_HTML    = _REPORT_DIR / "weekly_dashboard.html"
 
-# ── 경로 상수 ─────────────────────────────────────────────────────────────
-_ROOT         = Path(__file__).parent.parent
-_SIGNALS_DIR  = _ROOT / "data" / "signals"
-_GAP_ALL      = _ROOT / "data" / "gap_results" / "all.csv"
-_TRADE_REVS   = _ROOT / "data" / "trade_reviews"
-_OUT_HTML     = _ROOT / "reports" / "weekly_reviews"
-_OUT_JSON     = _ROOT / "data" / "weekly_reviews"
-_HISTORY      = _OUT_JSON / "weekly_review_history.json"
-
-# ── 태그 → 원칙 텍스트 ────────────────────────────────────────────────────
-_PRINCIPLE = {
-    "AVERAGING_DOWN":              "물타기 금지 - 추가매수는 평균단가 위에서만",
-    "D1_CHASE_ENTRY":              "D+1 장초 추격매수 금지",
-    "NXT_CHASE_ENTRY":             "NXT 추격 진입 금지 (+3% 초과)",
-    "NON_SIGNAL_TRADE":            "봇 신호 종목만 매매",
-    "NON_INTERSECTION_TRADE":      "교집합 우선 원칙 - 비교집합 진입 자제",
-    "OVERSIZED_POSITION":          "종목당 비중 30% 이하 유지",
-    "REVERSE_AT_EXIT_ZONE":        "D+1 09:20~09:40 역매매 금지",
-    "D1_EXIT_MISSED":              "D+1 09:20~09:40 청산 원칙 준수",
-    "D1_EXIT_DELAYED":             "D+1 청산 지연 - 09:40 이전에 청산할 것",
-    "GAP_DOWN_STOP_MISSED":        "갭하락 -3% 발생 시 즉시 손절 원칙",
-    "POST_GAPDOWN_AVERAGING_DOWN": "갭하락 상황에서 물타기 절대 금지",
-    "UNAUTHORIZED_EXTENDED_HOLD":  "연장 보유 조건 미충족 - 갭다운 없음 + 수익권일 때만",
-    "MAX_POSITION_COUNT_EXCEEDED": "최대 3종목 동시 보유 원칙",
-    "NOT_CLOSE_ENTRY":             "14:50~15:30 창 내 종가 진입",
+# trade_analyzer.py 와 동일한 태그 설명 (중복 import 없이 복사)
+_TAG_DESC = {
+    "NON_SIGNAL_TRADE":            "시스템 미신호 종목 매수",
+    "SIGNAL_FILE_MISSING":         "신호 파일 없음 (확인불가)",
+    "NON_INTERSECTION_TRADE":      "교집합 미포함 종목 매수",
+    "NOT_CLOSE_ENTRY":             "종가진입 원칙 위반",
+    "D1_CHASE_ENTRY":              "D+1 장초 고점 추격매수",
+    "REVERSE_AT_EXIT_ZONE":        "D+1 09:20~09:40 역추격매수",
+    "AVERAGING_DOWN":              "물타기 (하락 후 추가매수)",
+    "ADDITIONAL_BUY":              "추가매수 (정보용)",
+    "RE_ENTRY":                    "재진입 (당일 청산 후 재매수)",
+    "NXT_ENTRY":                   "NXT 시간외 체결 (정보용)",
+    "AFTER_1750_NXT_ENTRY":        "17:50 이후 NXT 진입 (정보용)",
+    "CONDITIONAL_NXT_ENTRY":       "조건부 허용 NXT 진입 (정보용)",
+    "NXT_ENTRY_CAUTION":           "NXT 주의 진입",
+    "NXT_CHASE_ENTRY":             "NXT 추격 진입",
+    "PRICE_REFERENCE_MISSING":     "기준가 확인불가 (정보용)",
+    "OVERSIZED_POSITION":          "과대 포지션 (30% 초과)",
+    "POSITION_RULE_OK":            "포지션 비중 정상 (정보용)",
+    "POSITION_RULE_BROKEN":        "포지션 비중 위반",
+    "MAX_POSITION_COUNT_EXCEEDED": "동시 보유 종목 3개 초과",
+    "D1_EXIT_RULE_TARGET":         "D+1 청산 대상 (정보용)",
+    "D1_EXIT_ON_TIME":             "D+1 09:20~09:40 청산 (정보용)",
+    "D1_EXIT_EARLY":               "D+1 09:20 이전 조기 청산 (정보용)",
+    "D1_EXIT_DELAYED":             "D+1 09:40 이후 청산 (지연)",
+    "D1_EXIT_MISSED":              "D+1 미청산",
+    "GAP_DOWN_STOP_REQUIRED":      "갭하락 -3% 손절 대상 (정보용)",
+    "GAP_DOWN_STOP_DONE":          "갭하락 손절 이행 (정보용)",
+    "GAP_DOWN_STOP_MISSED":        "갭하락 손절 미이행",
+    "POST_GAPDOWN_AVERAGING_DOWN": "갭하락 후 추가매수 (강한 위반)",
+    "EXTENDED_HOLD_ALLOWED":       "연장 보유 조건 충족 (정보용)",
+    "EXTENDED_HOLD_NOT_ALLOWED":   "연장 보유 조건 미충족 (정보용)",
+    "UNAUTHORIZED_EXTENDED_HOLD":  "허용 조건 없는 연장 보유",
+    "EXTENDED_HOLD_PROFIT":        "연장 보유 후 수익 (정보용)",
+    "EXTENDED_HOLD_LOSS":          "연장 보유 후 손실 (정보용)",
+    "EXTENDED_HOLD_REVIEW_NEEDED": "연장 보유 판단 불가 (정보용)",
 }
 
-# ── 코드 정규화 ───────────────────────────────────────────────────────────
-def _norm(code) -> str:
-    try:
-        return str(int(str(code).strip().lstrip("'"))).zfill(6)
-    except (ValueError, TypeError):
-        return str(code).strip().lstrip("'")
-
-
-# ──────────────────────────────────────────────────────────────────────────
-# 데이터 로딩
-# ──────────────────────────────────────────────────────────────────────────
-
-def _load_latest_trade_review() -> tuple[dict, Path]:
-    files = sorted(_TRADE_REVS.glob("trade_review_*.json"))
-    if not files:
-        return {}, Path()
-    latest = files[-1]
-    try:
-        return json.loads(latest.read_text(encoding="utf-8")), latest
-    except Exception:
-        return {}, latest
-
-
-def _date_range(review: dict) -> tuple[str, str]:
-    """trade_review stocks의 sig_date 범위 (YYYYMMDD)"""
-    dates = [s["sig_date"] for s in review.get("stocks", []) if s.get("sig_date")]
-    if not dates:
-        return "", ""
-    return min(dates), max(dates)
-
-
-def _load_signals(d_min: str, d_max: str) -> pd.DataFrame:
-    """기간 내 signals.csv 로드. 같은 날짜 중 최신 타임스탬프 우선."""
-    if not d_min:
-        return pd.DataFrame()
-    d_min_d = datetime.strptime(d_min, "%Y%m%d").date()
-    d_max_d = datetime.strptime(d_max, "%Y%m%d").date()
-
-    best: dict[str, Path] = {}
-    for f in sorted(_SIGNALS_DIR.glob("*_signals.csv")):
-        m = re.match(r"(\d{4}-\d{2}-\d{2})_(\d{4})_signals\.csv", f.name)
-        if not m:
-            continue
-        fd = datetime.strptime(m.group(1), "%Y-%m-%d").date()
-        if not (d_min_d <= fd <= d_max_d):
-            continue
-        key = m.group(1)
-        cur = best.get(key)
-        if cur is None or m.group(2) > re.search(r"_(\d{4})_signals", cur.name).group(1):
-            best[key] = f
-
-    dfs = []
-    for f in best.values():
-        try:
-            df = pd.read_csv(f, encoding="utf-8-sig", dtype=str)
-            df["_code"] = df["종목코드"].apply(_norm)
-            dfs.append(df)
-        except Exception:
-            pass
-    return pd.concat(dfs, ignore_index=True) if dfs else pd.DataFrame()
-
-
-def _load_gap(d_min: str, d_max: str) -> pd.DataFrame:
-    if not _GAP_ALL.exists() or not d_min:
-        return pd.DataFrame()
-    try:
-        df = pd.read_csv(_GAP_ALL, encoding="utf-8-sig")
-        df["_code"] = df["code"].apply(_norm)
-        lo, hi = int(d_min), int(d_max)
-        return df[(df["entry_date"] >= lo) & (df["entry_date"] <= hi)].copy()
-    except Exception:
-        return pd.DataFrame()
-
-
-def _load_review_entries(d_min: str, d_max: str) -> list:
-    if not d_min:
-        return []
-    lo = datetime.strptime(d_min, "%Y%m%d").date()
-    hi = datetime.strptime(d_max, "%Y%m%d").date()
-    entries = []
-    for f in _SIGNALS_DIR.glob("*_review.json"):
-        m = re.match(r"(\d{4}-\d{2}-\d{2})_review\.json", f.name)
-        if not m:
-            continue
-        fd = datetime.strptime(m.group(1), "%Y-%m-%d").date()
-        if not (lo <= fd <= hi):
-            continue
-        try:
-            data = json.loads(f.read_text(encoding="utf-8"))
-            if isinstance(data, list):
-                entries.extend(data)
-        except Exception:
-            pass
-    return entries
-
-
-# ──────────────────────────────────────────────────────────────────────────
-# 분석
-# ──────────────────────────────────────────────────────────────────────────
-
-def _is_inter(val) -> bool:
-    if isinstance(val, bool):
-        return val
-    return str(val).strip().lower() in ("true", "1", "yes")
-
-
-def _gap_stats(df: pd.DataFrame) -> dict:
-    if df.empty:
-        return {"n": 0}
-    ret = pd.to_numeric(df["return_pct"], errors="coerce") if "return_pct" in df.columns else pd.Series(dtype=float)
-    ret_valid = ret.dropna()
-    win_col = df["win"].apply(lambda x: bool(x)) if "win" in df.columns else pd.Series(dtype=bool)
-    win_valid = win_col[ret.notna()] if (not ret.empty and not win_col.empty) else win_col
-    return {
-        "n": len(df),
-        "d1_open_avg":    round(ret_valid.mean(), 2)   if not ret_valid.empty else None,
-        "d1_open_median": round(ret_valid.median(), 2) if not ret_valid.empty else None,
-        "win_rate":       round(win_valid.mean() * 100, 1) if not win_valid.empty else None,
-    }
-
-
-def _review_stats(rows: list) -> dict:
-    if not rows:
-        return {"n": 0}
-    df = pd.DataFrame(rows)
-    s: dict = {"n": len(df)}
-    for src, dst in [("d1_open_pct", "d1_open_avg"), ("d1_high_pct", "d1_high_avg"),
-                     ("d1_close_pct", "d1_close_avg"), ("d3_close_pct", "d3_close_avg"),
-                     ("mfe", "mfe_avg"), ("mae", "mae_avg")]:
-        if src in df.columns:
-            v = pd.to_numeric(df[src], errors="coerce").dropna()
-            s[dst] = round(v.mean(), 2) if not v.empty else None
-    if "final_result_type" in df.columns:
-        s["result_types"] = df["final_result_type"].value_counts().to_dict()
-    return s
-
-
-def _system_perf(gap: pd.DataFrame, review_entries: list) -> dict:
-    has_gap    = not gap.empty
-    has_review = bool(review_entries)
-
-    gap_perf = None
-    if has_gap:
-        inter_mask = gap["in_inter"].apply(_is_inter)
-        gap_perf = {
-            "n_total":     len(gap),
-            "n_inter":     int(inter_mask.sum()),
-            "n_non_inter": int((~inter_mask).sum()),
-            "overall":     _gap_stats(gap),
-            "inter":       _gap_stats(gap[inter_mask]),
-            "non_inter":   _gap_stats(gap[~inter_mask]),
-        }
-
-    rev_perf = None
-    if has_review:
-        rev_df = pd.DataFrame(review_entries)
-        inter_mask = rev_df["in_inter"].apply(_is_inter) if "in_inter" in rev_df.columns else pd.Series([False] * len(rev_df))
-        rev_perf = {
-            "n_total":     len(rev_df),
-            "n_inter":     int(inter_mask.sum()),
-            "n_non_inter": int((~inter_mask).sum()),
-            "overall":     _review_stats(review_entries),
-            "inter":       _review_stats(rev_df[inter_mask].to_dict("records")),
-            "non_inter":   _review_stats(rev_df[~inter_mask].to_dict("records")),
-        }
-
-    source  = "review_json" if has_review else ("gap_results" if has_gap else "none")
-    primary = rev_perf or gap_perf or {}
-    return {
-        "source":      source,
-        "n_total":     primary.get("n_total",     0),
-        "n_inter":     primary.get("n_inter",     0),
-        "n_non_inter": primary.get("n_non_inter", 0),
-        "overall":     primary.get("overall",     {}),
-        "inter":       primary.get("inter",       {}),
-        "non_inter":   primary.get("non_inter",   {}),
-        "gap":         gap_perf,
-        "review":      rev_perf,
-    }
-
-
-def _is_valid_success(row: dict) -> bool:
-    """gap_results 시스템 성공 판정: return_pct 유효 + win=True + return_pct > 0"""
-    ret = pd.to_numeric(row.get("return_pct"), errors="coerce")
-    return pd.notna(ret) and bool(row.get("win")) and float(ret) > 0
-
-
-def _compare(stocks: list, sig_df: pd.DataFrame, gap: pd.DataFrame) -> dict:
-    # 시스템 후보 코드
-    sig_codes: set[str] = set()
-    inter_sig: set[str] = set()
-    if not sig_df.empty and "_code" in sig_df.columns:
-        sig_codes = set(sig_df["_code"].dropna())
-        if "in_inter" in sig_df.columns:
-            inter_sig = set(sig_df[sig_df["in_inter"].apply(_is_inter)]["_code"].dropna())
-
-    # 실제 매매 종목
-    traded_map: dict[str, dict] = {}
-    for s in stocks:
-        c = _norm(s.get("code", ""))
-        traded_map[c] = s
-    traded_codes  = set(traded_map)
-    traded_inter  = {c for c, s in traded_map.items() if s.get("is_inter")}
-
-    # gap_results 성공: return_pct 유효 + win=True + return_pct > 0
-    # gap_map은 valid success 행 우선 저장 (같은 코드에 복수 행 존재 시 NaN 행 덮어쓰기 방지)
-    gap_map: dict[str, dict] = {}
-    gap_success: set[str] = set()
-    if not gap.empty and "_code" in gap.columns:
-        for _, row in gap.iterrows():
-            rd = row.to_dict()
-            c  = row["_code"]
-            if c not in gap_map or _is_valid_success(rd):
-                gap_map[c] = rd
-            if _is_valid_success(rd):
-                gap_success.add(c)
-
-    # 코드 × signals 맵
-    sig_map: dict[str, dict] = {}
-    if not sig_df.empty and "_code" in sig_df.columns:
-        for _, row in sig_df.drop_duplicates("_code").iterrows():
-            sig_map[row["_code"]] = row.to_dict()
-
-    hit    = gap_success & traded_codes
-    missed = gap_success - traded_codes
-    no_sig = traded_codes - sig_codes
-
-    # 놓친 종목 상세 (gap_success 필터 통과 = 유효한 수익 종목만)
-    missed_detail = []
-    for c in missed:
-        g   = gap_map.get(c, {})
-        ret = float(pd.to_numeric(g.get("return_pct"), errors="coerce"))
-        missed_detail.append({
-            "code":     c,
-            "name":     str(g.get("name", c)),
-            "in_inter": bool(g.get("in_inter", False)),
-            "d1_ret":   ret,
-        })
-    missed_detail.sort(key=lambda x: -x["d1_ret"])
-
-    # 비신호 매매 종목명
-    no_sig_names = [traded_map[c].get("name", c) for c in sorted(no_sig)]
-
-    # 실현손익
-    total_realized   = sum(s.get("realized", 0) for s in stocks)
-    n = len(stocks)
-    avg_realized_pct = round(sum(s.get("realized_pct") or 0 for s in stocks) / n, 2) if n else 0
-
-    # 교집합 종목 D+1 시초 평균 (sec2 gap_results 기준과 동일 기준으로 통일)
-    d1_avg = None
-    if not gap.empty and "return_pct" in gap.columns:
-        inter_gap = gap[gap["in_inter"].apply(_is_inter)] if "in_inter" in gap.columns else gap
-        d1_avg = round(pd.to_numeric(inter_gap["return_pct"], errors="coerce").dropna().mean(), 2)
-
-    return {
-        "n_sig": len(sig_codes), "n_inter_sig": len(inter_sig),
-        "n_traded": len(traded_map), "n_traded_inter": len(traded_inter),
-        "n_gap_success": len(gap_success),
-        "n_hit": len(hit), "n_missed": len(missed), "n_no_sig": len(no_sig),
-        "total_realized": total_realized, "avg_realized_pct": avg_realized_pct,
-        "sys_d1_avg": d1_avg,
-        "missed_detail": missed_detail[:5],
-        "no_sig_names": no_sig_names[:5],
-        "traded_map": traded_map,
-        "gap_map": gap_map,
-        "sig_map": sig_map,
-        "all_codes": sorted(set(traded_map) | set(gap_map)),
-    }
-
-
-# ──────────────────────────────────────────────────────────────────────────
-# HTML 생성
-# ──────────────────────────────────────────────────────────────────────────
-
-_BG   = "#1e1e2e"
-_CARD = "#2a2a3e"
-_FG   = "#e0e0e0"
-_DIM  = "#888"
-_GRN  = "#4caf50"
-_RED  = "#ef5350"
-_BLU  = "#64b5f6"
-_AMB  = "#fb8c00"
-
-
-def _pc(v) -> str:
-    """값에 따른 색상"""
-    if v is None or (isinstance(v, float) and pd.isna(v)): return _DIM
-    return _GRN if v > 0 else (_RED if v < 0 else _DIM)
-
-
-def _fp(v) -> str:
-    """소수점 2자리 %, None/NaN → 확인불가"""
-    if v is None or (isinstance(v, float) and pd.isna(v)): return "확인불가"
-    return f"{'+' if v > 0 else ''}{v:.2f}%"
-
-
-def _fw(v) -> str:
-    """원 포맷 colored span"""
-    if v is None: return "확인불가"
-    color = _pc(v)
-    sign  = "+" if v > 0 else ""
-    return f'<span style="color:{color}">{sign}{v:,.0f}원</span>'
-
-
-def _nw(n: int) -> str:
-    """표본 수 경고"""
-    if n < 5:  return f' <span style="color:{_RED};font-size:10px">(n={n}, 데이터 부족)</span>'
-    if n < 20: return f' <span style="color:{_AMB};font-size:10px">(n={n}, 참고용)</span>'
-    return f' <span style="color:{_DIM};font-size:10px">(n={n})</span>'
-
-
-def _card(body: str) -> str:
-    return f'<div style="background:{_CARD};border-radius:10px;padding:20px;margin-bottom:16px">{body}</div>'
-
-
-def _title(t: str) -> str:
-    return (f'<div style="font-size:14px;font-weight:700;color:{_BLU};'
-            f'margin-bottom:12px;border-bottom:1px solid #444;padding-bottom:6px">{t}</div>')
-
-
-def _section_compliance_summary(summary: dict) -> str:
-    item_comp  = summary.get("item_compliance", {})
-    tag_counts = summary.get("tag_counts", {})
-
-    if not item_comp and not tag_counts:
-        return ""
-
-    # 항목별 준수율 테이블
-    rows = ""
-    for item, data in item_comp.items():
-        rate = data.get("rate", 0)
-        nc   = data.get("n_compliant", 0)
-        nt   = data.get("n_total", 0)
-        color = _GRN if rate >= 80 else (_AMB if rate >= 50 else _RED)
-        rows += (
-            f'<tr style="border-top:1px solid #333">'
-            f'<td style="padding:5px 8px">{item}</td>'
-            f'<td style="text-align:center;font-weight:700;color:{color}">{rate:.0f}%</td>'
-            f'<td style="text-align:center;color:{_DIM}">{nc}/{nt}</td>'
-            f'</tr>'
-        )
-    item_table = (
-        f'<table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:14px">'
-        f'<thead><tr style="color:{_DIM}">'
-        f'<th style="text-align:left;padding:5px 8px">항목</th>'
-        f'<th style="text-align:center">준수율</th>'
-        f'<th style="text-align:center">준수/전체</th>'
-        f'</tr></thead><tbody>{rows}</tbody></table>'
-    ) if rows else ""
-
-    # D+1 청산 현황
-    d1_on   = tag_counts.get("D1_EXIT_ON_TIME", 0)
-    d1_del  = tag_counts.get("D1_EXIT_DELAYED", 0)
-    d1_mis  = tag_counts.get("D1_EXIT_MISSED", 0)
-    d1_total = d1_on + d1_del + d1_mis
-
-    d1_block = ""
-    if d1_total:
-        d1_block = (
-            f'<div style="margin-bottom:12px">'
-            f'<div style="font-size:12px;color:{_DIM};margin-bottom:4px">D+1 09:30 청산 현황</div>'
-            f'<div style="display:flex;gap:16px;flex-wrap:wrap;font-size:13px">'
-            f'<div><span style="color:{_DIM}">제때 청산 </span>'
-            f'<span style="color:{_GRN};font-weight:600">{d1_on}건</span></div>'
-            f'<div><span style="color:{_DIM}">지연 청산 </span>'
-            f'<span style="color:{_AMB};font-weight:600">{d1_del}건</span></div>'
-            f'<div><span style="color:{_DIM}">미청산 </span>'
-            f'<span style="color:{_RED};font-weight:600">{d1_mis}건</span></div>'
-            f'</div></div>'
-        )
-
-    # NXT 진입 현황
-    nxt_cond  = tag_counts.get("CONDITIONAL_NXT_ENTRY", 0)
-    nxt_caut  = tag_counts.get("NXT_ENTRY_CAUTION", 0)
-    nxt_chase = tag_counts.get("NXT_CHASE_ENTRY", 0)
-    nxt_total = nxt_cond + nxt_caut + nxt_chase
-
-    nxt_block = ""
-    if nxt_total:
-        nxt_block = (
-            f'<div style="margin-bottom:12px">'
-            f'<div style="font-size:12px;color:{_DIM};margin-bottom:4px">NXT 진입 현황</div>'
-            f'<div style="display:flex;gap:16px;flex-wrap:wrap;font-size:13px">'
-            f'<div><span style="color:{_DIM}">조건부 허용 </span>'
-            f'<span style="color:{_GRN};font-weight:600">{nxt_cond}건</span></div>'
-            f'<div><span style="color:{_DIM}">주의 </span>'
-            f'<span style="color:{_AMB};font-weight:600">{nxt_caut}건</span></div>'
-            f'<div><span style="color:{_DIM}">추격(위반) </span>'
-            f'<span style="color:{_RED};font-weight:600">{nxt_chase}건</span></div>'
-            f'</div></div>'
-        )
-
-    # 주요 위반 태그
-    _VIOL_ORDER = [
-        "AVERAGING_DOWN", "NON_INTERSECTION_TRADE", "D1_CHASE_ENTRY",
-        "NXT_CHASE_ENTRY", "OVERSIZED_POSITION", "D1_EXIT_MISSED",
-        "D1_EXIT_DELAYED", "GAP_DOWN_STOP_MISSED", "POST_GAPDOWN_AVERAGING_DOWN",
-        "UNAUTHORIZED_EXTENDED_HOLD", "MAX_POSITION_COUNT_EXCEEDED",
-    ]
-    viol_items = [(t, tag_counts.get(t, 0)) for t in _VIOL_ORDER if tag_counts.get(t, 0) > 0]
-
-    if viol_items:
-        badges = " ".join(
-            f'<span style="background:#3a1515;border:1px solid {_RED};padding:2px 8px;'
-            f'border-radius:4px;font-size:11px;color:{_RED}">{t}: {n}건</span>'
-            for t, n in viol_items
-        )
-        viol_block = (
-            f'<div style="margin-bottom:6px">'
-            f'<div style="font-size:12px;color:{_DIM};margin-bottom:6px">위반 태그 (이번 주)</div>'
-            f'<div style="display:flex;flex-wrap:wrap;gap:6px">{badges}</div>'
-            f'</div>'
-        )
-    else:
-        viol_block = f'<div style="font-size:12px;color:{_GRN};margin-bottom:6px">이번 주 주요 위반 없음</div>'
-
-    return _card(
-        f'{_title("매매 원칙 준수 상세")}'
-        f'{item_table}{d1_block}{nxt_block}{viol_block}'
+_INFO_TAGS = {
+    "NXT_ENTRY", "ADDITIONAL_BUY", "PRICE_REFERENCE_MISSING",
+    "AFTER_1750_NXT_ENTRY", "D1_EXIT_RULE_TARGET", "NXT_MORNING_EXIT", "D1_EXIT_ON_TIME",
+    "D1_EXIT_EARLY", "GAP_DOWN_STOP_REQUIRED", "GAP_DOWN_STOP_DONE",
+    "EXTENDED_HOLD_ALLOWED", "EXTENDED_HOLD_PROFIT", "EXTENDED_HOLD_LOSS",
+    "EXTENDED_HOLD_NOT_ALLOWED", "EXTENDED_HOLD_REVIEW_NEEDED",
+    "POSITION_RULE_OK", "CONDITIONAL_NXT_ENTRY",
+}
+
+_TAG_COLOR = {
+    "NON_SIGNAL_TRADE":            "#e53935",
+    "SIGNAL_FILE_MISSING":         "#9e9e9e",
+    "NON_INTERSECTION_TRADE":      "#fb8c00",
+    "NOT_CLOSE_ENTRY":             "#e53935",
+    "D1_CHASE_ENTRY":              "#e53935",
+    "REVERSE_AT_EXIT_ZONE":        "#c62828",
+    "AVERAGING_DOWN":              "#e53935",
+    "ADDITIONAL_BUY":              "#546e7a",
+    "RE_ENTRY":                    "#fb8c00",
+    "NXT_ENTRY":                   "#546e7a",
+    "AFTER_1750_NXT_ENTRY":        "#0288d1",
+    "CONDITIONAL_NXT_ENTRY":       "#00897b",
+    "NXT_ENTRY_CAUTION":           "#f57c00",
+    "NXT_CHASE_ENTRY":             "#c62828",
+    "PRICE_REFERENCE_MISSING":     "#607d8b",
+    "OVERSIZED_POSITION":          "#8e24aa",
+    "POSITION_RULE_OK":            "#4caf50",
+    "POSITION_RULE_BROKEN":        "#8e24aa",
+    "MAX_POSITION_COUNT_EXCEEDED": "#c62828",
+    "D1_EXIT_RULE_TARGET":         "#546e7a",
+    "D1_EXIT_ON_TIME":             "#4caf50",
+    "D1_EXIT_DELAYED":             "#fb8c00",
+    "D1_EXIT_MISSED":              "#e53935",
+    "GAP_DOWN_STOP_REQUIRED":      "#f57c00",
+    "GAP_DOWN_STOP_DONE":          "#4caf50",
+    "GAP_DOWN_STOP_MISSED":        "#c62828",
+    "POST_GAPDOWN_AVERAGING_DOWN": "#c62828",
+    "EXTENDED_HOLD_ALLOWED":       "#00897b",
+    "EXTENDED_HOLD_NOT_ALLOWED":   "#607d8b",
+    "UNAUTHORIZED_EXTENDED_HOLD":  "#e53935",
+    "EXTENDED_HOLD_PROFIT":        "#4caf50",
+    "EXTENDED_HOLD_LOSS":          "#ef5350",
+    "EXTENDED_HOLD_REVIEW_NEEDED": "#607d8b",
+}
+
+
+# ── 유틸 ──────────────────────────────────────────────────────
+
+def _e(s) -> str:
+    return str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+def _fmt_krw(v: float) -> str:
+    return f"{v:+,.0f}원" if v >= 0 else f"{v:,.0f}원"
+
+def _fmt_pct(v) -> str:
+    if v is None:
+        return "-"
+    return f"{float(v):+.2f}%"
+
+def _cr_color(v) -> str:
+    if v is None:
+        return "#888"
+    return "#4caf50" if v >= 80 else ("#fb8c00" if v >= 60 else "#ef5350")
+
+def _pnl_color(v) -> str:
+    if v is None:
+        return "#888"
+    return "#4caf50" if v >= 0 else "#ef5350"
+
+def _tag_badge(tag: str) -> str:
+    color = _TAG_COLOR.get(tag, "#666")
+    desc  = _TAG_DESC.get(tag, tag)
+    return (
+        f'<span style="display:inline-block;background:{color};color:#fff;'
+        f'font-size:11px;padding:2px 6px;border-radius:3px;margin:2px 2px 2px 0;'
+        f'white-space:nowrap" title="{_e(desc)}">{_e(tag)}</span>'
     )
 
 
-def _generate_html(d_min, d_max, review, perf, cmp, tr_path, report_date) -> str:
-    summary  = review.get("summary", {})
-    lesson   = summary.get("lesson", {})
-    realized = summary.get("total_realized", 0)
-    real_pct = summary.get("total_realized_pct", 0)
-    comp_rt  = summary.get("compliance_rate", 0)
+# ── 데이터 로드 ───────────────────────────────────────────────
 
-    period = f"{d_min[:4]}-{d_min[4:6]}-{d_min[6:]} ~ {d_max[:4]}-{d_max[4:6]}-{d_max[6:]}"
+def _load_history() -> list[dict]:
+    p = _HISTORY_DIR / "compliance_history.json"
+    if not p.exists():
+        return []
+    try:
+        return json.loads(p.read_text(encoding="utf-8"))
+    except Exception:
+        return []
 
-    worst_tag = lesson.get("worst_loss_tag", "")
-    principle = _PRINCIPLE.get(worst_tag, worst_tag)
-    worst_amt = lesson.get("worst_loss_amount")
 
-    # trade_analyzer HTML 링크 (JSON → HTML 경로 변환)
-    ta_rel = ""
-    if tr_path.name:
-        html_name = tr_path.stem + ".html"
-        ta_html_path = _ROOT / "reports" / "trade_reviews" / html_name
-        if ta_html_path.exists():
-            try:
-                ta_rel = "../trade_reviews/" + html_name
-            except Exception:
-                pass
-    ta_link = (f'<a href="{ta_rel}" target="_blank" style="color:{_BLU};font-size:12px">'
-               f'매매원칙 분석 상세 리포트 →</a>') if ta_rel else ""
+def _load_trades() -> list[dict]:
+    p = _HISTORY_DIR / "trade_history.json"
+    if not p.exists():
+        return []
+    try:
+        return json.loads(p.read_text(encoding="utf-8"))
+    except Exception:
+        return []
 
-    # ── [1] 한눈 요약 ─────────────────────────────────────────────────────
-    lesson_block = ""
-    if worst_tag:
-        amt_str = f" ({_fw(worst_amt)})" if worst_amt else ""
-        lesson_block = (
-            f'<div style="margin-top:12px;padding:10px 14px;background:#1a1a2e;'
-            f'border-left:3px solid {_RED};border-radius:4px">'
-            f'<span style="font-size:11px;color:{_DIM}">최대 손실 원인: </span>'
-            f'<span style="color:{_RED};font-weight:600">{worst_tag}</span>{amt_str}'
-            f'<div style="font-size:13px;color:{_FG};margin-top:4px">'
-            f'다음 주 집중 원칙: {principle}</div></div>'
-        )
 
-    sec1 = _card(f"""
-{_title("이번 주 한눈 요약")}
-<div style="display:flex;gap:28px;flex-wrap:wrap">
-  <div><div style="font-size:11px;color:{_DIM}">분석 기간</div>
-       <div style="font-size:13px">{period}</div></div>
-  <div><div style="font-size:11px;color:{_DIM}">시스템 후보</div>
-       <div style="font-size:18px;font-weight:700">{cmp['n_sig']}개
-         <span style="font-size:12px;color:{_DIM}">(교집합 {cmp['n_inter_sig']}개)</span></div></div>
-  <div><div style="font-size:11px;color:{_DIM}">실제 매매</div>
-       <div style="font-size:18px;font-weight:700">{cmp['n_traded']}개</div></div>
-  <div><div style="font-size:11px;color:{_DIM}">실현손익</div>
-       <div style="font-size:22px;font-weight:700;color:{_pc(realized)}">{_fw(realized)}</div>
-       <div style="font-size:11px;color:{_DIM}">{_fp(real_pct)}</div></div>
-  <div><div style="font-size:11px;color:{_DIM}">엄격 준수율</div>
-       <div style="font-size:22px;font-weight:700;color:{_pc(comp_rt-50)}">{comp_rt:.1f}%</div></div>
-</div>
-{lesson_block}
-<div style="margin-top:12px">{ta_link}</div>
-""")
+def _load_cumulative_stats() -> dict:
+    p = _BASE / "reports" / "cumulative_stats.json"
+    if not p.exists():
+        return {}
+    try:
+        return json.loads(p.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
 
-    # ── [1.5] 매매 원칙 준수 상세 ────────────────────────────────────────
-    sec_comp = _section_compliance_summary(summary)
 
-    # ── [2] 시스템 후보 성과 요약 ─────────────────────────────────────────
-    src      = perf.get("source", "none")
-    rev_perf = perf.get("review")
-    gap_perf = perf.get("gap")
+# ── 집계 ──────────────────────────────────────────────────────
 
-    # review.json 블록
-    if rev_perf:
-        ov  = rev_perf.get("overall", {})
-        n_t = rev_perf.get("n_total", 0)
-        d1a = ov.get("d1_open_avg"); d3a = ov.get("d3_close_avg")
-        mfe = ov.get("mfe_avg");     mae = ov.get("mae_avg")
-        rt  = ov.get("result_types", {})
-        rt_str = " | ".join(f"{k}: {v}건" for k, v in rt.items()) if rt else ""
-        review_block = f"""
-<div style="font-size:11px;color:{_GRN};font-weight:600;margin-bottom:6px">review.json 기준 (D+1~D+5 / MFE / MAE)</div>
-<div style="display:flex;gap:28px;flex-wrap:wrap;margin-bottom:8px">
-  <div><div style="font-size:11px;color:{_DIM}">D+1 시초 평균{_nw(n_t)}</div>
-       <div style="font-size:22px;font-weight:700;color:{_pc(d1a)}">{_fp(d1a)}</div></div>
-  <div><div style="font-size:11px;color:{_DIM}">D+3 종가 평균</div>
-       <div style="font-size:22px;font-weight:700;color:{_pc(d3a)}">{_fp(d3a)}</div></div>
-  <div><div style="font-size:11px;color:{_GRN}">MFE 평균</div>
-       <div style="font-size:20px;font-weight:700;color:{_GRN}">{_fp(mfe)}</div></div>
-  <div><div style="font-size:11px;color:{_RED}">MAE 평균</div>
-       <div style="font-size:20px;font-weight:700;color:{_RED}">{_fp(mae)}</div></div>
-</div>
-{f'<div style="font-size:11px;color:{_DIM};margin-bottom:10px">{rt_str}</div>' if rt_str else ""}"""
-    else:
-        review_block = (
-            f'<div style="font-size:11px;margin-bottom:10px">'
-            f'<span style="color:{_GRN};font-weight:600">review.json 기준</span>'
-            f' D+1~D+5 / MFE / MAE: <span style="color:{_AMB}">확인불가</span>'
-            f' (해당 기간 review.json 없음)</div>'
-        )
+def _aggregate(history: list[dict], trades: list[dict]) -> dict:
+    if not history:
+        return {}
 
-    # gap_results 블록
-    if gap_perf:
-        g_inter = gap_perf.get("inter", {})
-        n_gi    = gap_perf.get("n_inter", 0)
-        d1a_g   = g_inter.get("d1_open_avg")
-        wr_g    = g_inter.get("win_rate")
-        gap_block = (
-            f'<div style="font-size:11px;color:{_BLU};font-weight:600;margin-bottom:4px">'
-            f'gap_results 기준 (교집합 D+1 시초, NaN 제외)</div>'
-            f'<div style="display:flex;gap:28px;flex-wrap:wrap">'
-            f'<div><div style="font-size:11px;color:{_DIM}">D+1 시초 평균{_nw(n_gi)}</div>'
-            f'<div style="font-size:20px;font-weight:700;color:{_pc(d1a_g)}">{_fp(d1a_g)}</div></div>'
-            f'<div><div style="font-size:11px;color:{_DIM}">D+1 승률</div>'
-            f'<div style="font-size:20px;font-weight:700">{_fp(wr_g)}</div></div>'
-            f'</div>'
-        )
-    else:
-        gap_block = (
-            f'<div style="font-size:11px">'
-            f'<span style="color:{_BLU};font-weight:600">gap_results 기준</span>'
-            f' 교집합 D+1 시초: <span style="color:{_AMB}">확인불가</span></div>'
-        )
+    total_realized   = sum(h.get("total_realized") or 0 for h in history)
+    total_stocks_all = sum(h.get("total_stocks") or 0 for h in history)
+    cr_list          = [h["compliance_rate"] for h in history if h.get("compliance_rate") is not None]
+    avg_cr           = round(sum(cr_list) / len(cr_list), 1) if cr_list else None
 
-    if src == "none":
-        body2 = f'<div style="color:{_DIM}">데이터 없음 — gap_results와 review.json 모두 해당 기간 데이터가 없습니다.</div>'
-    else:
-        body2 = review_block + f'<hr style="border-color:#333;margin:10px 0">' + gap_block
+    # 전체 태그 집계 (위반만)
+    total_tag_counts: dict[str, int] = {}
+    for h in history:
+        for tag, cnt in (h.get("tag_counts") or {}).items():
+            if tag not in _INFO_TAGS:
+                total_tag_counts[tag] = total_tag_counts.get(tag, 0) + cnt
 
-    sec2 = _card(f"""
-{_title("시스템 후보 성과 요약")}
-<div style="font-size:11px;color:{_DIM};margin-bottom:10px">
-  아래 성과는 실제 매매 결과가 아닌, 시스템이 발송한 후보의 신호 기준 가상 성과입니다.</div>
-{body2}
-""")
+    # 주차별 항목 준수율 추세
+    item_keys = [
+        ("bot_signal_rate",  "봇 신호"),
+        ("inter_rate",       "교집합"),
+        ("close_entry_rate", "종가 진입"),
+        ("d1_exit_rate",     "D+1 청산 (09:29전)"),
+        ("avg_down_rate",    "물타기 금지"),
+        ("pos_limit_rate",   "포지션 한도"),
+    ]
 
-    # ── [3] 교집합 / 비교집합 비교 ────────────────────────────────────────
-    inter_s   = perf.get("inter", {})
-    n_inter_s = perf.get("n_inter", 0)
-    ninon_s   = perf.get("n_non_inter", 0)
-    non_s     = perf.get("non_inter", {})
+    # 종목별 통계 (trade_history 기반)
+    violation_trades = [
+        t for t in trades
+        if any(tag not in _INFO_TAGS for tag in (t.get("tags") or []))
+    ]
+    clean_trades = [
+        t for t in trades
+        if not any(tag not in _INFO_TAGS for tag in (t.get("tags") or []))
+    ]
 
-    gap_note = ""
-    if src == "gap_results":
-        gap_note = (
-            f'<div style="font-size:11px;color:{_AMB};margin-bottom:8px">'
-            f'비교집합 성과는 review.json이 없으면 확인불가입니다.<br>'
-            f'현재 시스템 후보 성과는 gap_results 기준 교집합 D+1 시초 성과 중심입니다.</div>'
-        )
-
-    def _tc(v, n=0):
-        if v is None: return f'<td style="text-align:center;color:{_DIM}">확인불가</td>'
-        return f'<td style="text-align:center;color:{_pc(v)};font-weight:600">{_fp(v)}</td>'
-
-    non_d1  = None if src == "gap_results" else non_s.get("d1_open_avg")
-    non_wr  = None if src == "gap_results" else non_s.get("win_rate")
-    n_non_disp = "—" if src == "gap_results" else str(ninon_s)
-
-    sec3 = _card(f"""
-{_title("교집합 / 비교집합 성과 비교")}
-{gap_note}
-<table style="width:100%;border-collapse:collapse;font-size:13px">
-  <thead><tr style="color:{_DIM}">
-    <th style="text-align:left;padding:6px">구분</th>
-    <th style="text-align:center">D+1 시초 평균</th>
-    <th style="text-align:center">D+1 승률</th>
-    <th style="text-align:center">표본</th>
-  </tr></thead>
-  <tbody>
-    <tr style="border-top:1px solid #333">
-      <td style="padding:6px 8px">교집합{_nw(n_inter_s)}</td>
-      {_tc(inter_s.get("d1_open_avg"))}
-      {_tc(inter_s.get("win_rate"))}
-      <td style="text-align:center;color:{_DIM}">{n_inter_s}</td>
-    </tr>
-    <tr style="border-top:1px solid #333">
-      <td style="padding:6px 8px">비교집합{_nw(ninon_s) if src != "gap_results" else ""}</td>
-      {_tc(non_d1)}
-      {_tc(non_wr)}
-      <td style="text-align:center;color:{_DIM}">{n_non_disp}</td>
-    </tr>
-  </tbody>
-</table>
-""")
-
-    # ── [4] 시스템 후보 vs 실제 매매 비교 ────────────────────────────────
-    d1a_sys = cmp.get("sys_d1_avg")
-    d1a_act = cmp.get("avg_realized_pct")
-
-    no_sig_str = (", ".join(cmp.get("no_sig_names", []))
-                  or f'<span style="color:{_DIM}">없음</span>')
-
-    missed_rows = ""
-    for m in cmp.get("missed_detail", []):
-        badge = "★" if m.get("in_inter") else ""
-        ret   = m.get("d1_ret")
-        missed_rows += (
-            f'<tr style="border-top:1px solid #333">'
-            f'<td style="padding:4px 8px">{m["name"]} {badge}</td>'
-            f'<td style="text-align:center;color:{_pc(ret)}">{_fp(ret)}</td></tr>'
-        )
-
-    sec4 = _card(f"""
-{_title("시스템 후보 vs 내 실제 매매 비교")}
-<table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:14px">
-  <thead><tr style="color:{_DIM}">
-    <th style="text-align:left;padding:6px">항목</th>
-    <th style="text-align:center">시스템 후보</th>
-    <th style="text-align:center">내 실제 매매</th>
-  </tr></thead>
-  <tbody>
-    <tr style="border-top:1px solid #333">
-      <td style="padding:6px 8px">종목 수</td>
-      <td style="text-align:center">{cmp['n_sig']}개</td>
-      <td style="text-align:center">{cmp['n_traded']}개</td>
-    </tr>
-    <tr style="border-top:1px solid #333">
-      <td style="padding:6px 8px">교집합 수</td>
-      <td style="text-align:center">{cmp['n_inter_sig']}개</td>
-      <td style="text-align:center">{cmp['n_traded_inter']}개</td>
-    </tr>
-    <tr style="border-top:1px solid #333">
-      <td style="padding:6px 8px">D+1 시초 평균</td>
-      <td style="text-align:center;color:{_pc(d1a_sys)}">{_fp(d1a_sys)}
-        <span style="font-size:10px;color:{_DIM}"> (교집합 기준)</span></td>
-      <td style="text-align:center;color:{_pc(d1a_act)}">{_fp(d1a_act)}
-        <span style="font-size:10px;color:{_DIM}"> (실현 평균)</span></td>
-    </tr>
-    <tr style="border-top:1px solid #333">
-      <td style="padding:6px 8px">시스템 성공 종목 중 매매한 것</td>
-      <td colspan="2" style="text-align:center">
-        {cmp['n_hit']}개 / {cmp['n_gap_success']}개
-        <span style="font-size:10px;color:{_DIM}"> (gap_results D+1 시초 기준, NaN 제외)</span></td>
-    </tr>
-    <tr style="border-top:1px solid #333">
-      <td style="padding:6px 8px">시스템 성공 종목 중 놓친 것</td>
-      <td colspan="2" style="text-align:center">{cmp['n_missed']}개</td>
-    </tr>
-    <tr style="border-top:1px solid #333">
-      <td style="padding:6px 8px">비신호 매매 종목</td>
-      <td colspan="2" style="text-align:center">{cmp['n_no_sig']}개
-        {f"({no_sig_str})" if cmp['n_no_sig'] else ""}</td>
-    </tr>
-  </tbody>
-</table>
-{f'''<div style="font-size:12px;color:{_DIM};margin-bottom:4px">놓친 시스템 성공 종목 (D+1 시초 기준, 상위 5개):</div>
-<table style="width:100%;border-collapse:collapse;font-size:12px">
-  <thead><tr style="color:{_DIM}"><th style="text-align:left;padding:4px 8px">종목</th>
-  <th style="text-align:center">D+1 시초</th></tr></thead>
-  <tbody>{missed_rows}</tbody></table>''' if missed_rows else ""}
-""")
-
-    # ── [5] 종목별 통합 카드 ──────────────────────────────────────────────
-    traded_map = cmp.get("traded_map", {})
-    gap_map    = cmp.get("gap_map", {})
-    sig_map    = cmp.get("sig_map", {})
-
-    cards = ""
-    for code in cmp.get("all_codes", []):
-        ts  = traded_map.get(code)
-        g   = gap_map.get(code)
-        sig = sig_map.get(code)
-        name = (ts or g or sig or {}).get("name", code)
-        is_inter = bool((ts or {}).get("is_inter") or _is_inter((g or {}).get("in_inter", False)))
-        has_sig  = bool(sig or g)
-
-        inter_badge = (f'<span style="background:#1565c0;padding:1px 5px;border-radius:10px;'
-                       f'font-size:10px">★교집합</span> ') if is_inter else ""
-        sig_badge   = (f'<span style="background:#2e7d32;padding:1px 5px;border-radius:10px;'
-                       f'font-size:10px">신호</span>') if has_sig else (
-                      f'<span style="background:#424242;padding:1px 5px;border-radius:10px;'
-                       f'font-size:10px">비신호</span>')
-
-        # 시스템 성과 (NaN이면 확인불가, 아이콘 없음)
-        if g:
-            d1r = pd.to_numeric(g.get("return_pct"), errors="coerce")
-            if pd.isna(d1r):
-                sys_txt = f'D+1 시초 확인불가'
-            else:
-                d1r = float(d1r)
-                sys_txt = f'D+1 시초 <span style="color:{_pc(d1r)}">{_fp(d1r)}</span>'
+    # 진입방식별 누적 손익
+    entry_pnl = {
+        "정규종가": 0, "조건부NXT": 0, "추격NXT": 0, "D1추격": 0, "기타": 0
+    }
+    for t in trades:
+        pnl  = t.get("realized") or 0
+        et   = t.get("entry_type", "UNKNOWN")
+        tags = t.get("tags") or []
+        if et == "REGULAR_CLOSE_ENTRY":
+            entry_pnl["정규종가"] += pnl
+        elif "CONDITIONAL_NXT_ENTRY" in tags:
+            entry_pnl["조건부NXT"] += pnl
+        elif "NXT_CHASE_ENTRY" in tags or "NXT_ENTRY_CAUTION" in tags:
+            entry_pnl["추격NXT"] += pnl
+        elif et in ("D1_CHASE_ENTRY", "REVERSE_AT_EXIT_ZONE"):
+            entry_pnl["D1추격"] += pnl
         else:
-            sys_txt = f'<span style="color:{_DIM}">확인불가</span>'
+            entry_pnl["기타"] += pnl
 
-        # 실제 매매
-        if ts:
-            real = ts.get("realized", 0)
-            rpct = ts.get("realized_pct")
-            tags = ts.get("tags", [])
-            tag_str = " ".join(
-                f'<span style="background:#333;padding:1px 4px;border-radius:3px;font-size:10px">{t}</span>'
-                for t in tags[:3]
+    return {
+        "total_realized":    total_realized,
+        "total_stocks_all":  total_stocks_all,
+        "avg_cr":            avg_cr,
+        "weeks":             len(history),
+        "total_tag_counts":  total_tag_counts,
+        "item_keys":         item_keys,
+        "violation_trades":  violation_trades,
+        "clean_trades":      clean_trades,
+        "entry_pnl":         entry_pnl,
+    }
+
+
+def _section_system_stats(stats: dict) -> str:
+    """reports/cumulative_stats.json 기반 시스템 누적 성과 섹션."""
+    if not stats or not stats.get("total_measured"):
+        return ""
+    total = stats["total_measured"]
+
+    # 패턴별 승률 rows
+    pattern_rows = ""
+    for pat, v in stats.get("pattern", {}).items():
+        rate = v["rate"]
+        color = "#4caf50" if rate >= 65 else ("#fb8c00" if rate >= 50 else "#ef5350")
+        pattern_rows += (
+            f"<tr><td>{pat}</td>"
+            f"<td style='text-align:center'>{v['total']}</td>"
+            f"<td style='text-align:center;color:{color};font-weight:600'>{rate:.0f}%</td></tr>"
+        )
+
+    # 스코어 구간별 rows
+    score_rows = ""
+    for band, v in stats.get("score_band", {}).items():
+        rate = v["rate"]
+        color = "#4caf50" if rate >= 65 else ("#fb8c00" if rate >= 50 else "#ef5350")
+        score_rows += (
+            f"<tr><td>점수 {band}</td>"
+            f"<td style='text-align:center'>{v['total']}</td>"
+            f"<td style='text-align:center;color:{color};font-weight:600'>{rate:.0f}%</td></tr>"
+        )
+
+    # 교집합 vs 비교집합
+    inter_html = ""
+    inter_fs = stats.get("inter_full_stats", {})
+    d1_inter  = (inter_fs.get("inter",  {}).get("d1_open") or {})
+    d1_ninter = (inter_fs.get("ninter", {}).get("d1_open") or {})
+    if d1_inter or d1_ninter:
+        def _wr_cell(d: dict) -> str:
+            if not d:
+                return "<td style='text-align:center;color:#555'>-</td>"
+            wr = d.get("win_rate", 0)
+            avg = d.get("mean", 0)
+            n   = d.get("n", 0)
+            c   = "#4caf50" if wr >= 60 else ("#fb8c00" if wr >= 50 else "#ef5350")
+            return (f"<td style='text-align:center'>"
+                    f"<span style='color:{c};font-weight:600'>{wr:.0f}%</span>"
+                    f" <span style='color:#555;font-size:11px'>(avg {avg:+.1f}% / {n}개)</span>"
+                    f"</td>")
+        inter_html = f"""
+<div style="margin-top:12px">
+  <div style="font-size:12px;color:#888;margin-bottom:6px">교집합 vs 비교집합 (D+1 시가 기준)</div>
+  <table style="max-width:500px">
+    <thead><tr><th>구분</th><th style='text-align:center'>D+1 시가 승률</th></tr></thead>
+    <tbody>
+      <tr><td>★ 교집합</td>{_wr_cell(d1_inter)}</tr>
+      <tr><td>비교집합</td>{_wr_cell(d1_ninter)}</tr>
+    </tbody>
+  </table>
+</div>"""
+
+    return f"""
+<div class="card">
+  <div class="section-title">📊 시스템 누적 성과 ({total}개 측정) <span style="font-size:11px;color:#555;font-weight:400">D+1 시가 기준 성공/실패 판정</span></div>
+  <div style="display:flex;gap:32px;flex-wrap:wrap">
+    <div>
+      <div style="font-size:12px;color:#888;margin-bottom:6px">패턴별 성공률</div>
+      <table style="max-width:260px">
+        <thead><tr><th>패턴</th><th style='text-align:center'>n</th><th style='text-align:center'>성공률</th></tr></thead>
+        <tbody>{pattern_rows}</tbody>
+      </table>
+    </div>
+    <div>
+      <div style="font-size:12px;color:#888;margin-bottom:6px">스코어 구간별 성공률</div>
+      <table style="max-width:260px">
+        <thead><tr><th>구간</th><th style='text-align:center'>n</th><th style='text-align:center'>성공률</th></tr></thead>
+        <tbody>{score_rows}</tbody>
+      </table>
+    </div>
+  </div>
+  {inter_html}
+  <div style="font-size:11px;color:#555;margin-top:8px">※ run_trade_review.bat 실행 시 자동 갱신 (backfill_reviews → stats 순서)</div>
+</div>"""
+
+
+# ── HTML 생성 ─────────────────────────────────────────────────
+
+def _generate_html(history: list[dict], agg: dict, cumulative_stats: dict | None = None) -> str:
+    if not history:
+        return "<html><body><p>데이터 없음 — 먼저 trade_analyzer를 실행하세요.</p></body></html>"
+
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
+
+    # ── 요약 카드 ──────────────────────────────────────────────
+    tr  = agg["total_realized"]
+    acr = agg["avg_cr"]
+    summary_html = f"""
+<div class="card">
+  <div style="display:flex;gap:40px;flex-wrap:wrap">
+    <div>
+      <div class="label">누적 실현 손익</div>
+      <div style="font-size:32px;font-weight:700;color:{_pnl_color(tr)}">{_fmt_krw(tr)}</div>
+      <div class="sub">{agg['weeks']}주 합산</div>
+    </div>
+    <div>
+      <div class="label">평균 엄격 준수율</div>
+      <div style="font-size:32px;font-weight:700;color:{_cr_color(acr)}">{f"{acr:.1f}%" if acr is not None else "-"}</div>
+      <div class="sub">위반 태그 없는 종목 기준</div>
+    </div>
+    <div>
+      <div class="label">전체 종목 수</div>
+      <div style="font-size:28px;font-weight:700">{agg['total_stocks_all']}개</div>
+      <div class="sub">{agg['weeks']}주 합산</div>
+    </div>
+    <div>
+      <div class="label">분석 기간</div>
+      <div style="font-size:18px;font-weight:600;color:#ccc">{history[0].get('period_end','?')} ~ {history[-1].get('period_end','?')}</div>
+      <div class="sub">{agg['weeks']}주</div>
+    </div>
+  </div>
+</div>"""
+
+    # ── 주차별 실적 표 ─────────────────────────────────────────
+    week_rows = ""
+    for h in history:
+        pe   = h.get("period_end", h.get("date", "-"))
+        cr   = h.get("compliance_rate")
+        rl   = h.get("total_realized") or 0
+        rp   = h.get("total_realized_pct")
+        ns   = h.get("total_stocks", 0)
+        tc   = h.get("tag_counts") or {}
+        ic   = h.get("item_compliance") or {}
+
+        avg_n  = tc.get("AVERAGING_DOWN", 0)
+        d1_n   = tc.get("D1_CHASE_ENTRY", 0) + tc.get("REVERSE_AT_EXIT_ZONE", 0)
+        nxt_n  = tc.get("NXT_CHASE_ENTRY", 0) + tc.get("NXT_ENTRY_CAUTION", 0)
+        pos_n  = tc.get("OVERSIZED_POSITION", 0)
+        non_s  = tc.get("NON_SIGNAL_TRADE", 0)
+        non_i  = tc.get("NON_INTERSECTION_TRADE", 0)
+
+        # 개별 HTML 링크
+        report_date = h.get("date", "")
+        link_html   = ""
+        if report_date:
+            report_path = _REPORT_DIR / f"trade_review_{report_date}.html"
+            if report_path.exists():
+                link_html = f'<a href="trade_review_{_e(report_date)}.html" style="font-size:11px;color:#29b6f6">리포트↗</a>'
+
+        week_rows += (
+            f"<tr>"
+            f"<td>{_e(pe)} {link_html}</td>"
+            f"<td style='text-align:center;color:{_cr_color(cr)};font-weight:600'>{f'{cr:.1f}%' if cr is not None else '-'}</td>"
+            f"<td style='text-align:right;color:{_pnl_color(rl)}'>{_fmt_krw(rl)}</td>"
+            f"<td style='text-align:center;color:#aaa'>{f'{rp:+.2f}%' if rp is not None else '-'}</td>"
+            f"<td style='text-align:center'>{ns}</td>"
+            f"<td style='text-align:center;color:{'#e53935' if avg_n else '#4caf50'}'>{avg_n}</td>"
+            f"<td style='text-align:center;color:{'#e53935' if d1_n else '#4caf50'}'>{d1_n}</td>"
+            f"<td style='text-align:center;color:{'#f57c00' if nxt_n else '#4caf50'}'>{nxt_n}</td>"
+            f"<td style='text-align:center;color:{'#8e24aa' if pos_n else '#4caf50'}'>{pos_n}</td>"
+            f"<td style='text-align:center;color:{'#fb8c00' if non_s else '#4caf50'}'>{non_s}</td>"
+            f"<td style='text-align:center;color:{'#fb8c00' if non_i else '#4caf50'}'>{non_i}</td>"
+            f"</tr>"
+        )
+
+    week_table = f"""
+<div class="card">
+  <div class="section-title">주차별 실적</div>
+  <table>
+    <thead><tr>
+      <th>기간</th>
+      <th style="text-align:center">엄격준수율</th>
+      <th style="text-align:right">실현손익</th>
+      <th style="text-align:center">수익률</th>
+      <th style="text-align:center">종목수</th>
+      <th style="text-align:center">물타기</th>
+      <th style="text-align:center">D1추격</th>
+      <th style="text-align:center">NXT추격</th>
+      <th style="text-align:center">과대포지션</th>
+      <th style="text-align:center">미신호</th>
+      <th style="text-align:center">비교집합</th>
+    </tr></thead>
+    <tbody>{week_rows}</tbody>
+  </table>
+</div>"""
+
+    # ── 항목별 준수율 추세 ─────────────────────────────────────
+    item_keys = agg["item_keys"]
+    item_header = "".join(f"<th style='text-align:center'>{_e(label)}</th>" for _, label in item_keys)
+    item_rows = ""
+    for h in history:
+        pe = h.get("period_end", h.get("date", "-"))
+        ic = h.get("item_compliance") or {}
+        cells = ""
+        for key, _ in item_keys:
+            v = ic.get(key)
+            col = _cr_color(v)
+            cells += f"<td style='text-align:center;color:{col};font-weight:500'>{f'{v:.0f}%' if v is not None else '-'}</td>"
+        item_rows += f"<tr><td>{_e(pe)}</td>{cells}</tr>"
+
+    item_table = f"""
+<div class="card">
+  <div class="section-title">항목별 준수율 추세</div>
+  <div style="font-size:11px;color:#555;margin-bottom:8px">🟢 80%+ &nbsp; 🟡 60~80% &nbsp; 🔴 60% 미만</div>
+  <table>
+    <thead><tr><th>기간</th>{item_header}</tr></thead>
+    <tbody>{item_rows}</tbody>
+  </table>
+</div>"""
+
+    # ── 위반 태그 집계 ─────────────────────────────────────────
+    total_tc = agg["total_tag_counts"]
+    tag_rows = ""
+    for tag, cnt in sorted(total_tc.items(), key=lambda x: -x[1]):
+        color = _TAG_COLOR.get(tag, "#666")
+        desc  = _TAG_DESC.get(tag, "")
+        # 주차별 breakdown
+        weekly_counts = [str((h.get("tag_counts") or {}).get(tag, 0)) for h in history]
+        tag_rows += (
+            f"<tr>"
+            f"<td>{_tag_badge(tag)}</td>"
+            f"<td style='text-align:center;font-weight:700;color:{color}'>{cnt}</td>"
+            f"<td style='color:#aaa;font-size:12px'>{_e(desc)}</td>"
+            f"<td style='font-size:11px;color:#555'>{' / '.join(weekly_counts)}</td>"
+            f"</tr>"
+        )
+
+    if tag_rows:
+        tag_table = f"""
+<div class="card">
+  <div class="section-title">누적 위반 태그 집계 <span style="font-size:11px;color:#555;font-weight:400">(정보용 태그 제외)</span></div>
+  <table>
+    <thead><tr>
+      <th>태그</th>
+      <th style="text-align:center">전체</th>
+      <th>설명</th>
+      <th style="color:#555">주차별 ({' / '.join(h.get('period_end','?') for h in history)})</th>
+    </tr></thead>
+    <tbody>{tag_rows}</tbody>
+  </table>
+</div>"""
+    else:
+        tag_table = ""
+
+    # ── 진입 방식별 누적 손익 ─────────────────────────────────
+    ep = agg["entry_pnl"]
+    entry_rows = ""
+    for label, pnl in ep.items():
+        if pnl == 0:
+            pnl_html = '<span style="color:#555">0원</span>'
+        else:
+            pnl_html = f'<span style="color:{_pnl_color(pnl)}">{_fmt_krw(pnl)}</span>'
+        entry_rows += f"<tr><td>{_e(label)}</td><td style='text-align:right'>{pnl_html}</td></tr>"
+
+    entry_table = f"""
+<div class="card">
+  <div class="section-title">진입 방식별 누적 손익</div>
+  <table style="max-width:400px">
+    <thead><tr><th>진입 유형</th><th style="text-align:right">누적 실현 손익</th></tr></thead>
+    <tbody>{entry_rows}</tbody>
+  </table>
+  <div style="font-size:11px;color:#555;margin-top:6px">
+    ※ 정규종가 진입이 장기적으로 안정적인지 확인하는 지표
+  </div>
+</div>"""
+
+    # ── 종목별 위반 내역 전체 ─────────────────────────────────
+    violation_trades = agg["violation_trades"]
+    trade_rows = ""
+    for t in sorted(violation_trades, key=lambda x: (x.get("report_date", ""), x.get("code", ""))):
+        tags     = [tag for tag in (t.get("tags") or []) if tag not in _INFO_TAGS]
+        tag_html = "".join(_tag_badge(tag) for tag in tags)
+        rl       = t.get("realized")
+        rp       = t.get("realized_pct")
+        is_inter = t.get("is_inter")
+        inter_html = (
+            '<span style="color:#29b6f6;font-size:10px">[교]</span>' if is_inter else
+            '<span style="color:#555;font-size:10px">[비]</span>'    if is_inter is False else ""
+        )
+        trade_rows += (
+            f"<tr>"
+            f"<td style='font-size:12px;color:#aaa'>{_e(t.get('report_date',''))}</td>"
+            f"<td>{_e(t.get('name',''))} {inter_html}</td>"
+            f"<td style='font-size:11px;color:#666'>{_e(t.get('code',''))}</td>"
+            f"<td style='text-align:right;color:{_pnl_color(rl)}'>"
+            f"{_fmt_krw(rl) if rl is not None else '-'}</td>"
+            f"<td style='text-align:right;color:#aaa;font-size:12px'>"
+            f"{f'{rp:+.2f}%' if rp is not None else '-'}</td>"
+            f"<td>{tag_html}</td>"
+            f"</tr>"
+        )
+
+    trade_section = f"""
+<div class="card">
+  <div class="section-title">
+    위반 종목 전체 기록
+    <span style="font-size:11px;color:#555;font-weight:400">({len(violation_trades)}건 / 전체 {len(violation_trades)+len(agg['clean_trades'])}건)</span>
+  </div>
+  <table>
+    <thead><tr>
+      <th>리뷰일</th><th>종목명</th><th>코드</th>
+      <th style="text-align:right">손익</th>
+      <th style="text-align:right">수익률</th>
+      <th>위반 태그</th>
+    </tr></thead>
+    <tbody>{trade_rows if trade_rows else '<tr><td colspan="6" style="color:#4caf50;text-align:center">위반 없음</td></tr>'}</tbody>
+  </table>
+</div>"""
+
+    # ── 개별 리포트 링크 ───────────────────────────────────────
+    link_items = ""
+    for h in reversed(history):
+        report_date = h.get("date", "")
+        if not report_date:
+            continue
+        report_path = _REPORT_DIR / f"trade_review_{report_date}.html"
+        if report_path.exists():
+            pe  = h.get("period_end", report_date)
+            cr  = h.get("compliance_rate")
+            rl  = h.get("total_realized") or 0
+            link_items += (
+                f'<li><a href="trade_review_{_e(report_date)}.html">'
+                f'{_e(pe)} 주간 리포트</a>'
+                f' <span style="color:{_cr_color(cr)}">{f"{cr:.0f}%" if cr is not None else "-"}</span>'
+                f' <span style="color:{_pnl_color(rl)};font-size:12px">{_fmt_krw(rl)}</span>'
+                f'</li>'
             )
-            rem = ts.get("remaining_qty", 0)
-            rem_txt = (f' <span style="color:{_AMB};font-size:10px">잔고 {rem}주</span>') if rem else ""
-            act_txt = f'{_fw(real)} ({_fp(rpct)}) {tag_str}{rem_txt}'
-        else:
-            act_txt = f'<span style="color:{_DIM}">매매 없음</span>'
 
-        cards += (
-            f'<div style="background:#252535;border-radius:8px;padding:10px 14px;margin-bottom:8px">'
-            f'<div style="font-size:13px;font-weight:600;margin-bottom:6px">'
-            f'{name} <span style="font-size:11px;color:{_DIM}">({code})</span>'
-            f' {inter_badge}{sig_badge}</div>'
-            f'<div style="display:flex;gap:28px;font-size:12px;flex-wrap:wrap">'
-            f'<div><span style="color:{_DIM}">시스템 성과 </span>{sys_txt}</div>'
-            f'<div><span style="color:{_DIM}">실제 매매 </span>{act_txt}</div>'
-            f'</div></div>'
-        )
+    link_section = f"""
+<div class="card">
+  <div class="section-title">개별 주간 리포트</div>
+  <ul style="list-style:none;padding:0;margin:0;line-height:2">{link_items or '<li style="color:#555">리포트 없음</li>'}</ul>
+</div>"""
 
-    sec5 = _card(f"""
-{_title("종목별 통합 카드")}
-<div style="font-size:11px;color:{_DIM};margin-bottom:10px">
-  시스템 신호 성과(D+1 시초 기준)와 실제 매매 결과를 함께 표시합니다.</div>
-{cards or f'<div style="color:{_DIM}">표시할 종목 없음</div>'}
-""")
-
-    # ── [6] 링크 ──────────────────────────────────────────────────────────
-    sec6 = _card(f"""
-{_title("관련 리포트")}
-<div style="font-size:13px;line-height:2.2">
-  {ta_link if ta_link else f'<span style="color:{_DIM}">매매원칙 분석 리포트 없음</span>'}<br>
-  <span style="font-size:11px;color:{_DIM}">
-    상세 원칙 준수율 / 위반 태그별 손익 / 진입 방식별 성과는 위 리포트에서 확인하세요.</span>
-</div>
-""")
-
-    # ── 조립 ──────────────────────────────────────────────────────────────
     return f"""<!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>주간 통합 리뷰 {report_date}</title>
+<meta charset="utf-8">
+<title>매매 복기 누적 대시보드</title>
 <style>
-  body {{background:{_BG};color:{_FG};font-family:'Segoe UI',sans-serif;margin:0;padding:20px;}}
-  table {{width:100%;border-collapse:collapse;}}
-  th,td {{padding:6px 8px;}}
-  a {{color:{_BLU};text-decoration:none;}} a:hover {{text-decoration:underline;}}
+  body{{background:#121212;color:#e0e0e0;font-family:'Malgun Gothic',sans-serif;margin:0;padding:24px;max-width:1200px}}
+  h1{{font-size:22px;margin-bottom:4px}}
+  .label{{font-size:12px;color:#888;margin-bottom:4px}}
+  .sub{{font-size:12px;color:#555;margin-top:2px}}
+  .card{{background:#1a1a1a;border-radius:8px;padding:16px;margin-bottom:16px}}
+  .section-title{{font-size:14px;font-weight:600;margin-bottom:12px}}
+  table{{width:100%;border-collapse:collapse}}
+  th,td{{padding:7px 8px;border-bottom:1px solid #2a2a2a;text-align:left}}
+  th{{color:#888;font-size:12px;font-weight:500}}
+  a{{color:#29b6f6;text-decoration:none}}
+  a:hover{{text-decoration:underline}}
+  ul li{{padding:2px 0}}
 </style>
 </head>
 <body>
-<div style="max-width:920px;margin:0 auto">
-  <div style="font-size:20px;font-weight:700;margin-bottom:4px">주간 통합 리뷰</div>
-  <div style="font-size:12px;color:{_DIM};margin-bottom:20px">
-    {report_date} 생성 · 시스템 후보 vs 실제 매매 비교 요약</div>
-  {sec1}{sec_comp}{sec2}{sec3}{sec4}{sec5}{sec6}
-</div>
+<h1>📊 매매 복기 누적 대시보드</h1>
+<p style="color:#555;font-size:12px;margin-bottom:20px">생성: {now_str}</p>
+
+{summary_html}
+{week_table}
+{item_table}
+{entry_table}
+{tag_table}
+{trade_section}
+{_section_system_stats(cumulative_stats or {})}
+{link_section}
 </body>
 </html>"""
 
 
-# ──────────────────────────────────────────────────────────────────────────
-# 저장 / 히스토리
-# ──────────────────────────────────────────────────────────────────────────
-
-def _build_entry(d_min, d_max, review, perf, cmp, report_date) -> dict:
-    summary = review.get("summary", {})
-    lesson  = summary.get("lesson", {})
-    return {
-        "report_date":    report_date,
-        "period_start":   d_min,
-        "period_end":     d_max,
-        "n_sig":          cmp["n_sig"],
-        "n_inter_sig":    cmp["n_inter_sig"],
-        "n_traded":       cmp["n_traded"],
-        "total_realized": cmp["total_realized"],
-        "compliance_rate": summary.get("compliance_rate"),
-        "worst_loss_tag": lesson.get("worst_loss_tag", ""),
-        "sys_d1_avg":     perf.get("overall", {}).get("d1_open_avg"),
-        "sys_source":     perf.get("source"),
-        "n_hit":          cmp["n_hit"],
-        "n_missed":       cmp["n_missed"],
-        "n_no_sig":       cmp["n_no_sig"],
-    }
-
-
-def _save_history(entry: dict, overwrite: bool):
-    _OUT_JSON.mkdir(parents=True, exist_ok=True)
-    history: list = []
-    if _HISTORY.exists():
-        try:
-            history = json.loads(_HISTORY.read_text(encoding="utf-8"))
-        except Exception:
-            pass
-    already = any(h.get("report_date") == entry["report_date"] for h in history)
-    if already and not overwrite:
-        return
-    updated = [h for h in history if h.get("report_date") != entry["report_date"]]
-    updated.append(entry)
-    _HISTORY.write_text(json.dumps(updated, ensure_ascii=False, indent=2), encoding="utf-8")
-
-
-# ──────────────────────────────────────────────────────────────────────────
-# 메인
-# ──────────────────────────────────────────────────────────────────────────
+# ── 메인 ──────────────────────────────────────────────────────
 
 def main():
-    parser = argparse.ArgumentParser(description="주간 통합 리뷰 대시보드")
-    parser.add_argument("--latest",    action="store_true")
-    parser.add_argument("--open",      action="store_true")
-    parser.add_argument("--overwrite", action="store_true")
+    parser = argparse.ArgumentParser(description="누적 복기 대시보드 생성")
+    parser.add_argument("--open",   action="store_true", help="HTML을 브라우저로 열기")
+    parser.add_argument("--latest", action="store_true", help="(trade_analyzer 호환용, 동작 없음)")
     args = parser.parse_args()
 
-    report_date = date.today().strftime("%Y-%m-%d")
+    history = _load_history()
+    trades  = _load_trades()
 
-    # 1. trade_review 로드
-    review, tr_path = _load_latest_trade_review()
-    if not review:
-        print("[오류] trade_review JSON 없음. 먼저 trade_analyzer를 실행하세요.")
+    if not history:
+        print("[오류] compliance_history.json 없음 — trade_analyzer를 먼저 실행하세요.")
         return
 
-    # 2. 날짜 범위
-    d_min, d_max = _date_range(review)
-    if not d_min:
-        print("[오류] trade_review JSON에서 날짜 범위 추출 실패")
-        return
-    print(f"[주간리뷰] 기간: {d_min} ~ {d_max}")
+    agg              = _aggregate(history, trades)
+    cumulative_stats = _load_cumulative_stats()
+    html             = _generate_html(history, agg, cumulative_stats)
 
-    # 3. 데이터
-    sig_df   = _load_signals(d_min, d_max)
-    gap      = _load_gap(d_min, d_max)
-    rev_ents = _load_review_entries(d_min, d_max)
-    print(f"  signals {len(sig_df)}행 | gap_results {len(gap)}행 | review_entries {len(rev_ents)}건")
+    _REPORT_DIR.mkdir(parents=True, exist_ok=True)
+    _OUT_HTML.write_text(html, encoding="utf-8")
+    print(f"[완료] {_OUT_HTML}")
 
-    # 4. 분석
-    perf = _system_perf(gap, rev_ents)
-    cmp  = _compare(review.get("stocks", []), sig_df, gap)
-
-    # 5. 출력 경로 결정
-    _OUT_HTML.mkdir(parents=True, exist_ok=True)
-    _OUT_JSON.mkdir(parents=True, exist_ok=True)
-
-    stem      = f"weekly_review_{report_date}"
-    html_path = _OUT_HTML / f"{stem}.html"
-    json_path = _OUT_JSON / f"{stem}.json"
-
-    if html_path.exists() and not args.overwrite:
-        i = 2
-        while (_OUT_HTML / f"{stem}_v{i}.html").exists():
-            i += 1
-        html_path = _OUT_HTML / f"{stem}_v{i}.html"
-        json_path = _OUT_JSON / f"{stem}_v{i}.json"
-
-    # 6. HTML 생성
-    html = _generate_html(d_min, d_max, review, perf, cmp, tr_path, report_date)
-    html_path.write_text(html, encoding="utf-8")
-
-    # 7. JSON 저장
-    entry = _build_entry(d_min, d_max, review, perf, cmp, report_date)
-    json_path.write_text(json.dumps(entry, ensure_ascii=False, indent=2), encoding="utf-8")
-
-    # 8. 히스토리
-    _save_history(entry, args.overwrite)
-
-    # 9. 콘솔 요약
-    d1 = perf.get("overall", {}).get("d1_open_avg")
-    d1_str = (f"{'+' if d1 > 0 else ''}{d1:.2f}%") if d1 is not None else "확인불가"
-    wt = review.get("summary", {}).get("lesson", {}).get("worst_loss_tag", "")
-    print(f"  시스템 후보 D+1 시초 평균: {d1_str}")
-    print(f"  실제 손익: {cmp['total_realized']:+,.0f}원")
-    print(f"  엄격 준수율: {review.get('summary', {}).get('compliance_rate', 0):.1f}%")
-    if wt:
-        print(f"  다음 주 집중 원칙: {_PRINCIPLE.get(wt, wt)}")
-    print(f"  HTML -> {html_path}")
+    s      = agg
+    avg_cr = f"{s['avg_cr']:.1f}%" if s['avg_cr'] is not None else '-'
+    print(f"  {s['weeks']}주 | 누적 손익 {_fmt_krw(s['total_realized'])} | 평균 준수율 {avg_cr}")
 
     if args.open:
-        webbrowser.open(html_path.as_uri())
+        webbrowser.open(_OUT_HTML.as_uri())
 
 
 if __name__ == "__main__":

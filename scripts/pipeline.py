@@ -703,6 +703,12 @@ def run(preview: bool = False):
     except Exception as e:
         logger.error(f"시황 알림 실패: {e}")
 
+    # 2026-11-28: 후보 계산은 꺼져 있다(config ENABLE_CANDIDATE_PIPELINE). 원자료·스냅샷은 위 알림 단계에서 저장됨.
+    from config.settings import ENABLE_CANDIDATE_PIPELINE
+    if not ENABLE_CANDIDATE_PIPELINE:
+        logger.info("후보 계산 꺼짐 — 시황 알림·원자료 저장 뒤 종료")
+        return
+
     # ── 4. 섹터 데이터 수집 ──────────────────────────────────────
     sector_result: dict = {"overview": pd.DataFrame(), "top_sectors": [], "code_to_sector": {}}
     if ENABLE_SECTOR_FETCH:
