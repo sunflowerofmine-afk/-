@@ -132,7 +132,7 @@ def new_highs(day_rows: list[dict], price: dict, today_s: str, n: int = 100) -> 
     with ThreadPoolExecutor(max_workers=8) as ex:
         hs = list(ex.map(lambda r: _safe(_hist, r["code"], today_s), rows))
     out = []
-    for r, h in zip(rows, hs):
+    for rank, (r, h) in enumerate(zip(rows, hs), 1):
         p = price.get(r["code"])
         if not h or not p:
             continue
@@ -141,6 +141,7 @@ def new_highs(day_rows: list[dict], price: dict, today_s: str, n: int = 100) -> 
         ratio = r["krx_eok"] / h["avg20_eok"] if h["avg20_eok"] else None
         if vs60 >= -3 or vs250 >= -3:
             out.append({"code": r["code"], "name": r["name"], "chg": round(r["chg"], 2), "krx_eok": round(r["krx_eok"]),
+                        "total_eok": round(r.get("total_eok") or r["krx_eok"]), "rank": rank,
                         "vs250": round(vs250, 1), "vs60": round(vs60, 1), "tv_x": round(ratio, 1) if ratio else None,
                         "new250": vs250 > 0, "new60": vs60 > 0, "days": h["n"]})
     out.sort(key=lambda x: (-(x["new250"] + x["new60"]), -(x["tv_x"] or 0)))
