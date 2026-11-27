@@ -679,6 +679,24 @@ def save_app_snapshot(d: dict) -> Path | None:
             "macro": d.get("macro") or {},
             "nights": d.get("nights"),
         }
+        # 5단계용 — 지금부터 다음 거래일 09:00까지 지표(영향도 High)·빅테크 실적. 14:20·19:30만(ForexFactory 429 회피)
+        if slot in ("1420", "1930"):
+            try:
+                from datetime import time as _t
+                from scripts.fetch_events import _COUNTRY_KO, KST, earnings, ko_title, macro_events
+                until = datetime.combine(d.get("next_day") or now.date(), _t(9, 0), tzinfo=KST)
+                _, todo = earnings(now.astimezone(KST) if now.tzinfo else now.replace(tzinfo=KST), until)
+                mac = macro_events(until)
+                out["events"] = {
+                    "until": until.strftime("%m-%d %H:%M"),
+                    "macro": None if mac is None else [{"when": e["when"].strftime("%m-%d %H:%M"),
+                              "country": _COUNTRY_KO.get(e["country"], e["country"]), "title": ko_title(e["title"]),
+                              "forecast": e.get("forecast"), "previous": e.get("previous")} for e in mac],
+                    "earnings": [{"name": e["name"], "when": e["when"].strftime("%m-%d %H:%M"),
+                                  "bmo": e.get("bmo")} for e in todo],
+                }
+            except Exception as e:
+                logger.warning(f"앱 스냅샷 이벤트 실패: {e}")
         if slot == "1930":
             out["evening"] = {
                 "nxt_eve_total_eok": d.get("nxt_eve_total_eok"), "krx_am_total_eok": d.get("krx_am_total_eok"),
