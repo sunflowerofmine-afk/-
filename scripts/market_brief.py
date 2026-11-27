@@ -621,6 +621,108 @@ def send(d: dict) -> bool:
     return ok
 
 
+APP_DIR = Path("data") / "app"
+TWO_TOP = {"005930": "삼성전자", "000660": "SK하이닉스"}
+
+
+def save_app_snapshot(d: dict) -> Path | None:
+    """판단 카드 웹앱(2026-11-27 사용자 요청)이 읽는 시장 숫자 — 14:20·15:35·19:30 슬롯마다 한 파일.
+
+    알림에 쓴 dict에서 판단 흐름 1·2단계 숫자만 뽑는다. 시장 숫자뿐이라 공개 레포에 둔다
+    (사용자 답·매매는 넣지 않는다). 14:20 값은 나중 슬롯이 덮어쓰지 않도록 슬롯별 파일.
+    투탑 비중 = 투탑 KRX 거래대금 ÷ (코스피+코스닥 지수 거래대금) — 자립판단 로그와 같은 정의.
+    실패해도 알림·파이프라인에 영향 없다."""
+    slot = d.get("slot")
+    if slot not in ("1420", "1535", "1930"):
+        return None
+    try:
+        now: datetime = d["now"]
+        idx = d.get("index") or {}
+        q = d.get("quotes") or {}
+        k_tv, q_tv = d.get("kospi_idx_tv_eok"), d.get("kosdaq_idx_tv_eok")
+        two = {c: {"name": n, "chg": round(q[c]["chg"], 2) if c in q else None,
+                   "krx_eok": round(q[c]["tv"]) if c in q else None} for c, n in TWO_TOP.items()}
+        two_tv = sum(v["krx_eok"] or 0 for v in two.values())
+        denom = (k_tv or 0) + (q_tv or 0)
+        ma20 = None
+        try:
+            from scripts.naver_api import get_json
+            rows = get_json("https://m.stock.naver.com/api/index/KOSPI/price", {"pageSize": 21, "page": 1})
+            closes = [to_float(r.get("closePrice")) for r in rows]
+            closes = [c for c in closes if c]
+            if rows and str(rows[0].get("localTradedAt", ""))[:10] == now.date().isoformat():
+                closes = closes[1:]          # 오늘 행(장중 값)은 빼고 지난 20거래일 종가로
+            if len(closes) >= 20:
+                ma20 = round(sum(closes[:20]) / 20, 2)
+        except Exception as e:
+            logger.warning(f"앱 스냅샷 20일선 실패: {e}")
+
+        def _r(x, n=1):
+            return None if x is None else round(float(x), n)
+
+        fu = d.get("futures") or {}
+        out = {
+            "date": now.date().isoformat(), "slot": slot, "time": now.strftime("%H:%M"),
+            "kospi": {"level": idx.get("kospi_level"), "chg": idx.get("kospi_chg"), "ma20_prev": ma20},
+            "kosdaq": {"level": idx.get("kosdaq_level"), "chg": idx.get("kosdaq_chg")},
+            "tv": {"kospi_eok": _r(k_tv, 0), "kosdaq_eok": _r(q_tv, 0), **(d.get("cmp_idx") or {})},
+            "adl_pct": d.get("adl_pct"), "limit_up": d.get("limit_up"), "top5_pct": d.get("top5_pct"),
+            "limit_up_rows": sorted([{"name": x["name"], "chg": _r(x["chg"], 2), "tv_eok": _r(x["tv_eok"], 0)}
+                                     for x in d.get("limit_up_rows") or []], key=lambda x: -(x["tv_eok"] or 0))[:10],
+            "day_top": [{"code": x["code"], "name": x["name"], "chg": _r(x["chg"], 2), "total_eok": _r(x["total_eok"], 0),
+                         "krx_eok": _r(x["krx_eok"], 0), "nxt_eok": _r(x["nxt_eok"], 0)} for x in d.get("day_top") or []],
+            "two_top": two,
+            "two_top_share_pct": round(two_tv / denom * 100, 1) if denom and two_tv else None,
+            "ex_two_top_eok": round(denom - two_tv) if denom and two_tv else None,
+            "flow": d.get("flow") or {},
+            "futures": {k: v.get("chg_pct") for k, v in fu.items() if isinstance(v, dict)},
+            "macro": d.get("macro") or {},
+            "nights": d.get("nights"),
+        }
+        if slot == "1930":
+            out["evening"] = {
+                "nxt_eve_total_eok": d.get("nxt_eve_total_eok"), "krx_am_total_eok": d.get("krx_am_total_eok"),
+                "top": [{"code": x.get("code"), "name": x.get("name"), "price": x.get("price"),
+                         "chg_vs_close": _r(((x["price"] / d["krx_price"][x["code"]]) - 1) * 100, 2)
+                         if x.get("price") and (d.get("krx_price") or {}).get(x.get("code")) else None,
+                         "eok": _r(x.get("total_eok", x.get("tv_eok")), 0)} for x in d.get("nxt_top") or []],
+            }
+        APP_DIR.mkdir(parents=True, exist_ok=True)
+        path = APP_DIR / f"{out['date']}_{slot}.json"
+        path.write_text(json.dumps(out, ensure_ascii=False, default=str), encoding="utf-8")
+        (APP_DIR / "latest.json").write_text(json.dumps({"date": out["date"], "slot": slot, "time": out["time"],
+                                                          "file": path.name}, ensure_ascii=False), encoding="utf-8")
+        logger.info(f"앱 스냅샷 저장: {path}")
+        return path
+    except Exception as e:
+        logger.warning(f"앱 스냅샷 저장 실패: {e}")
+        return None
+
+
+def push_app_snapshot() -> None:
+    """14:20 파일은 파이프라인 끝(약 20분 뒤) 커밋을 기다리지 않고 바로 올린다 — Actions에서만."""
+    import os
+    import subprocess
+    if os.environ.get("GITHUB_ACTIONS") != "true":
+        return
+    try:
+        run = lambda *a: subprocess.run(list(a), check=False, capture_output=True, text=True, timeout=60)
+        run("git", "config", "user.name", "github-actions[bot]")
+        run("git", "config", "user.email", "github-actions[bot]@users.noreply.github.com")
+        run("git", "add", str(APP_DIR))
+        if run("git", "diff", "--cached", "--quiet").returncode == 0:
+            return
+        run("git", "commit", "-m", "chore: app snapshot [skip ci]")
+        for _ in range(3):
+            if run("git", "pull", "--rebase", "--autostash", "origin", "main").returncode == 0 and \
+               run("git", "push").returncode == 0:
+                logger.info("앱 스냅샷 바로 push")
+                return
+        logger.warning("앱 스냅샷 push 실패 — 파이프라인 끝 커밋에 맡긴다")
+    except Exception as e:
+        logger.warning(f"앱 스냅샷 push 실패: {e}")
+
+
 def save_sim_snapshot(d: dict) -> Path | None:
     """15:35 실행에서만 — 판단 시각(정규장 마감)에 보이던 시장 재료를 하루 한 파일로 남긴다.
 
@@ -702,6 +804,7 @@ def run(run_type: str | None = None) -> None:
         return
     d = collect(now, rt)
     send(d)
+    save_app_snapshot(d)
 
 
 if __name__ == "__main__":

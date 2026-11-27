@@ -692,6 +692,9 @@ def run(preview: bool = False):
         _brief = _mb.collect(now, run_type, raw_data=raw_data, merged_df=all_df,
                              index_levels=index_levels)
         _mb.send(_brief)
+        # 판단 카드 웹앱용 숫자(2026-11-27). 14:20은 바로 push — 파이프라인 끝 커밋은 약 20분 뒤
+        if _mb.save_app_snapshot(_brief) and _brief.get("slot") == "1420":
+            _mb.push_app_snapshot()
         # 15:35만 — 종베 시뮬레이터 문제지 재료(2026-09-27). 알림 뒤라 발송 시각과 무관.
         # 실패하면 소리 없이 한 줄 알린다 — 11-06부터 경고 로그만 남고 6거래일 동안 몰랐다(2026-11-13)
         if _mb.save_sim_snapshot(_brief) is None and _brief.get("slot") == "1535":
