@@ -696,6 +696,11 @@ def save_app_snapshot(d: dict) -> Path | None:
                 until = datetime.combine(d.get("next_day") or now.date(), _t(9, 0), tzinfo=KST)
                 _, todo = earnings(now.astimezone(KST) if now.tzinfo else now.replace(tzinfo=KST), until)
                 mac = macro_events(until)
+                try:
+                    from scripts.app_extras import us_news
+                    out["us_news"] = us_news()
+                except Exception as e:
+                    logger.warning(f"앱 스냅샷 미국 뉴스 실패: {e}")
                 out["events"] = {
                     "until": until.strftime("%m-%d %H:%M"),
                     "macro": None if mac is None else [{"when": e["when"].strftime("%m-%d %H:%M"),

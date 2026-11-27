@@ -153,3 +153,46 @@ def _safe(fn, *a):
     except Exception as e:
         logger.warning(f"{fn.__name__}{a[:1]} 실패: {e}")
         return {} if fn is _minute_tv else None
+
+
+def us_news(n: int = 6) -> list[dict] | None:
+    """구글 뉴스 RSS(한국어) '뉴욕증시·미국증시' 최근 하루 헤드라인. 제목·언론사·시각·링크만(본문 안 가져옴).
+    세이브티커는 서버 접속을 봇 확인으로 막아 쓰지 않는다(2026-11-27 확인, 우회 금지)."""
+    import xml.etree.ElementTree as ET
+    from datetime import timedelta, timezone
+    from email.utils import parsedate_to_datetime
+    url = "https://news.google.com/rss/search"
+    params = {"q": "뉴욕증시 when:1d", "hl": "ko", "gl": "KR", "ceid": "KR:ko"}
+    import time as _time
+    try:
+        for i in range(2):                 # 429면 한 번만 쉬었다 다시(하루 두 번 부르는 양)
+            r = requests.get(url, params=params, headers={"User-Agent": "Mozilla/5.0 (compatible; jongbe-bot)"}, timeout=10)
+            if r.status_code != 429:
+                break
+            _time.sleep(5)
+        r.raise_for_status()
+        items = ET.fromstring(r.content).findall("./channel/item")
+    except Exception as e:
+        logger.warning(f"미국 뉴스 RSS 실패: {e}")
+        return None
+    kst = timezone(timedelta(hours=9))
+    out, seen = [], set()
+    for it in items:
+        title = (it.findtext("title") or "").strip()
+        src = (it.findtext("source") or "").strip()
+        if src and title.endswith(" - " + src):
+            title = title[: -len(" - " + src)]
+        key = re.sub(r"\W", "", title)[:30]
+        if not title or key in seen:
+            continue
+        seen.add(key)
+        try:
+            when = parsedate_to_datetime(it.findtext("pubDate")).astimezone(kst)
+        except Exception:
+            continue
+        out.append({"title": title, "source": src, "when": when.strftime("%m-%d %H:%M"), "ts": when.timestamp(),
+                    "link": it.findtext("link") or ""})
+    out.sort(key=lambda x: -x["ts"])
+    for x in out:
+        x.pop("ts", None)
+    return out[:n]
